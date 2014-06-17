@@ -1,0 +1,66 @@
+>***DROUGHT-INDEX        *** Main configuration file Germany for SMI uncertainty analysis ***
+ headerName_or_mask      "/home/zink/projects/drought_monitor/smi/mask_mhm_de.nc"
+ basinName               "/home/zink/projects/drought_monitor/smi/basin_mask_mhm_de.nc"
+ errorMask               "/home/zink/projects/drought_monitor/smi/error_mask_mhm_de.nc"
+ DataPathIn_SM_or_file   "/data/stohyd/mHM_project/germany/pan_german/default/mHM_Fluxes_States.nc"
+ dataPathOut             "/data/stohyd/mHM_project/germany/pan_german/default/smi/"
+>DAT_flag                2
+>SMI_flag                5
+ KERNEL_TYPE             7
+ NUMBER-INT-INTER        500
+ OFFSET                  0.01
+ CDF_printflag           .true.
+>PERIOD
+ begin-Year              1954
+ end-Year                2013
+>SMI_threshold           0.20
+>***END
+
+
+>***DROUGHT-INDEX        *** Main configuration file Germany for SMI uncertainty analysis ***
+ headerName_or_mask      "/work/lese/WRF-NOAH-mHM/NOAH/mask_noah_de.nc"
+ basinName               "/work/lese/WRF-NOAH-mHM/NOAH/basin_mask_noah.nc"
+ errorMask               "/work/lese/WRF-NOAH-mHM/NOAH/error_mask_noah.nc"
+ DataPathIn_SM_or_file   "/work/lese/WRF-NOAH-mHM/NOAH/sm/fSM_DE_mon_1991-2009.nc"
+ dataPathOut             "/work/lese/WRF-NOAH-mHM/NOAH/sm/output/"
+>DAT_flag                2
+>SMI_flag                5
+ KERNEL_TYPE             7
+ NUMBER-INT-INTER        500
+ OFFSET                  0.01
+ CDF_printflag           .true.
+>PERIOD
+ begin-Year              1991
+ end-Year                2008
+>SMI_threshold           0.20
+>***END
+
+**************************************************************
+NOTES v4. Samaniego 22.06.2012
+**************************************************************
+SMI_flag:
+         1   read SM binP
+             optimise hOpt
+             calculate SMI
+
+         2   read SMI
+
+         3   read SM (e.g. from a scenario)
+             read hOpt parameter file (put a file after flag)
+             calculate SMI
+
+         4   read NetCDF files (COSMO)
+             optimise hOpt
+             calculate SMI
+ 
+         5   read NetCDF files (WRF-NOAH)
+             optimise hOpt
+             calculate SMI
+
+
+	     in this case the file name has to be provided for the SM file
+
+
+DAT_flag
+	 1   daily values
+   2   monthly values
