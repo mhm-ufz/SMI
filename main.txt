@@ -7,7 +7,7 @@
  DataPathOut            = "output/"
  DAT_flag               = 2
  SMI_flag               = 5
- optPDFparfName         = "xxx"
+ optPDFparfName         = "yyy"
  flagKerneltype         = 7
  nInter                 = 500
  OFFSET                 = 0.01
