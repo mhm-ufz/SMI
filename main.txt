@@ -4,7 +4,7 @@
  basinfName             = "/data/stohyd/mHM_project/europe/entire_domain/ST_RK_06_2014/refrun/monthly_output/mask.nc"
  errorfName             = "/data/stohyd/mHM_project/europe/entire_domain/ST_RK_06_2014/refrun/monthly_output/error_mask.nc"
  DataPathIn             = "/data/stohyd/mHM_project/europe/entire_domain/ST_RK_06_2014/refrun/monthly_output/1980-2010/mHM_Fluxes_States.nc"
- DataPathOut            = "."
+ DataPathOut            = "output/"
  DAT_flag               = 2
  SMI_flag               = 5
  optPDFparfName         = "xxx"

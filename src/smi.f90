@@ -19,6 +19,7 @@ contains
                                     SMI_flag, eMask
     use kernelSmoother,      only : nObs, nInter, evalPDF, evalEDF, hOpt, X, edf, pdf, hOptDB
     use setGRG2,             only : OPTI, checkLimits
+    use mo_kernel,           only : kernel_density_h
     ! local variables
     integer(i4)                                  :: i, j, k, m, iStatus
     !
@@ -65,10 +66,11 @@ contains
            if ( hOptDB(i,j) < 0.0_dp  ) cycle
            call evalPDF(hOptDB(i,j))
           else  
-            call OPTI
-            ! store to print after
-            hOptDB(i,j)= hOpt
-            call evalPDF(hOpt)
+             ! call OPTI
+             ! ! store to print after
+             ! hOptDB(i,j)= hOpt
+             hOptDB(i,j) = kernel_density_h( X(:), silverman = .true. )
+             call evalPDF(hOptDB(i,j))
           end if
           ! call evalEDF
           ! call WriteResultsKernel(1,i,j)

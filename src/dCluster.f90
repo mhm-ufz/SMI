@@ -63,7 +63,8 @@ end subroutine droughtIndicator
 !**********************************************************************
 subroutine ClusterEvolution
   use mo_kind, only                                    : i4
-  use numerical_libraries, only                        : SVIGN
+  ! use numerical_libraries, only                        : SVIGN
+  use mo_sort, only:                                     sort
   use InputOutput, only                                : grid, SMIc,&
                                                          idCluster, &
                                                          nMonths, &
@@ -149,7 +150,8 @@ subroutine ClusterEvolution
   ! 1. sort
   idRep = -9
   forall(i=1:nTotal) vec(i) = i
-  call SVIGN(nTotal,cnoList,cnoList)
+  ! call SVIGN(nTotal,cnoList,cnoList)
+  call sort(cnoList)
   ! 2.  remove repeated values
   do i=nTotal, 2,-1
      if (cnoList(i) < 0 ) cycle
@@ -160,7 +162,8 @@ subroutine ClusterEvolution
      if (idRep == -9) idRep = cnoList(i)
      cnoList(i) = -9
   end do
-  call SVIGN(nTotal,cnoList,cnoList)
+  ! call SVIGN(nTotal,cnoList,cnoList)
+  call sort(cnoList)
   !
   ! 3. final consolidated list
   nClusters = count(cnoList > 0)
@@ -343,7 +346,9 @@ end subroutine ClusterStats
 !-------------------------------------------------------
 subroutine calSAD(iDur)
   use mo_kind, only                                    : i4, dp
-  use numerical_libraries, only                        : DSVRGN, DEQTIL, SVIGP
+  ! use numerical_libraries, only                        : DSVRGN, DEQTIL, SVIGP
+  use mo_sort, only                                    : sort, sort_index
+  use mo_percentile, only                              : percentile
   use InputOutput, only                                : grid, shortCnoList, deltaArea, SMI, &
                                                          nInterArea, nEvents, nClusters,  idCluster, &
                                                          SAD, SADperc, DAreaEvol, severity, nDsteps, &
@@ -399,7 +404,8 @@ subroutine calSAD(iDur)
      ! sort event in order of magnitude
      forall(i=1:nEvents) eIdPerm(i) = i
      allocate (vec(nEvents))
-     call SVIGP (nEvents, eventId(:,3), vec, eIdPerm)
+     ! call SVIGP (nEvents, eventId(:,3), vec, eIdPerm)
+     eIdPerm = sort_index( eventID(:,3) )
      deallocate (vec)
   end if
   !
@@ -438,7 +444,8 @@ subroutine calSAD(iDur)
      ! fast approach
      ! rank severities and estimate cummulative areas
      ! ----------------------------------------------
-     call DSVRGN (ncic,sevP,sevP)
+     ! call DSVRGN (ncic,sevP,sevP)
+     call sort( sevP )
      nIntA = int( ceiling( real(ncic,dp) / real(deltaArea, dp) ), i4 )
      do k = 1, nIntA
         ke = k*deltaArea
@@ -455,7 +462,8 @@ subroutine calSAD(iDur)
      if (allocated (sevP)) deallocate(sevP)
      allocate (sevP(nObs))
      sevP = pack (SAD(k,2,:), mask = SAD(k,2,:) > 0.0_dp )
-     call DEQTIL (nObs, sevP, nQprop, Qprop, SADperc(k,:), Xlo, Xhi, nMiss)
+     ! call DEQTIL (nObs, sevP, nQprop, Qprop, SADperc(k,:), Xlo, Xhi, nMiss)
+     SADperc(k,:) =  percentile( sevP, Qprop )
   end do
   ! write SAD for a given duration + percentiles
   call writeResultsCluster(2, durList(iDur) )

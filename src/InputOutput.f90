@@ -79,7 +79,8 @@ module InputOutput
   integer(i4), parameter                         :: nDurations = 4         ! number of durations
   integer(i4), dimension(nDurations), parameter  :: durList = (/3,6,9,12/) !(/3,6,9,12/)   ! list of durations to evaluate
   integer(i4), parameter                         :: nQProp = 3             ! number of SAD percetiles for a given duration
-  real(dp), dimension(nQProp), parameter         :: QProp = (/0.90_dp, 0.96_dp, 0.98_dp /)
+  ! real(dp), dimension(nQProp), parameter         :: QProp = (/0.90_dp, 0.96_dp, 0.98_dp /)
+  real(dp), dimension(nQProp), parameter         :: QProp = (/90._dp, 96._dp, 98._dp /)
                                                                            ! percentiles corresponding
                                                                            ! to return periods of 10,25,50 years
   integer(i4), parameter                         :: nLargerEvents = 600    ! n. largest drought events

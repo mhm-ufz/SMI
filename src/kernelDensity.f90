@@ -166,14 +166,17 @@ contains
   !***********************************************************
   subroutine evalEDF
     use mo_kind, only                    : i4,dp
-    use numerical_libraries, only        : DSVRGN
+    ! use numerical_libraries, only        : DSVRGN
+    use mo_sort, only                    : sort
     implicit none
     integer(i4)                         :: i
     real(dp)                            :: freq      ! frequency
     !
     edf(1:nObs,2) = 1.0_dp / real(nObs,dp)
     ! sort x values
-    call DSVRGN(nObs,X,edf(1:nObs,1))
+    ! call DSVRGN(nObs,X,edf(1:nObs,1))
+    edf(1:nObs,1) = X
+    call sort( edf(1:nObs,1) )
     edf(0,1)      = pdf(1,1)
     edf(nObs+1,1) = pdf(nInter,1)
     edf(0,2)      = 0.0_dp
