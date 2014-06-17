@@ -65,15 +65,6 @@ subroutine set_netCDF_SEV(d)
      do j = nLats-1,1,-1
         yCoor(j) =  yCoor(j+1) + real(grid%cellsize,sp)
      end do
-     ! find lat and lon (curvilinear orthogonal gridding, See Panoply ref)
-     do i = 1, nLons
-        do j = 1, nLats
-           ! (x,y) -> (lon, lat)
-           call CoorTransInv( real(xCoor(i),dp) , real(yCoor(j),dp), xc, yc)
-           rxCoor(i,j) = real(xc,sp)
-           ryCoor(i,j) = real(yc,sp)
-        end do
-     end do
   end if
   !
   ! define dimensions (coordinates) => corresponding variable must be created 
@@ -240,7 +231,7 @@ subroutine set_netCDF_SEV(d)
   ! printing
   V(i)%wFlag       =  .true.
   ! pointer
-  V(i)%G2_f        => rxCoor(:,:)
+  V(i)%G2_f        => rxCoor
   ! attributes
   V(i)%nAtt          = 3
   !
@@ -269,7 +260,7 @@ subroutine set_netCDF_SEV(d)
   ! printing
   V(i)%wFlag       =  .true.
   ! pointer
-  V(i)%G2_f        => ryCoor(:,:)
+  V(i)%G2_f        => ryCoor
   ! attributes
   V(i)%nAtt          = 3
   !

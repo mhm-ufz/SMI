@@ -83,7 +83,7 @@ module InputOutput
   real(dp), dimension(nQProp), parameter         :: QProp = (/90._dp, 96._dp, 98._dp /)
                                                                            ! percentiles corresponding
                                                                            ! to return periods of 10,25,50 years
-  integer(i4), parameter                         :: nLargerEvents = 600    ! n. largest drought events
+  integer(i4)                                    :: nLargerEvents = 600    ! n. largest drought events
   !
   ! Basin summary
   integer(i4), dimension(:,:), allocatable       :: Basin_Id
@@ -94,7 +94,7 @@ module InputOutput
   character(256)                                 :: varNameSM               ! variable 1
   character(256)                                 :: varNameBasinId          ! variable 2
   character(256)                                 :: varNameMask             ! variable 3
-  real(dp),  dimension(:,:), allocatable         :: lats, lons
+  real(dp),  dimension(:,:), allocatable, target :: lats, lons
   integer(i4), dimension(:), allocatable         :: eMask                   ! error field
 contains
   !
@@ -283,7 +283,7 @@ contains
   ! -----------------------------------------------------------------------
   subroutine ReadFields_nc
     use mo_kind, only                       : i4, sp
-    use imsl_libraries, only                : NDAYS, NDYIN
+    use mo_julian, only                     : NDAYS, NDYIN
     implicit none
 
     character(256)                         :: dummy, fileNameSM
@@ -446,7 +446,7 @@ contains
   ! -----------------------------------------------------------------------
   subroutine ReadFields_BinP
     use mo_kind,             only        : i4, sp
-    use numerical_libraries, only        : NDAYS 
+    use mo_julian, only                  : NDAYS, NDYIN
     implicit none
     character(256)                      :: dummy, fileName
     integer(i4)                         :: d, dd, jd, js, je

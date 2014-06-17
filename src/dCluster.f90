@@ -381,10 +381,12 @@ subroutine calSAD(iDur)
      !
      ! total number of events to be evaluated
      nEvents = count (DAreaEvol > 0.0_dp )
+     nLargerEvents = nEvents
      allocate (  eventId   (nEvents, 3) )                !  dim1: running Nr.
                                                          !  dim2: 1 == cluster Id,
                                                          !        2 == month of ocurrence,
                                                          !        3 == number of cells
+     print*, nInterArea, 2, nLargerEvents
      allocate (  eIdPerm   (nEvents)    )
      allocate (  SAD       (nInterArea, 2, nLargerEvents ) )    !  dim2: 1 == area, 2 == Severity
      allocate (  SADperc   (nInterArea, nQProp ) )
@@ -468,7 +470,7 @@ subroutine calSAD(iDur)
   ! write SAD for a given duration + percentiles
   call writeResultsCluster(2, durList(iDur) )
   !
-  deallocate ( sevP )
+  if ( allocated(sevP) ) deallocate ( sevP )
 end subroutine calSAD
 
 !-------------------------------------------------------

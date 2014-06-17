@@ -14,14 +14,16 @@ contains
   subroutine calSMI
     use mo_kind,             only  : i4
    ! use numerical_libraries, only : DGCDF
-    use GCDF_INT
+   ! use GCDF_INT
+    use mo_interpol,         only : interpol
     use InputOutput,         only : nMy, nYears, nMonths, nCells, Z, WriteResultsKernel, grid, &
                                     SMI_flag, eMask
     use kernelSmoother,      only : nObs, nInter, evalPDF, evalEDF, hOpt, X, edf, pdf, hOptDB
-    use setGRG2,             only : OPTI, checkLimits
+    ! use setGRG2,             only : OPTI, checkLimits
     use mo_kernel,           only : kernel_density_h
     ! local variables
     integer(i4)                                  :: i, j, k, m, iStatus
+    integer(i4), dimension(1)                    :: minpos
     !
     ! Initialization
     nObs = nYears                                                      ! monthly PDF
@@ -36,11 +38,11 @@ contains
           ! select values for month j (1...12)
           X(:) = Z(i, j : nMonths : nMy)
           ! find optimal bandwidth for PDF of cell i in month j
-          if ( checkLimits(i) == .false. ) then
-             iStatus = iStatus + 1
-             eMask(i) = 1
-             Z(i, j : nMonths : nMy ) = grid%nodata_value  !here a posible check
-          end if
+          ! if ( checkLimits(i) == .false. ) then
+          !    iStatus = iStatus + 1
+          !    eMask(i) = 1
+          !    Z(i, j : nMonths : nMy ) = grid%nodata_value  !here a posible check
+          ! end if
        end do
     end do
     !
@@ -82,8 +84,12 @@ contains
           do k = 1, nYears
              m = (k-1) * nMy + j
              !SMIp(i,m) = DGCDF( Z(i,m), 4, nInter, pdf(:,1), pdf(:,2))
-             SMIp(i,m) = GCDF( Z(i,m), pdf(:,1), pdf(:,2), IOPT=4 )
+             ! SMIp(i,m) = GCDF( Z(i,m), pdf(:,1), pdf(:,2), IOPT=4 )
+             ! calculate argmin
+             minpos = minloc( abs(pdf(:,1) - Z(i,m)) )
+             SMIp(i,m) = sum( pdf(:minpos(1),2) )
           end do
+          !SMIp(i,:) = interpol( pdf(:,2), pdf(:,1), Z(i,:) )
        end do
        !print*, 'SMIp of cell: ', i
     end do

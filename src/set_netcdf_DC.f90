@@ -68,9 +68,9 @@ subroutine set_netCDF_DC
      do i = 1, nLons
         do j = 1, nLats
            ! (x,y) -> (lon, lat)
-           call CoorTransInv( real(xCoor(i),dp) , real(yCoor(j),dp), xc, yc)
-           rxCoor(i,j) = real(xc,sp)
-           ryCoor(i,j) = real(yc,sp)
+           ! call CoorTransInv( real(xCoor(i),dp) , real(yCoor(j),dp), xc, yc)
+           rxCoor(i,j) = real(xCoor(i),sp)
+           ryCoor(i,j) = real(yCoor(j),sp)
         end do
      end do
   end if
