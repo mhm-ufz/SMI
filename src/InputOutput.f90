@@ -112,31 +112,16 @@ contains
     ! Variables
     integer(i4)               :: i, j, iu, ic, im, k, ios
     character(256)            :: dummy
-    integer(i4), dimension(:,:), allocatable   :: ZiT   ! field integer unpacked transposed
+    real(sp), dimension(:,:), allocatable      :: ZiT   ! field integer unpacked transposed
     real(sp), dimension(:,:,:), allocatable    :: ZrT   ! field float unpacked transposed
     real(sp), dimension(:,:,:,:), allocatable  :: Zr2T  ! field float unpacked transposed
 
+    namelist/mainconfig/headerfName, basinfName, errorfName, DataPathIn, DataPathOut, &
+         DAT_flag, SMI_flag, optPDFparfName, flagKerneltype, nInter, offSet, flagCDF, &
+         yStart, yEnd, SMI_thld
     !   
     open (unit=10, file='main.txt', status='old')
-    read (10,'(a)')    dummy
-    read (10,*)    dummy, headerfName
-    read (10,*)    dummy, basinfName
-    read (10,*)    dummy, errorfName
-    read (10,*)    dummy, DataPathIn
-    read (10,*)    dummy, DataPathOut
-    read (10,*)    dummy, DAT_flag
-    read (10,*)    dummy, SMI_flag
-    if (SMI_flag==3) then
-      read (10,*)    dummy, optPDFparfName 
-    end if
-    read (10,*)    dummy, flagKernelType
-    read (10,*)    dummy, nInter
-    read (10,*)    dummy, offSet
-    read (10,*)    dummy, flagCDF
-    read (10,*)    dummy
-    read (10,*)    dummy, yStart
-    read (10,*)    dummy, yEnd
-    read (10,*)    dummy, SMI_thld
+    read(10, mainconfig)
     close (10)
     print*, 'Main.dat read ...'
     !
@@ -189,7 +174,7 @@ contains
        where (mask < 1) mask = int(grid%nodata_value, i4) 
        !
        ! read error mask (exclude cells with numerical problems)
-       varNameMask = 'error'
+       varNameMask = 'mask'
        call Get_NcVar(errorfName, varNameMask, Zr2T(1,1,:,:))
        where (transpose(Zr2T(1,1,:,:)) > 0) mask = int(grid%nodata_value, i4)
        print*, trim(errorfName), ' ... read'
@@ -252,7 +237,8 @@ contains
     ! ----------------------------------------------------------------------
     if (SMI_flag == 4 .or. SMI_flag == 5 ) then
        ! read NetCDF BasinId
-       varNameBasinId = 'basinId'
+       varNameBasinId = 'mask'
+       print *, trim( basinfName )
        dl = get_NcDim(basinfName, varNameBasinId)
        if (dl(1) /= grid%ncols .or. dl(2) /= grid%nrows) then
           print*, 'Dimension of variable ', varNameBasinId, ' not correct'

@@ -1,19 +1,22 @@
 >***DROUGHT-INDEX        *** Main configuration file Germany for SMI uncertainty analysis ***
- headerName_or_mask      "/data/stohyd/mHM_project/europe/entire_domain/ST_RK_06_2014/refrun/monthly_output/mask.nc"
- basinName               "/home/zink/projects/drought_monitor/smi/basin_mask_mhm_de.nc"
- errorMask               "/home/zink/projects/drought_monitor/smi/error_mask_mhm_de.nc"
- DataPathIn_SM_or_file   "/data/stohyd/mHM_project/europe/entire_domain/ST_RK_06_2014/refrun/monthly_output/1980-2010/jan.nc"
- dataPathOut             "."
->DAT_flag                2
->SMI_flag                5
- KERNEL_TYPE             7
- NUMBER-INT-INTER        500
- OFFSET                  0.01
- CDF_printflag           .true.
->PERIOD
- begin-Year              1954
- end-Year                2013
->SMI_threshold           0.20
+&mainconfig
+ headerfName            = "/data/stohyd/mHM_project/europe/entire_domain/ST_RK_06_2014/refrun/monthly_output/mask.nc"
+ basinfName             = "/data/stohyd/mHM_project/europe/entire_domain/ST_RK_06_2014/refrun/monthly_output/mask.nc"
+ errorfName             = "/data/stohyd/mHM_project/europe/entire_domain/ST_RK_06_2014/refrun/monthly_output/error_mask.nc"
+ DataPathIn             = "/data/stohyd/mHM_project/europe/entire_domain/ST_RK_06_2014/refrun/monthly_output/1980-2010/mHM_Fluxes_States.nc"
+ DataPathOut            = "."
+ DAT_flag               = 2
+ SMI_flag               = 5
+ optPDFparfName         = "xxx"
+ flagKerneltype         = 7
+ nInter                 = 500
+ OFFSET                 = 0.01
+ flagCDF                = .true.
+!PERIOD
+ yStart                 = 1981
+ yEnd                   = 2010
+ SMI_thld               = 0.20
+/end
 >***END
 
 
