@@ -61,7 +61,7 @@ program SM_Drought_Index
      call WriteNetCDF(1, mask, nodata)
      call calSMI( opt_h, mask, nodata )
      print *, 'calculating SMI...ok'
-     call WriteNetCDF(2, mask, nodata)
+     call WriteNetCDF(2, mask, nodata )
   end if
 
   if ( do_cluster ) then

@@ -107,10 +107,6 @@ contains
        end do
        !print*, 'SMIp of cell: ', i
     end do
-    ! saving hOpt database
-    print*, 'SMIp estimated ...'
-    call WriteResultsKernel(4,0,0)   
-    print*, 'hOpt saved...'
     !
     ! put SMIp to SMIp
     allocate( SMI( nrows, ncols, nMonths ) )

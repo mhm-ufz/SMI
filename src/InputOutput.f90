@@ -271,7 +271,7 @@ contains
        write(30, 300) icell, iMonth, flagKernelType, hOPt
        close(30)  
 
-    case (4)
+    case (4)       
        ! print *, 'Optimised bandwidth   ... OK'
        fName = trim(dataPathOut)// '/opti.txt'
        open (30, file=fName, status='unknown')
@@ -304,8 +304,9 @@ contains
   subroutine WriteNetCDF(wFlag, mask, nodata, d) 
     use mo_kind, only              : i4, sp
     !
-    use netCDF_varDef
-    use mo_ncwrite, only: var2nc
+    !use netCDF_varDef
+    use mo_ncwrite,     only: var2nc
+    use kernelSmoother, only: hOptDB
     implicit none
     !
     !implicit none
@@ -318,17 +319,22 @@ contains
     integer(i4), target                    :: m                ! netCDF counter
     integer(i4), save                      :: ncId             ! netCDF ID handler
     !
-    real(sp),    dimension(:,:,:), allocatable  :: Zu               ! field real unpacked 
     integer(i4), dimension(:,:,:), allocatable  :: Ziu           ! field integer unpacked 
+    real(sp),    dimension(:,:,:), allocatable  :: Zu            ! field real unpacked 
+    real(dp),    dimension(:,:,:), allocatable  :: dummy_D3_dp   ! field real unpacked 
 
     integer(i4)                            :: iLoc(2)
     !
     ! dimension names
     character(256), dimension(3)           :: dnames
+    character(256), dimension(3)           :: dims_hopt
     ! initialize dimension names
     dnames(1) = 'nrows'
     dnames(2) = 'ncols'
     dnames(3) = 'time'    
+    dims_hopt(1) = 'nrows'
+    dims_hopt(2) = 'ncols'
+    dims_hopt(3) = 'months'
     !
     select case (wFlag)
     case (1)
@@ -364,6 +370,15 @@ contains
             fill_value = nodata, f_exists = .false. ) ! &
             ! scale_factor = 1., coordinates = 'lon lat' )
        deallocate( Zu )
+       ! write out kernel width if it has been optimised
+       allocate( dummy_D3_dp( size( mask, 1 ), size( mask, 2), size( hOptDB, 2 ) ) )
+       do m = 1, nMy
+          dummy_D3_dp( :, :, m ) = unpack( hOptDB(:,m), mask, real( nodata, dp ) ) 
+       end do
+       call var2nc( fname, dummy_D3_dp, dims_hopt, v_name = 'h_opt', &
+            longname = 'optimised kernel width', units = '-', &
+            fill_value = real( nodata, dp ) )
+       deallocate( dummy_D3_dp ) 
        ! add lat and lon
        call var2nc( fname, lats, dnames(1:2), v_name = 'lat', &
             longname = 'longitude', units = 'degrees_east' )
