@@ -98,11 +98,11 @@ LIBNAME  := #libminpack.a # Name of library
 #
 # Options
 # Systems: eve, mcimac, mcpowerbook, mcair, jcthinkpad, jmmacbookpro, gdmacbookpro, stdesk, stubuntu, stufz, burnet, lsimac, lsair
-system   := eve
+system   := stufz
 # Compiler: intel11, intel12, gnu41, gnu42, gnu44, gnu45, gnu46, gnu47, gnu48, absoft, nag51, nag52, nag53, sun12
-compiler := intel
+compiler := nag
 # Releases: debug, release
-release  := release
+release  := debug
 # Netcdf versions (Network Common Data Form): netcdf3, netcdf4, [anything else]
 netcdf   := netcdf4
 # LAPACK (Linear Algebra Pack): true, [anything else]
@@ -110,9 +110,9 @@ lapack   :=
 # MKL (Intel's Math Kernel Library): mkl, mkl95, [anything else]
 mkl      :=
 # Proj4 (Cartographic Projections Library): true, [anything else]
-proj     := true
+proj     :=
 # IMSL (IMSL Numerical Libraries): vendor, imsl, [anything else]
-imsl     := imsl
+imsl     :=
 # OpenMP parallelization: true, [anything else]
 openmp   := 
 # Linking: static, shared, dynamic (last two are equal)
