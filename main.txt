@@ -1,5 +1,6 @@
 !***DROUGHT-INDEX        *** Main configuration file Germany for SMI uncertainty analysis ***
 &mainconfig
+ basin_flag             = .False.       
  basinfName             = "input/mask.nc"
  basin_vname            = "mask"
  maskfName              = "input/error_mask.nc"
