@@ -64,6 +64,14 @@ subroutine set_netCDF_SM
         yCoor(j) =  yCoor(j+1) + real(grid%cellsize,sp)
      end do
      ! find lat and lon (curvilinear orthogonal gridding, See Panoply ref)
+     do i = 1, nLons
+        do j = 1, nLats
+           ! (x,y) -> (lon, lat)
+           call CoorTransInv( real(xCoor(i),dp) , real(yCoor(j),dp), xc, yc)
+           rxCoor(i,j) = real(xc,sp)
+           ryCoor(i,j) = real(yc,sp)
+        end do
+     end do
   end if
   !
   !

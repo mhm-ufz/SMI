@@ -5,46 +5,42 @@
 !  Luis Samaniego, created  28.02.2011
 !                  updated  05.10.2011
 !*********************************************************************
-subroutine droughtIndicator
-  use mo_kind,     only                          : i4, dp
+subroutine droughtIndicator( mask, nodata )
+  use mo_kind,     only                          : i4, sp, dp
   use InputOutput, only                          : nMonths, nCells, &
                                                    SMIp, SMI_thld, &
-                                                   SMIc, SMI, grid, &
-                                                   mask, cellCoor
+                                                   SMIc, SMI, cellCoor
+  ! input variable
+  logical, dimension( :, : ), intent(in)        :: mask
+  real(sp),                   intent(in)        :: nodata
   ! local variables
   integer(i4)                                   :: i, j, m, k
+  integer(i4)                                   :: nrows
+  integer(i4)                                   :: ncols
+  ! initialize
+  nrows = size( mask, 1 )
+  ncols = size( mask, 2 )
   !
   print *, 'Drought  th: ', SMI_thld
-  if ( .not. allocated (SMI) ) allocate  ( SMI (grid%nrows, grid%ncols, nMonths) )
-  if ( .not. allocated (SMIc) ) allocate ( SMIc(grid%nrows, grid%ncols, nMonths) )
+  if ( .not. allocated (SMIc) ) allocate ( SMIc( nrows, ncols, nMonths) )
   do m = 1, nMonths
-     SMI (:,:,m) = unpack ( SMIp(:,m),  (mask /= int(grid%nodata_value,i4) ), grid%nodata_value  )
      !
      ! filter for possible error within domain
-     where (mask /= int(grid%nodata_value,i4) .and. SMI(:,:,m) < 0.0_dp )
-        SMI(:,:,m) = 0.5_dp
-     end where
-     where (SMI(:,:,m) <= SMI_thld .and. SMI(:,:,m) /= grid%nodata_value )
+     where (SMI(:,:,m) .le. SMI_thld .and. SMI(:,:,m) .ne. nodata )
         SMIc(:,:,m) = 1
-     elsewhere (SMI(:,:,m) /= grid%nodata_value )
+     elsewhere (SMI(:,:,m) .ne. nodata )
         SMIc(:,:,m) = 0
      elsewhere
-        SMIc(:,:,m) = grid%nodata_value
+        SMIc(:,:,m) = nodata
      end where
   end do
 
-  ! estimate probability of occurence
-  !    do i = 1, nCells
-  !      dghtPr(i) = real(count(dgthCluster(i,:) == 1),dp) / real(nMonths,dp)
-  !      write (99,*) count(dgthCluster(i,:) == 1)
-  !    end do
-  ! unpack dgthCluster
   !
   allocate (cellCoor(nCells,2))
   k = 0
-  do j=1,grid%ncols
-     do i=1,grid%nrows
-        if ( SMIc(i,j,1) /=  int(grid%nodata_value,i4) ) then
+  do j=1,ncols
+     do i=1,nrows
+        if ( SMIc(i,j,1) .ne. int( nodata, i4 ) ) then
            k = k + 1
            cellCoor(k,1) = i
            cellCoor(k,2) = j
@@ -61,17 +57,22 @@ end subroutine droughtIndicator
 !  PURPOSE:  cluster drought clusters in space and time
 !  DATE:     developed in Budapest, 10-11.03.2011
 !**********************************************************************
-subroutine ClusterEvolution
+subroutine ClusterEvolution( nrows, ncols, nodata )
   use mo_kind, only                                    : i4
   ! use numerical_libraries, only                        : SVIGN
   use mo_sort, only:                                     sort
-  use InputOutput, only                                : grid, SMIc,&
+  use InputOutput, only                                : SMIc,&
                                                          idCluster, &
                                                          nMonths, &
                                                          shortCnoList, &
                                                          nClusters, &
-                                                         nCellInter,thCellClus, mask
+                                                         nCellInter,thCellClus
   implicit none
+  ! input variables
+  integer(i4),                            intent(in)  :: nrows
+  integer(i4),                            intent(in)  :: ncols
+  integer(i4),                            intent(in)  :: nodata
+  ! local variables
   integer(i4)                                         :: i, j, t, k, l
   integer(i4), dimension(:), allocatable              :: nC
   integer(i4), parameter                              :: factor = 1e3
@@ -84,10 +85,10 @@ subroutine ClusterEvolution
   integer(i4), dimension(:,:), allocatable            :: idCnew
   !
   !
-  if (.not. allocated(idCluster) )  allocate   (idCluster(grid%nrows, grid%ncols, nMonths))
+  if (.not. allocated(idCluster) )  allocate   (idCluster(nrows, ncols, nMonths))
   if (.not. allocated(nC) )         allocate   (nC(nMonths))
   if ( allocated(cno) )             deallocate (cno, vec, cnoList)
-  if (.not. allocated(idCnew))  allocate   (idCnew(grid%nrows, grid%ncols))
+  if (.not. allocated(idCnew))  allocate   (idCnew(nrows, ncols))
 
   ! ---------------------------------------------
   ! CLUSTERING IN SPACE and remove small clusters
@@ -95,10 +96,10 @@ subroutine ClusterEvolution
   do t=1,nMonths
      if ( count(SMIc(:,:,t) == 1) < thCellClus) then
         nC(t) = 0
-        idCluster(:,:,t) = int(grid%nodata_value, i4)
+        idCluster(:,:,t) = nodata
         cycle
      end if
-     call findClusters (t, idCluster(:,:,t), nC(t))
+     call findClusters (t, idCluster(:,:,t), nC(t), nrows, ncols, nodata)
      !print*, 'Finding clusters time :', t, nC(t)
   end do
   print*, 'Clusters in space done ...'
@@ -171,91 +172,6 @@ subroutine ClusterEvolution
   shortCnoList = pack(cnoList, mask = cnoList > 0)
   !
   print*, '# Consolidated Clusters :', nClusters
-  ! >>>
-  ! to be deleted
-  ! add mask + print grids
-!!$  idRep = -9
-!!$  cnoList = -9
-!!$  forall(i=1:nTotal) vec(i) = i
-!!$  do t=200,212
-!!$      k = 0
-!!$      do j=1,grid%ncols
-!!$      do i=1,grid%nrows
-!!$      
-!!$         if (idCluster(i, j,t) > 0) then
-!!$           k=k+1
-!!$           cnoList(k) = idCluster(i, j,t)
-!!$         end if   
-!!$    
-!!$      end do
-!!$      end do
-!!$  end do
-!!$   call SVIGN(nTotal,cnoList,cnoList)
-!!$  nClusters = count(cnoList > 0)
-!!$  allocate ( shortCnoList(nClusters) )
-!!$  shortCnoList = pack(cnoList, mask = cnoList > 0)
-
-  !    last version to print clusters
-
-!!$    do t=200,212
-!!$     idCnew = mask-1
-!!$    
-!!$    do j=1,grid%ncols
-!!$    do i=1,grid%nrows
-!!$      if ( mask(i,j) /=  int(grid%nodata_value,i4) ) then
-!!$         if (idCluster(i, j,t) > 0) then
-!!$         do l=1, nClusters
-!!$           if (idCluster(i, j,t) == shortCnoList(l)) exit
-!!$           end do
-!!$         idCnew(i,j)=l      
-!!$         end if
-!!$      end if
-!!$    end do
-!!$    end do
-!!$    where (mask == int(grid%nodata_value,i4) ) idCnew = int(grid%nodata_value,i4)
-!!$    write (dummy,'(i3.3)') t
-!!$    open(999,file=trim(dummy)//'.asc', status='unknown')
-!!$    write (999, 1)  'ncols',        grid%ncols
-!!$    write (999, 1)  'nrows',        grid%nrows
-!!$    write (999, 2)  'xllcorner',    grid%xllcorner
-!!$    write (999, 2)  'yllcorner',    grid%yllcorner
-!!$    write (999, 2)  'cellsize',     grid%cellsize
-!!$    write (999, 2)  'NODATA_value', grid%nodata_value
-!!$
-!!$    
-!!$1   format (a12, 2x, i10)
-!!$2   format (a12, 2x, f10.1)
-!!$3   format (a12, 2x, a)
-
-  ! write(999,106) 'DSAA'
-  ! write(999,108) grid%ncols+2, grid%nrows+2
-  ! write(999,104) grid%xllcorner - 0.5d0*dfloat(grid%cellsize), &
-  !      (grid%xllcorner - 0.5d0*dfloat(grid%cellsize)) + dfloat((grid%ncols + 1)*grid%cellsize)
-  ! write(999,104) grid%yllcorner - 0.5d0*dfloat(grid%cellsize), &
-  !      (grid%yllcorner - 0.5d0*dfloat(grid%cellsize)) + dfloat((grid%nrows + 1)*grid%cellsize)
-  ! write (999,108) int(grid%nodata_value,i4), nClusters
-  ! do k = grid%nrows, 1,-1
-!!$      do k= 1, grid%nrows
-
-!!$        if(k == grid%nrows) then
-!!$           write (999, 114) (int(grid%nodata_value,i4), l=1, grid%ncols+2)
-!!$        end if
-  !     write (999, 114) int(grid%nodata_value,i4), ( idCnew(k, l), l=1, grid%ncols), int(grid%nodata_value,i4)
-!!$   write (999, 114) ( idCnew(k, l), l=1, grid%ncols)
-!!$     end do
-!!$     !write (999, 114)(int(grid%nodata_value,i4), l=1, grid%ncols+2)
-!!$     close (999)
-!!$   end do
-
-  !104  format(2f20.2)
-  !106  format(a4)
-  !108  format(2i10)
-!!$114  format(175i10)
-!!$     !
-!!$
-!!$
-!!$  stop
-  ! <<<
   !
   deallocate(vec, nC, cnoList, cno )
 end subroutine ClusterEvolution
@@ -263,23 +179,26 @@ end subroutine ClusterEvolution
 !-------------------------------------------------------
 ! SVAT statistics
 !-------------------------------------------------------
-subroutine ClusterStats
+subroutine ClusterStats( nrows, ncols )
   use mo_kind, only                                   : i4, dp
   !  use numerical_libraries, only                       : SVIGN , DSVRGN, DEQTIL
   use InputOutput, only                                : aDA, aDD, TDM, DTMagEvol, DAreaEvol, &
-                                                         nCells, grid, SMI, &
+                                                         nCells, SMI, &
                                                          nClusters, nMonths, idCluster, &
                                                          shortCnoList, deltaArea, &
                                                          dASevol, nBasins, Basin_Id, SMI_thld
   implicit none
-  !
+  ! input variables
+  integer(i4), intent(in) :: nrows
+  integer(i4), intent(in) :: ncols
+  ! local variables
   integer(i4)                                         :: ic
   integer(i4)                                         :: t, i
   integer(i4) , dimension(:), allocatable             :: counterA
   integer(i4) , dimension(:,:), allocatable           :: aDDG
   real(dp) , dimension(:,:), allocatable              :: mSev
   !
-  allocate ( aDDG     (grid%nrows, grid%ncols) )
+  allocate ( aDDG     (nrows, ncols) )
   allocate ( DAreaEvol(nMonths,nClusters) )
   allocate ( DTMagEvol(nMonths,nClusters) )
   allocate ( aDD      (nClusters)   )
@@ -287,7 +206,7 @@ subroutine ClusterStats
   allocate ( counterA (nClusters)   )
   allocate ( TDM      (nClusters)   )
   allocate ( dASevol  (nMonths,2,nBasins+1)   )       ! (area, severity) whole Germany => nBasins+1
-  allocate ( mSev     (grid%nrows, grid%ncols) )      ! mean  severity
+  allocate ( mSev     (nrows, ncols) )      ! mean  severity
   !
   DAreaEvol = 0.0_dp
   DTMagEvol = 0.0_dp
@@ -344,20 +263,24 @@ end subroutine ClusterStats
 !-------------------------------------------------------
 ! SAD analysis
 !-------------------------------------------------------
-subroutine calSAD(iDur)
+subroutine calSAD(iDur, nrows, ncols, nodata)
   use mo_kind, only                                    : i4, dp
   ! use numerical_libraries, only                        : DSVRGN, DEQTIL, SVIGP
   use mo_sort, only                                    : sort, sort_index
   use mo_percentile, only                              : percentile
-  use InputOutput, only                                : grid, shortCnoList, deltaArea, SMI, &
+  use InputOutput, only                                : shortCnoList, deltaArea, SMI, &
                                                          nInterArea, nEvents, nClusters,  idCluster, &
                                                          SAD, SADperc, DAreaEvol, severity, nDsteps, &
                                                          nDurations, durList, eventId, eIdPerm, &
                                                          writeResultsCluster, nLargerEvents, &
                                                          nCells, cellArea, nMonths, nQProp, QProp
   implicit none
-  !
+  ! input variable
   integer(i4), intent(in)                             :: iDur
+  integer(i4), intent(in)                             :: nrows
+  integer(i4), intent(in)                             :: ncols
+  integer(i4), intent(in)                             :: nodata
+  ! local variable
   integer(i4)                                         :: t, i, k
   integer(i4)                                         :: ic
   integer(i4)                                         :: iDc
@@ -386,7 +309,6 @@ subroutine calSAD(iDur)
                                                          !  dim2: 1 == cluster Id,
                                                          !        2 == month of ocurrence,
                                                          !        3 == number of cells
-     print*, nInterArea, 2, nLargerEvents
      allocate (  eIdPerm   (nEvents)    )
      allocate (  SAD       (nInterArea, 2, nLargerEvents ) )    !  dim2: 1 == area, 2 == Severity
      allocate (  SADperc   (nInterArea, nQProp ) )
@@ -417,15 +339,15 @@ subroutine calSAD(iDur)
   SADperc = -9.0_dp
   nDsteps = ceiling (real(nMonths,dp) / real(durList (iDur),dp) )
   if ( allocated (severity) )  deallocate(severity)
-  allocate ( severity (grid%nrows, grid%ncols, nDsteps ) )
-  severity = grid%nodata_value
+  allocate ( severity (nrows, ncols, nDsteps ) )
+  severity = nodata
   !
   ! estimate severities for a given duration over all time steps
   do d = 1, nDsteps
      ms = (d-1)*durList(iDur) + 1
      me = ms + durList(iDur) - 1
      if (me > nMonths) me = nMonths
-     where ( SMI(:,:,1) /= grid%nodata_value )
+     where ( SMI(:,:,1) .ne. nodata )
         severity(:,:,d) = 1.0_dp - sum( SMI(:,:,ms:me), DIM=3 ) / real( me-ms+1, dp )
      end where
   end do
@@ -477,15 +399,18 @@ end subroutine calSAD
 ! clustering in space
 ! assign a unique running number at time t
 !-------------------------------------------------------
-subroutine findClusters (t,iC,nCluster)
+subroutine findClusters (t,iC,nCluster, nrows, ncols, nodata)
   use mo_kind, only                                    :  i4
-  use InputOutput, only                                 :  grid, cellCoor, thCellClus, &
+  use InputOutput, only                                :  cellCoor, thCellClus, &
        SMIc, nCells
 
   implicit none
+  integer(i4), intent(in)                               :: nrows
+  integer(i4), intent(in)                               :: ncols
+  integer(i4), intent(in)                               :: nodata
   integer(i4), intent(in)                               :: t                   !  time step
   integer(i4), intent(out)                              :: nCluster            !  number of clusters larger than a threshold
-  integer(i4), dimension(grid%nrows, grid%ncols), intent(out)   :: iC
+  integer(i4), dimension(nrows,ncols), intent(out)      :: iC
   integer(i4)                                           :: i, j, k, klu, klu1, kk
   integer(i4)                                           :: iul, idr, jul, jdr
   integer(i4)                                           :: krow, kcol
@@ -493,25 +418,25 @@ subroutine findClusters (t,iC,nCluster)
   integer(i4), dimension(:), allocatable                :: nCxCluster
   integer(i4)                                           :: nClusterR, ncc
   !
-  iC = int(grid%nodata_value, i4)
+  iC = nodata
   nCluster = 0
   do k=1,nCells
      krow = cellCoor(k,1)
      kcol = cellCoor(k,2)
      iul  = max(krow-1,1)
-     idr  = min(krow+1,grid%nrows)
+     idr  = min(krow+1,nrows)
      jul  = kcol
-     jdr  = min(kcol+1,grid%ncols)
+     jdr  = min(kcol+1,ncols)
      ! SMIc of k
      klu  = SMIc(krow, kcol, t)
      if (klu /= 1) cycle
-     if ( (klu == 1) .and. (iC(krow, kcol) == int(grid%nodata_value,i4)) ) then
+     if ( (klu == 1) .and. (iC(krow, kcol) == nodata) ) then
         nCluster=nCluster+1
         iC(krow, kcol) = nCluster
      end if
      do j=jul, jdr
         do i= iul, idr
-           if (iC(i,j) == int(grid%nodata_value,i4)  .and. &
+           if (iC(i,j) == nodata .and. &
                 SMIc(i,j,t) == klu                     ) then
               iC(i,j) = iC(krow, kcol)
            end if
@@ -529,14 +454,14 @@ subroutine findClusters (t,iC,nCluster)
         kcol = cellCoor(k,2)
         klu  = iC(krow, kcol)
         iul  = max(krow-1,1)
-        idr  = min(krow+1,grid%nrows)
+        idr  = min(krow+1,nrows)
         jul  = kcol
-        jdr  = min(kcol+1,grid%ncols)
+        jdr  = min(kcol+1,ncols)
         do j=jul, jdr
            do i= iul, idr
               klu1 = iC(i, j)
-              if ( klu  /= int(grid%nodata_value,i4) .and. &
-                   klu1 /= int(grid%nodata_value,i4) .and. &
+              if ( klu  /= nodata .and. &
+                   klu1 /= nodata .and. &
                    klu  /= klu1                       ) then
                  cno(klu1) = -9
                  nClusterR = nClusterR - 1
@@ -551,7 +476,7 @@ subroutine findClusters (t,iC,nCluster)
         if (cno(i) == -9 ) cycle
         ncc = count(iC == cno(i))
         if ( ncc <= thCellClus ) then
-           where (iC == cno(i)) iC = int(grid%nodata_value, i4)
+           where (iC == cno(i)) iC = nodata
            cno(i) = -9
            nClusterR = nClusterR -1
         end if

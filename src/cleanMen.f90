@@ -8,8 +8,6 @@ subroutine clean
   use netCDF_varDef
   implicit none
   !
-  if (allocated ( mask )  )  deallocate ( mask )
-  if (allocated ( Z )     )  deallocate ( Z )
   if (allocated ( SMI )   )  deallocate ( SMI )
   if (allocated ( X )     )  deallocate ( X )
   if (allocated ( edf )   )  deallocate ( edf )

@@ -33,49 +33,63 @@
 !                    Sa  22.06.2012            v4. read WRF-NOAH SM 
 !**********************************************************************************
 program SM_Drought_Index
-  use mo_kind,          only : i4
+  use mo_kind,          only : i4, sp
   use InputOutput,      only : ReadDataMain, WriteNetCDF, &
-                               WritebinP, SMI_flag, nDurations, durList, &
+                               SMI_flag, nDurations, durList, &
                                writeResultsCluster, WriteResultsBasins
   use SMIndex,          only : calSMI
-  implicit none
-  integer(i4)                :: d
   !
-  call ReadDataMain
+  implicit none
+  ! variables
+  logical                              :: do_cluster ! flag indicating whether cluster should
+                                                     ! be calculated
+  logical                              :: cal_SMI    ! flag indicating whether SMI should be
+                                                     ! calculated or read from file
+  logical                              :: opt_h      ! flag indicating whether kernel width 
+                                                     ! should be optimized
+  logical                              :: do_basin   ! do_basin flag
+  logical, dimension(:,:), allocatable :: mask
+  real(sp)                             :: nodata
+  integer(i4)                          :: d
+  !
+  call ReadDataMain( do_cluster, cal_SMI, opt_h, do_basin, mask, nodata )
   !
   print*, 'FINISHED READING'
-  ! estimate/re-estimate SMI
-  if (SMI_flag ==1 .or. SMI_flag == 3 .or. SMI_flag == 4 .or. SMI_flag == 5 ) then
-     call WriteNetCDF(1)
-     call WritebinP(1)
-     call calSMI
-     call WriteNetCDF(2)
-     call WritebinP(2)
-  end if
-  ! drought indicator 
-  call droughtIndicator
-  call WriteNetCDF(3)
-
-  ! write SMI average over major basins
-  !call WriteResultsBasins
   
-  !goto 999  ! ONLY for scenarios
+  ! estimate/re-estimate SMI
+  if ( cal_SMI ) then
+     call WriteNetCDF(1, mask, nodata)
+     call calSMI( opt_h, mask, nodata )
+     print *, 'calculating SMI...ok'
+     call WriteNetCDF(2, mask, nodata)
+  end if
 
-  ! cluster indentification
-  call ClusterEvolution
-  call WriteNetCDF(4)
-  ! statistics  
-  call ClusterStats
+  if ( do_cluster ) then
+     ! drought indicator 
+     call droughtIndicator( mask, int(nodata,i4) )
+     call WriteNetCDF(3, mask, nodata)
+     
+     ! cluster indentification
+     call ClusterEvolution( size( mask, 1), size( mask, 2 ), nodata )
+     call WriteNetCDF(4, mask, nodata)
+     ! statistics  
+     call ClusterStats( size( mask, 1), size( mask, 2 ) )
+     !
+     ! SAD analysis
+     do d = 1, nDurations
+        call calSAD(d, size( mask, 1), size( mask, 2 ), int(nodata,i4) )
+        call WriteNetCDF(5, mask, nodata, durList(d))
+     end do
+     ! write results
+     call writeResultsCluster(1)
+     print *, 'Cluster evolution ...ok'
+  end if
   !
-  ! SAD analysis
-  do d = 1, nDurations
-     call calSAD(d)
-     call WriteNetCDF(5,durList(d))
-  end do
-  ! write results
-  call writeResultsCluster(1)
+  if ( do_basin ) then
+     ! write SMI average over major basins
+     print *, 'calculate Basin Results ...'
+     call WriteResultsBasins( mask, int(nodata, i4) )
+  end if
+  print *, 'DONE!'
   !
-  ! write SMI average over major basins
-  call WriteResultsBasins
-  999 call clean
 end program SM_Drought_Index

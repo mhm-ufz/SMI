@@ -10,7 +10,6 @@ module InputOutput
   implicit none
   character(256)                                  :: headerfName
   character(256)                                  :: basinfName
-  character(256)                                  :: errorfName
   character(256)                                  :: DataPathIn
   character(256)                                  :: DataPathOut
   character(256)                                  :: optPDFparfName    ! opt parameter PDF file 
@@ -20,21 +19,10 @@ module InputOutput
   integer(i4)                                     :: nMonths           ! number of simulated months
   integer(i4)                                     :: nCells            ! number of effective cells
   integer(i4), parameter                          :: nMy = 12          ! number of months per year
-  !
-  type gridGeoRef
-     integer(i4)                                  :: ncols             ! number of columns
-     integer(i4)                                  :: nrows             ! number of rows
-     real(dp)                                     :: xllcorner         ! x coordinate of the lowerleft corner
-     real(dp)                                     :: yllcorner         ! y coordinate of the lowerleft corner
-     real(dp)                                     :: cellsize          ! cellsize x = cellsize y
-     real(dp)                                     :: nodata_value      ! not belonging value
-  end type gridGeoRef
-  type (gridGeoRef)                               :: grid              ! grid definition for all fields
-  !
-  ! GRID mask
-  integer(i4), dimension(:,:), allocatable        :: mask              ! Value of Mask
   ! fields
-  real(dp),    dimension(:,:), allocatable        :: Z                 ! monthly fields packed
+  real(sp),    dimension(:,:), allocatable        :: SM_est            ! monthly fields packed for estimation
+  real(sp),    dimension(:,:), allocatable        :: SM_eval           ! monthly fields packed for evaluation
+  real(sp),    dimension(:,:), allocatable        :: h_opt             ! optimized kernel width h
   real(dp), dimension(:,:), allocatable           :: SMIp              ! SMI field packed
   real(dp), dimension(:,:,:), allocatable         :: SMI               ! SMI field unpacked
   integer(i4), dimension(:,:,:), allocatable      :: SMIc              ! SMI indicator
@@ -105,399 +93,118 @@ contains
   !    NOTES:
   !               packed fields are stored in dim1->dim2 sequence 
   !*********************************************************************
-  subroutine ReadDataMain
+  subroutine ReadDataMain( do_cluster, cal_SMI, opt_h, basin_flag, mask, nodata )
     use mo_kind,         only : i4
     use kernelSmoother,  only : flagKernelType, nInter, offSet, flagCDF, hOptDB  
     implicit none
     !
-    ! Variables
+    ! input / output Variables
+    logical,                              intent(out) :: do_cluster ! do cluster calculation
+    logical,                              intent(out) :: cal_SMI    ! should SMI be calculated
+    logical,                              intent(out) :: opt_h      ! optimize kernel width
+    logical,                              intent(out) :: basin_flag ! basin flag
+    logical, dimension(:,:), allocatable, intent(out) :: mask ! grid mask
+    real(sp),                             intent(out) :: nodata
+
+    !
+    ! local Variables
+    logical                   :: monthly_flag ! indicate whether monthly data is given
     integer(i4)               :: i, j, iu, ic, im, k, ios
+    integer(i4)               :: ii
     character(256)            :: dummy
+    ! directories and filenames
+    character(256)            :: maskfName
+    character(256)            :: opt_h_file
+    character(256)            :: SM_eval_file
+    
+    ! variable names in netcdf input files
+    character(256)            :: mask_vname
+    character(256)            :: SM_vname
+    character(256)            :: basin_vname
+
+    real(sp), dimension(:,:),   allocatable    :: dummy_D2_sp
+    real(dp), dimension(:,:,:), allocatable    :: dummy_D3_dp
     real(sp), dimension(:,:), allocatable      :: ZiT   ! field integer unpacked transposed
     real(sp), dimension(:,:,:), allocatable    :: ZrT   ! field float unpacked transposed
     real(sp), dimension(:,:,:,:), allocatable  :: Zr2T  ! field float unpacked transposed
 
-    namelist/mainconfig/headerfName, basinfName, errorfName, DataPathIn, DataPathOut, &
-         DAT_flag, SMI_flag, optPDFparfName, flagKerneltype, nInter, offSet, flagCDF, &
-         yStart, yEnd, SMI_thld
+    ! read main config
+    namelist/mainconfig/basin_flag, basinfName, basin_vname, maskfName, mask_vname, DataPathIn, &
+         SM_vname, yStart, yEnd, DataPathOut, monthly_flag, SMI_flag, cal_SMI, &
+         opt_h, opt_h_file, SM_eval_file, &
+         flagKerneltype, nInter, offSet, flagCDF, SMI_thld, nodata, do_cluster
     !   
     open (unit=10, file='main.txt', status='old')
     read(10, mainconfig)
     close (10)
-    print*, 'Main.dat read ...'
-    !
-    ! ----------------------------------------------------------------------
-    !	                               READ MASKs
-    ! ----------------------------------------------------------------------
-    if (SMI_flag == 4) then
-       ! read NetCDF mask
-       !
-       varNameMask = 'Shape'
-       dl = get_NcDim(headerfName, varNameMask)
-       grid%ncols = dl(1)
-       grid%nrows = dl(2) 
-       allocate( mask (grid%nrows, grid%ncols), ZiT (grid%ncols, grid%nrows)  )
-       !
-       call Get_NcVar(headerfName, varNameMask, ZiT(:,:))
-       mask = transpose(ZiT)
-       ! some definitions
-       grid%cellsize     = 7000._dp                      ! to be defined later
-       grid%nodata_value = -9999._dp
-       where (mask < 1) mask = int(grid%nodata_value, i4) 
-       !
-       ! read error mask (exclude cells with numerical problems)
-       varNameMask = 'error'
-       call Get_NcVar(errorfName, varNameMask, ZiT(:,:))
-       where (transpose(ZiT) == 1) mask = int(grid%nodata_value, i4)
+    print*, 'Main.dat read ...ok'
 
-!!$       do i=1,grid%nrows
-!!$          write (999, '(200i8)') (mask(i,j), j=1,grid%ncols)
-!!$       end do
-!!$ stop
-       !
-    else if (SMI_flag == 5) then
-       ! read NetCDF mask
-       !
-       varNameMask = 'mask'
-       dl = get_NcDim(headerfName, varNameMask)
-       grid%ncols = dl(1)  ! 2
-       grid%nrows = dl(2)  ! 3
-       allocate( mask (grid%nrows, grid%ncols), ZrT (1,grid%ncols, grid%nrows),  &
-                                                Zr2T(1,1,grid%ncols, grid%nrows)  )
-       !
-       call Get_NcVar(headerfName, varNameMask, ZrT(1,:,:))
-       mask = int( transpose(ZrT(1,:,:)), i4)
-       print*, trim(headerfName), ' ... read'
-       !
-       ! some definitions
-       grid%cellsize     = 12220._dp                      ! to be defined later
-       grid%nodata_value = -9999._dp
-       where (mask < 1) mask = int(grid%nodata_value, i4) 
-       !
-       ! read error mask (exclude cells with numerical problems)
-       varNameMask = 'mask'
-       call Get_NcVar(errorfName, varNameMask, Zr2T(1,1,:,:))
-       where (transpose(Zr2T(1,1,:,:)) > 0) mask = int(grid%nodata_value, i4)
-       print*, trim(errorfName), ' ... read'
-    else
-       call ReadOneHeader(headerfName, iu)
-       allocate (mask (grid%nrows , grid%ncols) )
-       read (iu, *) (( mask(i,j), j=1,grid%ncols), i=1,grid%nrows )
-       close(iu)
+    ! read Mask
+    call Get_ncVar( maskfName, trim(mask_vname), dummy_D2_sp )
+    allocate( mask( size(dummy_D2_sp,1), size(dummy_D2_sp,2) ) )
+    mask = merge( .true., .false., (dummy_D2_sp > nodata ) )
+    deallocate( dummy_D2_sp )
+    print*, 'mask read ...ok'
+
+    ! read basin mask
+    if ( basin_flag ) then
+       call Get_ncVar( basinfName, trim(basin_vname), Basin_Id )
+       ! consistency check
+       if ( ( size( Basin_Id, 1) .ne. size( mask, 1 ) ) .or. &
+            ( size( Basin_Id, 2) .ne. size( mask, 2 ) ) ) then
+          print *, '***ERROR: size mismatch between basin field and given mask file'
+          stop
+       end if
+       ! intersect mask and basin_id
+       mask     = merge( .true., .false., mask .and. ( Basin_Id .gt. nodata ) )
+       Basin_Id = merge( Basin_Id, int(nodata,i4), mask )
     end if
+
+    nCells   = count( mask )
+    ! consistency check
+    if ( nCells .eq. 0 ) then
+       print *, '***ERROR: no cell selected in mask'
+       stop
+    end if
+    print*, 'basin ID read ...ok'
     
-    ! ----------------------------------------------------------------------
-    !	                  READ FIELDS and ESTIMATE TEMPORAL MEAN
-    ! ----------------------------------------------------------------------
-    ! STORAGE
-    nYears  = yEnd - yStart + 1
-    nMonths = nMy * nYears
-    nCells  = count ( mask /= int(grid%nodata_value, i4) )
-    cellArea   = grid%cellsize**2 / 1.0e6_dp                               ! in km2
-    ! allways allocate to store hOpt 
-    allocate (hOptDB(nCells,nMy))
-    hOptDB = -9.0_dp    
-    !
-    select case (SMI_flag)
-    case(1)
-      allocate ( Z(nCells, nMonths) )                                      ! space_dim > time_dim
-      call ReadFields_BinP
-      print*, 'Soil moisture fields were read... '
-      print*, 'Monthly soil moisture fields were estimated... '
-    case(2)
-      call ReadSMI
-      print*, 'Monthly soil moisture index was read... '
-    case(3)
-      ! 
-      allocate ( Z(nCells, nMonths) )                                      ! space_dim > time_dim
-      call ReadFields_BinP
-      print*, 'Soil moisture fields were read... '
-      print*, 'Monthly soil moisture fields were estimated... '
-      !
-      open(10, file=optPDFparfName, status='old')
-      ios = 0
-      do while (.NOT. ios /= 0)
-        read (10, *,iostat=ios) ic, im, k, hOptDB(ic,im)
-      end do
-      print*, 'Optimized bandwidth file: '
-      print*, trim(optPDFparfName)
-      print*, '... was read'
-      print*, 'Number of cells-month without parameter hOpt =', count( hOptDB == -9.0_dp)
-      print*, '  ... SMI will not be estimated for those grid cells'
-    case(4:5)
-      ! read NetCDF daily/montly SM fields
-      allocate ( Z(nCells, nMonths) )                                      ! space_dim > time_dim
-      call ReadFields_nc
-      print*, 'Soil moisture fields were read... '
-      if (SMI_flag==4) print*, 'Monthly soil moisture fields were estimated... '
+    ! read SM field
+    call Get_ncVar( DataPathIn, trim(SM_vname), dummy_D3_dp )
+    ! consistency check
+    if ( ( size( dummy_D3_dp, 1) .ne. size( mask, 1 ) ) .or. &
+         ( size( dummy_D3_dp, 2) .ne. size( mask, 2 ) ) ) then
+       print *, '***ERROR: size mismatch between SM field and given mask file'
+       stop
+    end if
+    allocate( SM_est( nCells, size( dummy_D3_dp, 3 ) ) )
+    do ii = 1, size( dummy_D3_dp, 3 )
+       SM_est(:,ii) = pack( real(dummy_D3_dp(:,:,ii),sp), mask )
+    end do
+    
+    ! read lats and lon from file
+    call Get_ncVar( DataPathIn, 'lat', lats )
+    call Get_ncVar( DataPathIn, 'lon', lons )
 
-    end select
-    !
-    ! ----------------------------------------------------------------------
-    !	                                  BASINS
-    ! ----------------------------------------------------------------------
-    if (SMI_flag == 4 .or. SMI_flag == 5 ) then
-       ! read NetCDF BasinId
-       varNameBasinId = 'mask'
-       print *, trim( basinfName )
-       dl = get_NcDim(basinfName, varNameBasinId)
-       if (dl(1) /= grid%ncols .or. dl(2) /= grid%nrows) then
-          print*, 'Dimension of variable ', varNameBasinId, ' not correct'
-          stop
-       end if
-       allocate( Basin_Id (grid%nrows, grid%ncols) )
-       if ( allocated ( ZiT ) ) deallocate ( ZiT )
-       allocate( ZiT (grid%ncols, grid%nrows)  )
-       !
-       ZiT = 0
-       call Get_NcVar(basinfName,varNameBasinId, ZiT(:,:))
-       Basin_Id = transpose(ZiT)
-       ! some definitions
-       where (Basin_Id < 1 .or. mask  < 1 ) Basin_Id = int(grid%nodata_value, i4)
-       print*, trim(basinfName), ' ... read'
-    else
-       ! ascii 
-       allocate( Basin_Id (grid%nrows , grid%ncols) )
-       Basin_Id = int(grid%nodata_value,i4)
-       !
-       open(20, file=trim(basinfName), status = 'old')
-       do i = 1, 6
-          read(20, *) dummy
-       end do
-       !
-       do i=1,grid%nrows
-          read (20, *) (Basin_Id(i,j), j=1,grid%ncols)
-       end do
-       close(20)
+    ! check if monthly data has been given
+    if ( .not. monthly_flag ) then
+       print *, '***ERROR: daily averaging not implemented yet'
+       stop
+    end if
+    print*, 'soil moisture field read ...ok'
+
+    ! check whether second SM field and optimized h should be written
+    if ( .not. cal_SMI ) then
+       print *, '***ERROR: reading of optimized kernel width and SM evaluation not implemented!'
+       stop
     end if
 
-    print*, 'Basin mask: '
-    print*, trim(basinfName)
-    print*, '... was read'
-    if ( allocated (ZiT) ) deallocate (ZiT)
+    print *, '***WARNING: yStart and yEnd are currently not considered'
+
+    ! initialize further Variables
+    nMonths = size( SM_est, 2 )
+    nYears  = nMonths / nMy
+
   end subroutine ReadDataMain
-
-  !
-  ! -----------------------------------------------------------------------
-  !                     READ NetCDF DAILY/MONTHLY SM FIELDS
-  ! -----------------------------------------------------------------------
-  subroutine ReadFields_nc
-    use mo_kind, only                       : i4, sp
-    use mo_julian, only                     : NDAYS, NDYIN
-    implicit none
-
-    character(256)                         :: dummy, fileNameSM
-    integer(i4)                            :: d, dd, jd, js, je
-    integer(i4)                            :: m
-    integer(i4)                            :: y, yy
-    integer(i4)                            :: tDays, mOld, mNew 
-    real(sp), dimension(:), allocatable    :: V
-    integer(i4), dimension(:), allocatable :: mDays
-    ! netCDF
-    integer(i4), parameter                 :: NDIMSc = 3   ! COSMO
-    ! integer(i4), parameter               :: NDIMSw = 4   ! WRF-NOAH (original file, no dim reduction)
-    integer(i4), parameter                 :: NDIMSw = 3   ! WRF-NOAH modified with nco
-    integer(i4), dimension(NDIMSc)         :: startC, icountC
-    integer(i4), dimension(NDIMSw)         :: startW, icountW
-    character (len = *), parameter         :: LAT_NAME = 'lat'
-    character (len = *), parameter         :: LON_NAME = 'lon'
-    real(dp), dimension(:,:), allocatable  :: array
-    integer(i4), dimension(5)              :: dl      ! for displaying dimensions
-    integer(i4)                            :: iRec    ! reading record
-    !
-    allocate ( mDays(nMonths) )
-    allocate ( V (nCells) )
-    allocate ( lats  (grid%nCols, grid%nRows), lons(grid%nCols, grid%nRows) )
-    allocate ( array (grid%nCols, grid%nRows) )
-    !
-    if (SMI_flag ==4 ) then
-       m        = 1
-       Z        = 0.0_dp
-       mDays    = 0
-       mOld     = 1 
-       !
-       FileNameSM = DataPathIn
-       varNameSM  = 'dSMfr'
-       dl = get_NcDim(FileNameSM, varNameSM)
-       if (dl(1) /= grid%ncols .or. dl(2) /= grid%nrows) then
-          print*, 'Dimension of variable ', varNameSM, ' not correct'
-          stop
-       end if
-       !
-       startC = (/1,1,1/)
-       icountC = (/grid%ncols,grid%nrows,1/)
-       !
-       d  = 0
-       do y = yStart, yEnd
-          ! reading whole year
-          js    = NDAYS (1,   1, y)
-          je    = NDAYS (31,  12, y)
-          jd    = js  
-          tDays = je - js + 1
-          do jd = js, je 
-             d = d + 1
-             call NDYIN (jd, dd, mNew, yy)
-             if ( mNew /= mOld ) then
-                ! reset counter        
-                mOld = mNew
-                m = m + 1
-             end if
-             mDays(m) = mDays(m) + 1
-             ! >>> new
-             startC(3) = d
-             ! Open the file & pack transposed for consistency    
-             call Get_NcVar(FileNameSM, varNameSM, array(:,:), startC, icountC)
-             V =  pack ( transpose( array ) , (mask /= int(grid%nodata_value,i4) ) )
-             ! accumulate for monthly values on the fly
-             Z(:,m) = Z(:,m) + real(V,dp)
-          end do
-       end do
-       ! estimate the montly SM means
-       forall (m = 1 : nMonths ) Z(:,m) = Z(:,m) / real( mDays(m), dp)
-!!$     print*,""
-!!$     do m=1, nMonths
-!!$       print*, m, mDays(m), Z(1,m)
-!!$     end do
-    else if(SMI_flag ==5 ) then
-       Z          = 0.0_dp
-       !
-       FileNameSM = DataPathIn
-       varNameSM  = 'SM_Lall'
-       dl = get_NcDim(FileNameSM, varNameSM)
-       if (dl(1) /= grid%ncols .or. dl(2) /= grid%nrows) then
-          print*, 'Dimension of variable ', varNameSM, ' not correct'
-          stop
-       end if
-       ! old counter for original sm file before dim reduction
-       !   startW = (/1,1,1,1/)
-       !   icountW = (/grid%ncols,grid%nrows,1,1/)
-       ! new counter (3D)
-       startW = (/1,1,1/)
-       icountW = (/grid%ncols,grid%nrows,1/)
-       !
-       do m = 1, nMonths 
-          ! reading every month
-          !   startW(4) = m  
-          startW(3) = m
-          ! Open the file & pack transposed for consistency
-          call Get_NcVar(FileNameSM, varNameSM, array(:,:), startW, icountW)
-          V =  pack ( transpose( array ) , (mask /= int(grid%nodata_value,i4) ) )
-          ! store monthly values
-          Z(:,m) = real(V,dp)
-       end do
-    end if
-    ! Read the latitude and longitude data.
-    call Get_NcVar(FileNameSM, LAT_NAME, lats )
-    call Get_NcVar(FileNameSM, LON_NAME, lons )
-    deallocate(array, V)
-
-  end subroutine ReadFields_nc
-  !
-  ! -----------------------------------------------------------------------
-  !                         READ BINARY PACKED SMI
-  ! -----------------------------------------------------------------------
-  subroutine ReadSMI
-    use mo_kind, only                    : i4, sp
-    implicit none
-    character(256)                      :: dummy, fileName
-    integer(i4)                         :: m
-    real(sp), dimension(:), allocatable :: V
-    !
-    ! Read Yearly Binary file
-    fileName = trim(dataPathOut) //'mSMI.binP'
-    ! open file
-    open (unit=20, file=fileName, form='unformatted', access='direct', recl=4*nCells)
-    allocate ( SMIp(nCells,nMonths) )
-    allocate ( V(nCells) )
-    !
-    do m = 1, nMonths
-      read  (20, rec=m) V
-     ! store monthly values
-      SMIp(:,m) = real(V,dp)
-    end do
-    close(20)
-    deallocate ( V )
-  end subroutine ReadSMI
-
-  ! -----------------------------------------------------------------------
-  !	                                 Header
-  ! -----------------------------------------------------------------------
-  subroutine ReadOneHeader(fileName,iu)
-    implicit none
-    character(len=*), intent(in)  :: fileName                             ! file name
-    integer(i4),      intent(out) :: iu                                   ! input channel
-    character(256)                :: dummy
-    !
-    iu = 10
-    open (unit=iu, file=headerfName, status='old')
-    read (iu, *) dummy, grid%ncols
-    read (iu, *) dummy, grid%nrows
-    read (iu, *) dummy, grid%xllcorner
-    read (iu, *) dummy, grid%yllcorner
-    read (iu, *) dummy, grid%cellsize
-    read (iu, *) dummy, grid%nodata_value
-    print *, 'Header of file: '
-    print *, trim(fileName)
-    print *, '... was read'
-  end subroutine ReadOneHeader
-  !
-  ! -----------------------------------------------------------------------
-  !	                             BINARY PACKED FILES
-  ! -----------------------------------------------------------------------
-  subroutine ReadFields_BinP
-    use mo_kind,             only        : i4, sp
-    use mo_julian, only                  : NDAYS, NDYIN
-    implicit none
-    character(256)                      :: dummy, fileName
-    integer(i4)                         :: d, dd, jd, js, je
-    integer(i4)                         :: m
-    integer(i4)                         :: y, yy
-
-    integer(i4)                         :: tDays, mOld, mNew 
-    real(sp), dimension(:), allocatable :: V
-    integer(i4), dimension(:), allocatable :: mDays
-    !
-    ! Read Yearly Binary file
-    allocate ( V(nCells), mDays(nMonths) )
-    m        = 1
-    Z        = 0.0_dp
-    mDays    = 0
-    mOld     = 1 
-    do y = yStart, yEnd
-       ! open file
-       write (dummy, '(i4,a5)') y, '.binP'
-       fileName = trim(dataPathIn) // trim(dummy)
-       open (unit=20, file=fileName, form='unformatted', access='direct', status='old', action='read', recl=4*nCells)
-       ! reading whole year
-       js    = NDAYS (1,   1, y)
-       je    = NDAYS (31,  12, y)
-       jd    = js  
-       tDays = je - js + 1
-       d     = 0
-       do jd = js, je 
-          d = d + 1
-          call NDYIN (jd, dd, mNew, yy)
-          if ( mNew /= mOld ) then
-             ! reset counter        
-             mOld = mNew
-             m = m + 1
-          end if
-          mDays(m) = mDays(m) + 1
-          read  (20, rec=d) V
-          ! accumulate for monthly values on the fly
-          Z(:,m) = Z(:,m) + real(V,dp)
-       end do
-       close(20)
-    end do
-    ! estimate the montly SM means
-    forall (m = 1 : nMonths ) Z(:,m) = Z(:,m) / real( mDays(m), dp)
-
-    ! do m=1, nMonths
-    !   print*, m, mDays(m), Z(444,m)
-    !  end do
-
-    deallocate ( V, mDays )
-  end subroutine ReadFields_BinP
 
   !**********************************************************************
   !    PURPOSE    WRITE Results of the kernel smoother
@@ -594,210 +301,119 @@ contains
   !               Created        Sa   16.02.2011   
   !               Last Update    Sa   16.02.2011  
   !**************************************************************************
-  subroutine WriteNetCDF(wFlag, d) 
+  subroutine WriteNetCDF(wFlag, mask, nodata, d) 
     use mo_kind, only              : i4, sp
     !
     use netCDF_varDef
-    use netcdf
+    use mo_ncwrite, only: var2nc
     implicit none
     !
     !implicit none
+    logical, dimension(:,:), intent(in)    :: mask
+    real(sp),                intent(in)    :: nodata
+    ! local Variables
+    character(256)                         :: Fname
     integer(i4), intent (in), optional     :: d                ! optional, duration
     integer(i4), intent (in)               :: wFlag            !
     integer(i4), target                    :: m                ! netCDF counter
     integer(i4), save                      :: ncId             ! netCDF ID handler
     !
-    real(sp), dimension(:,:), allocatable  :: Zu               ! field real unpacked 
-    real(sp), dimension(:,:), allocatable, target:: ZuT        ! field real unpacked transposed
-    integer(i4), dimension(:,:), allocatable  :: Ziu           ! field integer unpacked 
-    integer(i4), dimension(:,:), allocatable, target:: ZiuT    ! field integer unpacked transposed
+    real(sp),    dimension(:,:,:), allocatable  :: Zu               ! field real unpacked 
+    integer(i4), dimension(:,:,:), allocatable  :: Ziu           ! field integer unpacked 
 
     integer(i4)                            :: iLoc(2)
     !
+    ! dimension names
+    character(256), dimension(3)           :: dnames
+    ! initialize dimension names
+    dnames(1) = 'nrows'
+    dnames(2) = 'ncols'
+    dnames(3) = 'time'    
+    !
     select case (wFlag)
     case (1)
-       ! save monthly soil moisture averages
-       !
-       ! set netCDF variables
-       call set_netCDF_SM
-       ! to create a new netCDF
-       call create_netCDF(ncId) 
-       ! write static variables  
-       call write_static_netCDF(ncId)
-       ! temporal storage
-       allocate (Zu  (nLats , nLons))
-       allocate (ZuT (nLons , nLats))
-       ! save averages
+       ! fname
+       fName = trim(DataPathOut)//'mean_m_SM.nc'
+       ! unpack estimated SM
+       allocate( Zu( size( mask, 1), size( mask, 2), size( SM_est, 2) ) )
        do m = 1, nMonths
-          ! Unpack Z vector to their corresponding grids
-          Zu = unpack ( real( Z(:,m), sp ), (mask /= int(grid%nodata_value,i4) ), real(grid%nodata_value,sp) )
-          ZuT = transpose (Zu)
-          ! put into the 4th variable
-          V(4)%G2_f => ZuT 
-          call write_dynamic_netCDF(ncId,m)
-          !
-          iLoc = 0
-          iloc = maxloc(Zu, Zu > 1_dp)
-          if (any(iLoc > 0)) then 
-             write(6,'(a,2i5,a,i5)')  'WARNING: problem in cell (i,j): ',  iLoc, ' month:', m
-          end if
+          Zu( :, :, m) = unpack ( real( SM_est(:,m), sp ), mask, nodata )
        end do
-       ! close file
-       call close_netCDF(ncId) 
-
+       ! save monthly soil moisture averages
+       call var2nc( fName, Zu, dnames, v_name = 'mSMmean', &
+            longname = 'monthly mean SM/SMs', units = '%', &
+            fill_value = nodata, f_exists = .false. ) ! &
+            ! scale_factor = 1., coordinates = 'lon lat' )
+       deallocate( Zu )
+       ! add lat and lon
+       call var2nc( fname, lats, dnames(1:2), v_name = 'lat', &
+            longname = 'longitude', units = 'degrees_east' )
+       call var2nc( fname, lons, dnames(1:2), v_name = 'lon', &
+            longname = 'latitude', units = 'degrees_north' )
     case (2)
+       ! fname
+       fName = trim(DataPathOut)//'mSMI.nc'
+       ! unpack estimated SMIp
+       allocate( Zu( size( mask, 1), size( mask, 2), size( SMIp, 2) ) )
+       do m = 1, nMonths
+          Zu( :, :, m) = unpack ( real( SMIp(:,m), sp ), mask, nodata )
+       end do
        ! save SMIp (same sequence as in 1)
-       !
-       call set_netCDF_SMI
-       call create_netCDF(ncId)
-       call write_static_netCDF(ncId)
-       allocate (Zu  (nLats , nLons))
-       allocate (ZuT (nLons , nLats))
-       do m = 1, nMonths
-          Zu = unpack ( real( SMIp(:,m), sp) , (mask /= int(grid%nodata_value,i4) ), real(grid%nodata_value,sp)  )
-          ZuT = transpose (Zu)
-          V(4)%G2_f => ZuT 
-          call write_dynamic_netCDF(ncId,m)
-       end do
-       call close_netCDF(ncId)
-
+       call var2nc( fName, Zu, dnames, v_name = 'SMI', &
+            longname = 'monthly soil moisture index', units = '-', &
+            fill_value = nodata, f_exists = .false. ) ! &
+            ! scale_factor = 1., coordinates = 'lon lat' )
+       deallocate( Zu )
+       ! add lat and lon
+       call var2nc( fname, lats, dnames(1:2), v_name = 'lat', &
+            longname = 'longitude', units = 'degrees_east' )
+       call var2nc( fname, lons, dnames(1:2), v_name = 'lon', &
+            longname = 'latitude', units = 'degrees_north' )
     case (3)
+       ! fname
+       fName = trim(DataPathOut)//'mSMIc.nc'
        ! save drought mSMIc (same sequence as in 1)
-       !
-       call set_netCDF_mSMIc
-       call create_netCDF(ncId)
-       call write_static_netCDF(ncId)
-       allocate (Ziu  (nLats , nLons))
-       allocate (ZiuT (nLons , nLats))
-       do m = 1, nMonths
-          Ziu =  SMIc(:,:,m)
-          ZiuT = transpose (Ziu)
-          V(4)%G2_i => ZiuT 
-          call write_dynamic_netCDF(ncId,m)
-       end do
-       call close_netCDF(ncId)
-
+       call var2nc( fName, SMIc, dnames, v_name = 'mSMIc', &
+            longname = 'monthly SMI indicator SMI < th', units = '-', &
+            fill_value = int(nodata,i4), f_exists = .false. ) ! &
+            ! scale_factor = 1., coordinates = 'lon lat' )
+       ! add lat and lon
+       call var2nc( fname, lats, dnames(1:2), v_name = 'lat', &
+            longname = 'longitude', units = 'degrees_east' )
+       call var2nc( fname, lons, dnames(1:2), v_name = 'lon', &
+            longname = 'latitude', units = 'degrees_north' )
     case (4)
+       ! fname
+       fName = trim(DataPathOut)//'mDCluster.nc'
        ! save drought clusters (same sequence as in 1)
-       !
-       call set_netCDF_DC
-       call create_netCDF(ncId)
-       call write_static_netCDF(ncId)
-       allocate (Ziu  (nLats , nLons))
-       allocate (ZiuT (nLons , nLats))
-       do m = 1, nMonths
-          Ziu = idCluster(:,:,m)
-          ZiuT = transpose (Ziu)
-          V(4)%G2_i => ZiuT
-          call write_dynamic_netCDF(ncId,m)
-       end do
-       call close_netCDF(ncId)
-
+       call var2nc( fName, idCluster, dnames, v_name = 'mDC', &
+            longname = 'consolidated cluster evolution', units = '-', &
+            fill_value = int(nodata,i4), f_exists = .false. ) ! &
+            ! scale_factor = 1., coordinates = 'lon lat' )
+       deallocate( Ziu )
+       ! add lat and lon
+       call var2nc( fname, lats, dnames(1:2), v_name = 'lat', &
+            longname = 'longitude', units = 'degrees_east' )
+       call var2nc( fname, lons, dnames(1:2), v_name = 'lon', &
+            longname = 'latitude', units = 'degrees_north' )
     case (5)
+       ! fname
+       write (fName, '(i2.2)') d
+       fName = trim(DataPathOut)//'sev_'//trim(fName)//'.nc'
        ! save Severity for a given duration d (same sequence as in 1)
-       !
-       call set_netCDF_SEV(d)
-       call create_netCDF(ncId)
-       call write_static_netCDF(ncId)
-       allocate (Zu  (nLats , nLons))
-       allocate (ZuT (nLons , nLats))
-       do m = 1, nDsteps
-          Zu = severity(:,:,m)
-          ZuT = transpose (Zu)
-          V(4)%G2_f => ZuT 
-          call write_dynamic_netCDF(ncId,m)
-       end do
-       call close_netCDF(ncId)
-
-   case(6)
-       ! save error file (cells with problems)
-       call set_netCDF_eMask
-       call create_netCDF(ncId)
-       allocate (ZiuT (nLons , nLats))
-       ZiuT = transpose( unpack ( eMask , (mask /= int(grid%nodata_value,i4) ), int(grid%nodata_value,i4) )   )
-       V(5)%G2_i        => ZiuT
-       call write_static_netCDF(ncId)
-       call close_netCDF(ncId)
-
+       call var2nc( fName, severity, dnames, v_name = 'Severity', &
+            longname = 'd-month severity', units = '-', &
+            fill_value = real(nodata,dp), f_exists = .false. ) ! &
+            ! scale_factor = 1., coordinates = 'lon lat' )
+       deallocate( Zu )
+       ! add lat and lon
+       call var2nc( fname, lats, dnames(1:2), v_name = 'lat', &
+            longname = 'longitude', units = 'degrees_east' )
+       call var2nc( fname, lons, dnames(1:2), v_name = 'lon', &
+            longname = 'latitude', units = 'degrees_north' )
     end select
 
-    if ( allocated (Zu) ) deallocate (Zu, ZuT)
-    if ( allocated (Ziu) ) deallocate (Ziu, ZiuT)
   end subroutine WriteNetCDF
-
-  !*************************************************************************
-  !    PURPOSE    WRITE binP files
-  !    FORMAT     binary packed for mHM
-  !
-  !    AUTHOR:    Luis E. Samaniego-Eguiguren, UFZ
-  !    UPDATES
-  !               Created        Sa   25.02.2011   
-  !               Last Update    Sa     
-  !**************************************************************************
-  subroutine WritebinP(wFlag) 
-    use mo_kind, only                       : i4, sp
-    
-    implicit none
-    !
-    integer(i4), intent (in)               :: wFlag            !
-    integer(i4)                            :: m                ! 
-    character(len=256)                     :: fName
-    !
-    select case (wFlag)
-    case (1)
-       ! save monthly soil moisture averages
-       ! temporal storage
-       fName = trim(dataPathOut) //'mean_m_SM.binP'
-       open (unit=20, file=fName, form='unformatted', access='direct', recl=4*nCells)
-       ! save averages
-       do m = 1, nMonths
-          write (20,rec=m) real( Z(:,m), sp ) 
-      end do
-      call writeHeader(fName, headerfName) 
-      ! close file
-      close(20)
-    case (2)
-       ! save SMIp
-       !
-       fName = trim(dataPathOut) //'mSMI.binP'
-       open (unit=20, file=fName, form='unformatted', access='direct', recl=4*nCells)
-       ! save averages
-       do m = 1, nMonths
-          write (20,rec=m) real( SMIp(:,m), sp)
-      end do
-      call writeHeader(fName, headerfName) 
-      ! close file
-      close(20)
-    end select
-    print *, 'binP file was created'
-  end subroutine WritebinP
-
-! *************************************************************************
-! SUBROUTINE   WRITE HEADER binP
-! *************************************************************************
-  subroutine writeHeader(fName, fMask)
-    implicit none
-    character(256), intent(in)    :: fName, fMask
-    character(256)                :: fNameH
-    !
-    fNameH = trim(fName)//'.header.txt'
-    open (unit=100, file=fNameH, status='unknown')
-    write (100, 1)  'ncols',        grid%ncols
-    write (100, 1)  'nrows',        grid%nrows
-    write (100, 2)  'xllcorner',    grid%xllcorner
-    write (100, 2)  'yllcorner',    grid%yllcorner
-    write (100, 2)  'cellsize',     grid%cellsize
-    write (100, 2)  'NODATA_value', grid%nodata_value
-    write (100, 3)  'mask_file',    trim(fMask)
-    write (100, 1)  'nCells' ,      nCells
-    write (100, 1)  'nRecords' ,    nMonths
-    write (100, 1)  'recLenght' ,   4*nCells
-    close(100)
-    ! formats
-1   format (a12, 2x, i10)
-2   format (a12, 2x, f10.1)
-3   format (a12, 2x, a)
-  end subroutine writeHeader
 
 !**********************************************************************
 !    PURPOSE    WRITE Results of the cluster analysis
@@ -939,18 +555,20 @@ end subroutine WriteResultsCluster
 !               Created        Sa   24.05.2011
 !               Last Update    Sa
 !**********************************************************************
-subroutine WriteResultsBasins
+subroutine WriteResultsBasins( mask, nodata )
   use mo_kind, only          : i4
   !
   implicit none
   !
+  logical, dimension(:,:), intent(in) :: mask
+  integer(i4),             intent(in) :: nodata
   integer(i4)               :: i, m, k, y, j
   character(len=256)        :: fName
   !-------------------------
   ! basin wise
   !-------------------------
   allocate( Basin_SMI (nMonths, nBasins+1) )
-  Basin_SMI = grid%nodata_value
+  Basin_SMI = nodata
   !
   do m = 1, nMonths
     do i = 1, nBasins
@@ -958,7 +576,8 @@ subroutine WriteResultsBasins
       Basin_SMI(m,i) = sum( SMI(:,:,m), Basin_Id(:,:) == i ) / real(count(Basin_Id(:,:) == i), dp)
       !
     end do
-    Basin_SMI(m,nBasins+1) = sum(SMI(:,:,m), mask /= int(grid%nodata_value,i4) ) / real(count(mask /= int(grid%nodata_value,i4) ), dp)
+    Basin_SMI(m,nBasins+1) = sum(SMI(:,:,m), mask ) /  &
+         real(count(mask), dp)
   end do
   !
   ! Print Results
