@@ -11,20 +11,21 @@ module SMIndex
 !
 contains
 
-  subroutine calSMI( opt_h, mask, nodata )
+  subroutine calSMI( opt_h, SM_est, mask, nodata )
     use mo_kind,             only  : i4, sp
    ! use numerical_libraries, only : DGCDF
    ! use GCDF_INT
     use mo_interpol,         only : interpol
-    use InputOutput,         only : nMy, nYears, nMonths, nCells, SM_est, WriteResultsKernel, &
+    use InputOutput,         only : nMy, nYears, nMonths, nCells, WriteResultsKernel, &
                                     SMI_flag, eMask, SMI
     use kernelSmoother,      only : nObs, nInter, evalPDF, evalEDF, hOpt, X, edf, pdf, hOptDB
     ! use setGRG2,             only : OPTI, checkLimits
     use mo_kernel,           only : kernel_density_h
     ! input variables
-    logical,                 intent(in) :: opt_h ! optimize kernel width
-    logical, dimension(:,:), intent(in) :: mask
-    real(sp),                intent(in) :: nodata
+    logical,                  intent(in)  :: opt_h ! optimize kernel width
+    logical,  dimension(:,:), intent(in)  :: mask
+    real(sp),                 intent(in)  :: nodata
+    real(sp), dimension(:,:), intent (in) :: SM_est
 
     ! local variables
     integer(i4)                                  :: i, j, k, m, iStatus

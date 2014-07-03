@@ -41,44 +41,50 @@ program SM_Drought_Index
   !
   implicit none
   ! variables
-  logical                              :: do_cluster ! flag indicating whether cluster should
-                                                     ! be calculated
-  logical                              :: cal_SMI    ! flag indicating whether SMI should be
-                                                     ! calculated or read from file
-  logical                              :: opt_h      ! flag indicating whether kernel width 
-                                                     ! should be optimized
-  logical                              :: do_basin   ! do_basin flag
-  logical, dimension(:,:), allocatable :: mask
-  real(sp)                             :: nodata
-  integer(i4)                          :: d
+  real(sp), dimension(:,:), allocatable :: SM_est            ! monthly fields packed for estimation
+  real(sp), dimension(:,:), allocatable :: SM_eval           ! monthly fields packed for evaluation
+  logical                               :: do_cluster ! flag indicating whether cluster should
+                                                      ! be calculated
+  logical                               :: eval_SMI   ! flag indicating whether SMI should be
+                                                      ! calculated or read from file
+  logical                               :: opt_h      ! flag indicating whether kernel width 
+                                                      ! should be optimized
+  logical                               :: do_basin   ! do_basin flag
+  logical, dimension(:,:), allocatable  :: mask
+  real(sp)                              :: nodata
+  integer(i4)                           :: d
   !
-  call ReadDataMain( do_cluster, cal_SMI, opt_h, do_basin, mask, nodata )
+  call ReadDataMain( do_cluster, eval_SMI, opt_h, do_basin, mask, &
+       SM_est, SM_eval, nodata )
   !
   print*, 'FINISHED READING'
   
   ! estimate/re-estimate SMI
-  if ( cal_SMI ) then
-     call WriteNetCDF(1, mask, nodata)
-     call calSMI( opt_h, mask, nodata )
-     print *, 'calculating SMI...ok'
-     call WriteNetCDF(2, mask, nodata )
+  call WriteNetCDF(1, SM_est, mask, nodata)
+  call calSMI( opt_h, SM_est, mask, nodata )
+  print *, 'calculating SMI...ok'
+  call WriteNetCDF(2, SM_est, mask, nodata )
+
+  if ( eval_SMI ) then
+     print *, '***ERROR: eval SMI not implemented'
+     stop
   end if
 
   if ( do_cluster ) then
      ! drought indicator 
      call droughtIndicator( mask, int(nodata,i4) )
-     call WriteNetCDF(3, mask, nodata)
+     call WriteNetCDF(3, SM_est, mask, nodata)
      
      ! cluster indentification
      call ClusterEvolution( size( mask, 1), size( mask, 2 ), nodata )
-     call WriteNetCDF(4, mask, nodata)
+     call WriteNetCDF(4, SM_est, mask, nodata)
      ! statistics  
      call ClusterStats( size( mask, 1), size( mask, 2 ) )
      !
      ! SAD analysis
      do d = 1, nDurations
         call calSAD(d, size( mask, 1), size( mask, 2 ), int(nodata,i4) )
-        call WriteNetCDF(5, mask, nodata, durList(d))
+        call WriteNetCDF(5, SM_est, mask, nodata, durList(d))
      end do
      ! write results
      call writeResultsCluster(1)

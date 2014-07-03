@@ -8,8 +8,6 @@ module InputOutput
   use mo_kind,   only                              : i4, sp, dp
   use mo_ncread, only                              : Get_NcVar, Get_NcDim
   implicit none
-  character(256)                                  :: headerfName
-  character(256)                                  :: basinfName
   character(256)                                  :: DataPathIn
   character(256)                                  :: DataPathOut
   character(256)                                  :: optPDFparfName    ! opt parameter PDF file 
@@ -20,8 +18,6 @@ module InputOutput
   integer(i4)                                     :: nCells            ! number of effective cells
   integer(i4), parameter                          :: nMy = 12          ! number of months per year
   ! fields
-  real(sp),    dimension(:,:), allocatable        :: SM_est            ! monthly fields packed for estimation
-  real(sp),    dimension(:,:), allocatable        :: SM_eval           ! monthly fields packed for evaluation
   real(sp),    dimension(:,:), allocatable        :: h_opt             ! optimized kernel width h
   real(dp), dimension(:,:), allocatable           :: SMIp              ! SMI field packed
   real(dp), dimension(:,:,:), allocatable         :: SMI               ! SMI field unpacked
@@ -93,18 +89,21 @@ contains
   !    NOTES:
   !               packed fields are stored in dim1->dim2 sequence 
   !*********************************************************************
-  subroutine ReadDataMain( do_cluster, cal_SMI, opt_h, basin_flag, mask, nodata )
+  subroutine ReadDataMain( do_cluster, eval_SMI, opt_h, basin_flag, mask, &
+       SM_est, SM_eval, nodata )
     use mo_kind,         only : i4
     use kernelSmoother,  only : flagKernelType, nInter, offSet, flagCDF, hOptDB  
     implicit none
     !
     ! input / output Variables
-    logical,                              intent(out) :: do_cluster ! do cluster calculation
-    logical,                              intent(out) :: cal_SMI    ! should SMI be calculated
-    logical,                              intent(out) :: opt_h      ! optimize kernel width
-    logical,                              intent(out) :: basin_flag ! basin flag
-    logical, dimension(:,:), allocatable, intent(out) :: mask ! grid mask
-    real(sp),                             intent(out) :: nodata
+    logical,                               intent(out) :: do_cluster ! do cluster calculation
+    logical,                               intent(out) :: eval_SMI   ! should SMI be calculated
+    logical,                               intent(out) :: opt_h      ! optimize kernel width
+    logical,                               intent(out) :: basin_flag ! basin flag
+    logical,  dimension(:,:), allocatable, intent(out) :: mask ! grid mask
+    real(sp),                              intent(out) :: nodata
+    real(sp), dimension(:,:), allocatable, intent(out) :: SM_est            ! monthly fields packed for estimation
+    real(sp), dimension(:,:), allocatable, intent(out) :: SM_eval           ! monthly fields packed for evaluation
 
     !
     ! local Variables
@@ -116,6 +115,7 @@ contains
     character(256)            :: maskfName
     character(256)            :: opt_h_file
     character(256)            :: SM_eval_file
+    character(256)            :: basinfName
     
     ! variable names in netcdf input files
     character(256)            :: mask_vname
@@ -130,7 +130,7 @@ contains
 
     ! read main config
     namelist/mainconfig/basin_flag, basinfName, basin_vname, maskfName, mask_vname, DataPathIn, &
-         SM_vname, yStart, yEnd, DataPathOut, monthly_flag, SMI_flag, cal_SMI, &
+         SM_vname, yStart, yEnd, DataPathOut, monthly_flag, SMI_flag, eval_SMI, &
          opt_h, opt_h_file, SM_eval_file, &
          flagKerneltype, nInter, offSet, flagCDF, SMI_thld, nodata, do_cluster
     !   
@@ -180,6 +180,7 @@ contains
     do ii = 1, size( dummy_D3_dp, 3 )
        SM_est(:,ii) = pack( real(dummy_D3_dp(:,:,ii),sp), mask )
     end do
+    deallocate( dummy_D3_dp )
     
     ! read lats and lon from file
     call Get_ncVar( DataPathIn, 'lat', lats )
@@ -193,7 +194,15 @@ contains
     print*, 'soil moisture field read ...ok'
 
     ! check whether second SM field and optimized h should be written
-    if ( .not. cal_SMI ) then
+    if ( eval_SMI ) then
+       ! read optimized h
+
+       ! read second SM field that uses CDF of the first one
+       call Get_ncVar( trim( SM_eval_file ), trim( SM_vname ), dummy_D3_dp )
+       allocate( SM_eval( nCells, size( dummy_D3_dp, 3 ) ) )
+       do ii = 1, size( dummy_D3_dp, 3 )
+          SM_eval(:, ii) = pack( real(dummy_D3_dp(:,:,ii),sp), mask)
+       end do
        print *, '***ERROR: reading of optimized kernel width and SM evaluation not implemented!'
        stop
     end if
@@ -301,7 +310,7 @@ contains
   !               Created        Sa   16.02.2011   
   !               Last Update    Sa   16.02.2011  
   !**************************************************************************
-  subroutine WriteNetCDF(wFlag, mask, nodata, d) 
+  subroutine WriteNetCDF(wFlag, SM_est, mask, nodata, d) 
     use mo_kind, only              : i4, sp
     !
     !use netCDF_varDef
@@ -310,8 +319,9 @@ contains
     implicit none
     !
     !implicit none
-    logical, dimension(:,:), intent(in)    :: mask
-    real(sp),                intent(in)    :: nodata
+    logical, dimension(:,:),  intent(in)   :: mask
+    real(sp),                 intent(in)   :: nodata
+    real(sp), dimension(:,:), intent (in)  :: SM_est
     ! local Variables
     character(256)                         :: Fname
     integer(i4), intent (in), optional     :: d                ! optional, duration

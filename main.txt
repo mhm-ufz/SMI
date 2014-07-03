@@ -1,28 +1,28 @@
 !***DROUGHT-INDEX        *** Main configuration file Germany for SMI uncertainty analysis ***
 &mainconfig
- basin_flag             = .False.       
- basinfName             = "input/mask.nc"
- basin_vname            = "mask"
- maskfName              = "input/error_mask.nc"
- mask_vname             = "mask"
- DataPathIn             = "input/mHM_Fluxes_States_3L.nc"
- SM_vname               = "SM_Lall"
- yStart                 = 1981
- yEnd                   = 2010
- DataPathOut            = "output/"
- monthly_flag           = .true.
- SMI_flag               = 5
- cal_SMI                = .True.
- opt_h                  = .False.
- opt_h_file             = "yyy"
- SM_eval_file           = "input/mHM_Fluxes_States_2L.nc"
- flagKerneltype         = 7
- nInter                 = 500
- OFFSET                 = 0.01
- flagCDF                = .true.
- SMI_thld               = 0.20
- nodata                 = -9999.
- do_cluster             = .false.
+ basin_flag     = .False.       
+ basinfName     = "input/mask.nc"
+ basin_vname    = "mask"
+ maskfName      = "input/error_mask.nc"
+ mask_vname     = "mask"
+ DataPathIn     = "input/monthly_sm_anomaly.nc" ! "input/mHM_Fluxes_States_3L.nc"
+ SM_vname       = "SM_Lall"
+ yStart         = 1981
+ yEnd           = 2010
+ DataPathOut    = "newer_output/"
+ monthly_flag   = .true.
+ SMI_flag       = 5
+ opt_h          = .false.
+ opt_h_file     = "yyy"
+ eval_SMI       = .false.
+ SM_eval_file   = "input/mHM_Fluxes_States_2L.nc"
+ flagKerneltype = 7
+ nInter         = 500
+ OFFSET         = 0.01
+ flagCDF        = .true.
+ SMI_thld       = 0.20
+ nodata         = -9999.
+ do_cluster     = .false.
 /end
 !***END
 
