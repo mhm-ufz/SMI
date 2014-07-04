@@ -7,14 +7,11 @@ module kernelSmoother
   integer(i4)                                  :: nObs                ! sample size
   integer(i4), parameter                       :: nPar = 1            ! number of parameters
   integer(i4)                                  :: nInter              ! number of interval for the eval PDF
-  real(dp), dimension(:), allocatable          :: X                   ! sample
+  ! real(dp), dimension(:),   allocatable        :: X                   ! sample
   real(dp), dimension(:,:), allocatable        :: pdf                 ! x, frequency
   real(dp), dimension(:,:), allocatable        :: edf                 ! x, empirical cummulative distribution
   real(dp)                                     :: hOpt                ! smoothing parameter or bandwith
-  real(dp)                                     :: xMax                ! sample max val
-  real(dp)                                     :: xMin                ! sample min val
   real(dp)                                     :: hInt                ! integration interval
-  real(dp)                                     :: offSet              ! shift starting/ending x
   real(dp), dimension(:,:), allocatable        :: hOptDB              ! data bank of opti parameter  
 !
 contains
@@ -23,14 +20,17 @@ contains
   !  Kernel functions (see Wilks pg. 36)
   !  Luis Samaniego, 02.09.2011
   !***********************************************************
-  function fKernel(h, x0, iOut)
+  function fKernel(h, X, x0, iOut)
     use mo_kind, only                             : i4, sp, dp
     implicit none
-    real(dp)                 :: fKernel           ! f(x_o)
-    real(dp), intent(in)     :: h                 ! given smoothing parameter
-    real(dp), intent(in)     :: x0                ! given value
-    integer(sp), intent(in)  :: iOut              ! exclude observation for crossvalidation
-    !
+    ! output variable
+    real(dp)                           :: fKernel ! f(x_o)
+    ! input variable
+    real(dp),               intent(in) :: h       ! given smoothing parameter
+    real(dp), dimension(:), intent(in) :: X
+    real(dp),               intent(in) :: x0      ! given value
+    integer(sp),            intent(in) :: iOut    ! exclude observation for crossvalidation
+    ! local variables
     real(dp)              :: u, hInv
     !
     real(dp), parameter   :: c0 = 0.50000_dp   ! 1/2  
@@ -126,36 +126,62 @@ contains
   !  Luis Samaniego
   !  02.09.2011
   !***********************************************************
-  subroutine evalPDF(h)
-    use mo_kind, only        : i4, dp
+  subroutine evalPDF(x, h, offSet)
+    use mo_kind,   only : i4, dp
+    use mo_kernel, only : kernel_density, kernel_cumdensity
     implicit none
-    integer(i4)             :: i, ioacc
-    integer(i4), parameter  :: iDigit = 2
+    ! input variables
+    real(dp), dimension(:), intent(in) :: x
+    real(dp),               intent(in) :: h      ! given smoothing parameter
+    real(dp),               intent(in) :: offSet ! shift starting/ending x
+    ! local variables
+    logical                            :: use_lib
+    integer(i4)                        :: i, ii, ioacc
+    integer(i4),             parameter :: iDigit = 2
+    real(dp)                           :: xMax   ! sample max val
+    real(dp)                           :: xMin   ! sample min val
+    real(dp), dimension(:), allocatable:: xout
 
-    real(dp), intent(in)  :: h                                ! given smoothing parameter
+    ! use chs fortran library for integration
+    use_lib = .true.
+
     ! set nice boundaries
     ioacc = 10**iDigit
-    xMin = real ( floor( (minval(X) - offSet) * real(ioacc, dp), dp ), dp   ) / real(ioacc, dp)
+    xMin = real ( floor(   (minval(X) - offSet) * real(ioacc, dp), dp ), dp ) / real(ioacc, dp)
     xMax = real ( ceiling( (maxval(X) + offSet) * real(ioacc, dp), dp ), dp ) / real(ioacc, dp)
     hInt = (xMax - xMin) / real(nInter-1,dp)
     pdf  = 0.0_dp
-    do i = 1, nInter
-       ! set equally spaced abscissas
-       pdf(i,1) = xMin + real((i-1),dp)*hInt
-       ! evaluate the PDF
-       pdf(i,2) = fKernel(h, pdf(i,1), -9) / hInt
-       ! evaluate the CDF
-       if (i > 1) pdf(i,3) = pdf(i-1,3) + pdf(i,2) * hInt 
-    end do
-    if ( pdf(1,3) > 0.0_dp .or. pdf(nInter,3) < 1.0_dp ) then
-       print*, 'WARNING: CDF boundaries not reached'
-       print*, 'Increase offSet value...'
+
+    if ( use_lib ) then
+       ! ###### using mo_kernel
+       forall(ii=1:ninter) pdf(ii,1) = xmin + (ii-1) * hInt
+       pdf(:,3) = kernel_cumdensity( x, h, xout = pdf(:,1) )
+       pdf(:,2) = pdf(:,3) ! kernel_density( x, h, xout = pdf(:,1) )
+    else
+       ! ###### using kernelDensity
+       do i = 1, nInter
+          ! set equally spaced abscissas
+          pdf(i,1) = xMin + real((i-1),dp)*hInt
+          ! evaluate the PDF
+          pdf(i,2) = fKernel(h, x, pdf(i,1), -9) / hInt
+          ! evaluate the CDF
+          if (i > 1) pdf(i,3) = pdf(i-1,3) + pdf(i,2) * hInt 
+       end do
+       if ( pdf(1,3) > 0.0_dp .or. pdf(nInter,3) < 1.0_dp ) then
+          print*, 'WARNING: CDF boundaries not reached'
+          print*, 'Increase offSet value...'
+       end if
     end if
     ! normalize PDF
+    ! print *, 'hint: ', hint
+    ! print *, sum(pdf(:,2))
     pdf(:,2) = pdf(:,2) / sum(pdf(:,2))
+    ! print *, sum(pdf(:,2))
     ! normalize CDF
+    ! print*,  pdf(nInter,3)
     pdf(:,3) = pdf(:,3) / pdf(nInter,3)
     ! print*,  pdf(nInter,3)
+    ! stop
   end subroutine evalPDF
 
   !***********************************************************
@@ -164,11 +190,14 @@ contains
   !
   !  NOTE: should be called after evalPDF
   !***********************************************************
-  subroutine evalEDF
+  subroutine evalEDF(X)
     use mo_kind, only                    : i4,dp
     ! use numerical_libraries, only        : DSVRGN
     use mo_sort, only                    : sort
     implicit none
+    ! input variables
+    real(dp), dimension(:), intent(in)  :: X
+    ! local variables
     integer(i4)                         :: i
     real(dp)                            :: freq      ! frequency
     !

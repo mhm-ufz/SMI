@@ -33,69 +33,83 @@
 !                    Sa  22.06.2012            v4. read WRF-NOAH SM 
 !**********************************************************************************
 program SM_Drought_Index
-  use mo_kind,          only : i4, sp
+  use mo_kind,          only : i4, sp, dp
   use InputOutput,      only : ReadDataMain, WriteNetCDF, &
-                               SMI_flag, nDurations, durList, &
+                               nDurations, durList, &
                                writeResultsCluster, WriteResultsBasins
-  use SMIndex,          only : calSMI
+  use SMIndex,          only : calSMI, evalSMI
   !
   implicit none
   ! variables
-  real(sp), dimension(:,:), allocatable :: SM_est            ! monthly fields packed for estimation
-  real(sp), dimension(:,:), allocatable :: SM_eval           ! monthly fields packed for evaluation
+  real(sp), dimension(:,:), allocatable :: SM_est     ! monthly fields packed for estimation
+  real(sp), dimension(:,:), allocatable :: SM_eval    ! monthly fields packed for evaluation
+  real(sp), dimension(:,:), allocatable :: opt_h      ! optimized kernel width field
   logical                               :: do_cluster ! flag indicating whether cluster should
                                                       ! be calculated
   logical                               :: eval_SMI   ! flag indicating whether SMI should be
                                                       ! calculated or read from file
-  logical                               :: opt_h      ! flag indicating whether kernel width 
+  logical                               :: read_opt_h ! read kernel width from file
+  logical                               :: silverman_h ! flag indicating whether kernel width 
                                                       ! should be optimized
   logical                               :: do_basin   ! do_basin flag
   logical, dimension(:,:), allocatable  :: mask
   real(sp)                              :: nodata
+  real(dp)                              :: offSet
+  integer(i4)                           :: yStart
+  integer(i4)                           :: yEnd
   integer(i4)                           :: d
+  real(sp), dimension(:,:), allocatable :: SMI_eval   ! soil moisture index at evaluation array
   !
-  call ReadDataMain( do_cluster, eval_SMI, opt_h, do_basin, mask, &
-       SM_est, SM_eval, nodata )
+  call ReadDataMain( do_cluster, eval_SMI, read_opt_h, silverman_h, opt_h, do_basin, mask, &
+       SM_est, SM_eval, yStart, yEnd, nodata, offSet )
   !
   print*, 'FINISHED READING'
-  
+
   ! estimate/re-estimate SMI
-  call WriteNetCDF(1, SM_est, mask, nodata)
-  call calSMI( opt_h, SM_est, mask, nodata )
+  call WriteNetCDF(1, opt_h, SM_est, mask, nodata, yStart)
+  call calSMI( opt_h, read_opt_h, silverman_h, SM_est, mask, nodata, offSet )
   print *, 'calculating SMI...ok'
-  call WriteNetCDF(2, SM_est, mask, nodata )
 
+  ! evaluate SMI at second data set SMI_eval
   if ( eval_SMI ) then
-     print *, '***ERROR: eval SMI not implemented'
-     stop
+     allocate( SMI_eval( size( SM_eval, 1 ), size( SM_eval, 2 ) ) )
+     call evalSMI( SM_est, opt_h, SM_eval, SMI_eval )
   end if
+  call WriteNetCDF(2, opt_h, SM_est, mask, nodata, yStart, SMI_eval = SMI_eval)
+          
+  stop 'TESTING'
 
+  ! calculate drought cluster
   if ( do_cluster ) then
      ! drought indicator 
      call droughtIndicator( mask, int(nodata,i4) )
-     call WriteNetCDF(3, SM_est, mask, nodata)
+     call WriteNetCDF(3, opt_h, SM_est, mask, nodata, yStart)
      
      ! cluster indentification
      call ClusterEvolution( size( mask, 1), size( mask, 2 ), nodata )
-     call WriteNetCDF(4, SM_est, mask, nodata)
+     call WriteNetCDF(4, opt_h, SM_est, mask, nodata, yStart)
      ! statistics  
      call ClusterStats( size( mask, 1), size( mask, 2 ) )
      !
      ! SAD analysis
      do d = 1, nDurations
         call calSAD(d, size( mask, 1), size( mask, 2 ), int(nodata,i4) )
-        call WriteNetCDF(5, SM_est, mask, nodata, durList(d))
+        ! write SAD for a given duration + percentiles
+        call writeResultsCluster(2, yStart, yEnd, durList(d) )
+        call WriteNetCDF(5, opt_h, SM_est, mask, nodata, yStart, durList(d))
      end do
      ! write results
-     call writeResultsCluster(1)
+     call writeResultsCluster(1, yStart, yEnd)
      print *, 'Cluster evolution ...ok'
   end if
-  !
+
+  ! make basin averages
   if ( do_basin ) then
      ! write SMI average over major basins
      print *, 'calculate Basin Results ...'
-     call WriteResultsBasins( mask, int(nodata, i4) )
+     call WriteResultsBasins( mask, int(nodata, i4), yStart, yEnd )
   end if
+
   print *, 'DONE!'
   !
 end program SM_Drought_Index

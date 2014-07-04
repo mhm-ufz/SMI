@@ -389,8 +389,6 @@ subroutine calSAD(iDur, nrows, ncols, nodata)
      ! call DEQTIL (nObs, sevP, nQprop, Qprop, SADperc(k,:), Xlo, Xhi, nMiss)
      SADperc(k,:) =  percentile( sevP, Qprop )
   end do
-  ! write SAD for a given duration + percentiles
-  call writeResultsCluster(2, durList(iDur) )
   !
   if ( allocated(sevP) ) deallocate ( sevP )
 end subroutine calSAD

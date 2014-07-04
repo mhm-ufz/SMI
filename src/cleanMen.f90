@@ -9,7 +9,6 @@ subroutine clean
   implicit none
   !
   if (allocated ( SMI )   )  deallocate ( SMI )
-  if (allocated ( X )     )  deallocate ( X )
   if (allocated ( edf )   )  deallocate ( edf )
   if (allocated ( pdf )   )  deallocate ( pdf )
   if (allocated ( SAD )  )  deallocate (SAD )
