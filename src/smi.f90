@@ -169,8 +169,6 @@ contains
           SMI_eval(ii, mm : nObs_eval : nMy ) = real( cdf, sp )
        end do
     end do
-          
-    stop 'TESTING'
 
   end subroutine evalSMI
 end module SMIndex
