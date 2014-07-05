@@ -36,14 +36,17 @@ program SM_Drought_Index
   use mo_kind,          only : i4, sp, dp
   use InputOutput,      only : ReadDataMain, WriteNetCDF, &
                                nDurations, durList, &
-                               writeResultsCluster, WriteResultsBasins
-  use SMIndex,          only : calSMI, evalSMI
+                               writeResultsCluster, WriteResultsBasins, &
+                               WriteSMI
+  use SMIndex,          only : optimize_width, calSMI
   !
   implicit none
   ! variables
+  logical,  dimension(:,:), allocatable :: tmask_est  ! monthly mask for estimated SM
+  logical,  dimension(:,:), allocatable :: tmask_eval ! monthly mask for evaluated SM
   real(sp), dimension(:,:), allocatable :: SM_est     ! monthly fields packed for estimation
   real(sp), dimension(:,:), allocatable :: SM_eval    ! monthly fields packed for evaluation
-  real(sp), dimension(:,:), allocatable :: opt_h      ! optimized kernel width field
+  real(dp), dimension(:,:), allocatable :: opt_h      ! optimized kernel width field
   logical                               :: do_cluster ! flag indicating whether cluster should
                                                       ! be calculated
   logical                               :: eval_SMI   ! flag indicating whether SMI should be
@@ -57,27 +60,41 @@ program SM_Drought_Index
   real(dp)                              :: offSet
   integer(i4)                           :: yStart
   integer(i4)                           :: yEnd
+  integer(i4)                           :: mStart
+  real(sp), dimension(:), allocatable   :: time
   integer(i4)                           :: d
-  real(sp), dimension(:,:), allocatable :: SMI_eval   ! soil moisture index at evaluation array
+  real(sp), dimension(:,:), allocatable :: SMI        ! soil moisture index at evaluation array
   !
   call ReadDataMain( do_cluster, eval_SMI, read_opt_h, silverman_h, opt_h, do_basin, mask, &
-       SM_est, SM_eval, yStart, yEnd, nodata, offSet )
+       SM_est, tmask_est, SM_eval, tmask_eval, yStart, yEnd, mStart, time, nodata, offSet )
   !
   print*, 'FINISHED READING'
 
-  ! estimate/re-estimate SMI
-  call WriteNetCDF(1, opt_h, SM_est, mask, nodata, yStart)
-  call calSMI( opt_h, read_opt_h, silverman_h, SM_est, mask, nodata, offSet )
-  print *, 'calculating SMI...ok'
+  ! optimize kernel width
+  if ( .not. read_opt_h ) then
+     call optimize_width( opt_h, silverman_h, SM_est, tmask_est, nodata, offSet )
+     print *, 'optimizing kernel width...ok'
+  end if
 
   ! evaluate SMI at second data set SMI_eval
   if ( eval_SMI ) then
-     allocate( SMI_eval( size( SM_eval, 1 ), size( SM_eval, 2 ) ) )
-     call evalSMI( SM_est, opt_h, SM_eval, SMI_eval )
+     allocate( SMI( size( SM_eval, 1 ), size( SM_eval, 2 ) ) )
+     SMI = nodata
+     call calSMI( opt_h, SM_est, tmask_est, SM_eval, tmask_eval, SMI )
+  else
+     allocate( SMI( size( SM_est, 1 ), size( SM_est, 2 ) ) )
+     SMI = nodata
+     call calSMI( opt_h, SM_est, tmask_est,  SM_est,  tmask_est, SMI )
   end if
-  call WriteNetCDF(2, opt_h, SM_est, mask, nodata, yStart, SMI_eval = SMI_eval)
-          
-  stop 'TESTING'
+  print *, 'calculating SMI... ok'
+
+  ! write output
+  if ( read_opt_h ) then
+     call WriteSMI( SMI, mask, nodata, yStart, mStart, time )
+  else
+     call WriteSMI( SMI, mask, nodata, yStart, mStart, time, hh = opt_h )
+  end if
+  print *, 'write SMI...ok'
 
   ! calculate drought cluster
   if ( do_cluster ) then

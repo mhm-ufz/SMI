@@ -6,7 +6,7 @@
 !**********************************************************************
 module InputOutput
   use mo_kind,   only                              : i4, sp, dp
-  use mo_ncread, only                              : Get_NcVar, Get_NcDim
+  use mo_ncread, only                              : Get_NcVar, Get_NcDim, Get_NcVarAtt
   implicit none
   character(256)                                  :: DataPathIn
   character(256)                                  :: DataPathOut
@@ -88,10 +88,12 @@ contains
   !               packed fields are stored in dim1->dim2 sequence 
   !*********************************************************************
   subroutine ReadDataMain( do_cluster, eval_SMI, read_opt_h, silverman_h, opt_h, basin_flag, mask, &
-       SM_est, SM_eval, yStart, yEnd, nodata, offSet )
-    use mo_kind,        only : i4
-    use mo_utils,       only : equal
-    use kernelSmoother, only : flagKernelType, nInter, flagCDF   
+       SM_est, tmask_est, SM_eval, tmask_eval, yStart, yEnd, mstart, time_sp, nodata, offSet )
+    use mo_kind,         only: i4
+    use mo_utils,        only: equal
+    use kernelSmoother,  only: flagKernelType, nInter, flagCDF   
+    use mo_string_utils, only: DIVIDE_STRING
+
     implicit none
     !
     ! input / output Variables
@@ -103,16 +105,21 @@ contains
     logical,  dimension(:,:), allocatable, intent(out) :: mask       ! grid mask
     integer(i4),                           intent(out) :: yStart     ! starting year
     integer(i4),                           intent(out) :: yEnd       ! ending year
+    integer(i4),                           intent(out) :: mStart     ! starting year
+    real(sp), dimension(:),   allocatable, intent(out) :: time_sp
     real(sp),                              intent(out) :: nodata
     real(sp), dimension(:,:), allocatable, intent(out) :: SM_est     ! monthly fields packed for estimation
+    logical,  dimension(:,:), allocatable, intent(out) :: tmask_est  ! temporal mask of estimated arr
     real(sp), dimension(:,:), allocatable, intent(out) :: SM_eval    ! monthly fields packed for evaluation
-    real(sp), dimension(:,:), allocatable, intent(out) :: opt_h
+    logical,  dimension(:,:), allocatable, intent(out) :: tmask_eval ! temporal mask of evaluated arr
+    real(dp), dimension(:,:), allocatable, intent(out) :: opt_h
     real(dp),                              intent(out) :: offSet ! shift starting/ending x
 
     !
     ! local Variables
     logical                   :: monthly_flag ! indicate whether monthly data is given
     integer(i4)               :: ii
+    integer(i4)               :: mm
     ! directories and filenames
     character(256)            :: maskfName
     character(256)            :: opt_h_file
@@ -122,16 +129,20 @@ contains
     ! variable names in netcdf input files
     character(256)            :: mask_vname
     character(256)            :: SM_vname
+    character(256)            :: SM_eval_vname
     character(256)            :: basin_vname
     character(256)            :: opt_h_vname
+    character(256)            :: time_units
 
-    real(sp), dimension(:,:),     allocatable  :: dummy_D2_sp
-    real(dp), dimension(:,:,:),   allocatable  :: dummy_D3_dp
+    character(256), dimension(:),       allocatable :: strArr  ! dummy for netcdf attribute handling
+    real(sp),       dimension(:,:),     allocatable :: dummy_D2_sp
+    real(sp),       dimension(:,:,:),   allocatable :: dummy_D3_sp
+    real(dp),       dimension(:,:,:),   allocatable :: dummy_D3_dp
 
     ! read main config
     namelist/mainconfig/basin_flag, basinfName, basin_vname, maskfName, mask_vname, DataPathIn, &
          SM_vname, yStart, yEnd, DataPathOut, monthly_flag, SMI_flag, eval_SMI, &
-         silverman_h, read_opt_h, opt_h_vname, opt_h_file, SM_eval_file, &
+         silverman_h, read_opt_h, opt_h_vname, opt_h_file, SM_eval_file, SM_eval_vname, &
          flagKerneltype, nInter, offSet, flagCDF, SMI_thld, nodata, do_cluster
     !   
     open (unit=10, file='main.dat', status='old')
@@ -181,6 +192,22 @@ contains
        SM_est(:,ii) = pack( real(dummy_D3_dp(:,:,ii),sp), mask )
     end do
     deallocate( dummy_D3_dp )
+    ! determine time mask 
+    print *, '***CAUTION: time axis assumed to be starting with 1!'
+    call Get_NcVarAtt( DataPathIn, 'time', 'units', time_units )
+    call DIVIDE_STRING(trim(time_units), ' ', strArr)
+    call DIVIDE_STRING(trim(strArr(3)), '-', strArr) 
+    read( strArr(1), * ) yStart
+    read( strArr(2), * ) mStart
+    allocate( time_sp( size( SM_est, 2 ) ) )
+    forall( mm = 1 : size( time_sp, 1 ) ) time_sp(mm) = real(mm,sp)
+    allocate ( tmask_est( size(SM_est, 2), nMy ) )
+    tmask_est = .false.
+    do mm = 1, nMy
+       tmask_est(:,mm) = ( mod( int(time_sp,i4) + mStart, nMy ) .eq. mod( mm, nMy ) )
+    end do
+    if ( any( count( tmask_est, dim = 1 ) .eq. 0_i4 ) ) &
+         stop '***ERROR no data for estimation given for all calendar months, check time axis'
     
     ! read lats and lon from file
     call Get_ncVar( DataPathIn, 'lat', lats )
@@ -196,12 +223,28 @@ contains
     ! check whether second SM field and optimized h should be written
     if ( eval_SMI ) then
        ! read second SM field that uses CDF of the first one
-       call Get_ncVar( trim( SM_eval_file ), trim( SM_vname ), dummy_D3_dp )
-       allocate( SM_eval( nCells, size( dummy_D3_dp, 3 ) ) )
-       do ii = 1, size( dummy_D3_dp, 3 )
-          SM_eval(:, ii) = pack( real(dummy_D3_dp(:,:,ii),sp), mask)
+       call Get_ncVar( trim( SM_eval_file ), trim( SM_eval_vname ), dummy_D3_sp )
+       allocate( SM_eval( nCells, size( dummy_D3_sp, 3 ) ) )
+       do ii = 1, size( dummy_D3_sp, 3 )
+          SM_eval(:, ii) = pack( dummy_D3_sp(:,:,ii), mask)
        end do
-       deallocate( dummy_D3_dp )
+       deallocate( dummy_D3_sp )
+       ! read time axis
+       if ( allocated( time_sp ) ) deallocate( time_sp )
+       call Get_ncVar( trim( SM_eval_file ), 'time', time_sp )
+       call Get_ncVarAtt( trim( SM_eval_file), 'time', 'units', time_units )
+       call DIVIDE_STRING(trim(time_units), ' ', strArr)
+       call DIVIDE_STRING(trim(strArr(3)), '-', strArr) 
+       read(strArr(1),*) yStart
+       read(strArr(2),*) mStart
+       ! determine time mask
+       allocate ( tmask_eval( size(SM_eval, 2), nMy ) )
+       tmask_eval = .false.
+       do mm = 1, nMy
+          tmask_eval(:,mm) = ( mod( int(time_sp,i4) + mStart, nMy ) .eq. mod( mm, nMy ) )
+       end do
+       if ( all( count( tmask_eval, dim = 1 ) .eq. 0_i4 ) ) &
+            stop '***ERROR no data in eval given, check time axis'
        print*, 'read soil moisture field for evaluation... ok'
     end if
 
@@ -216,7 +259,7 @@ contains
           opt_h( :, ii ) = pack( real( dummy_D3_dp(:,:,ii),sp ), mask )
        end do
        deallocate( dummy_D3_dp )
-       if ( any( equal( opt_h, nodata ) ) ) &
+       if ( any( equal( opt_h, real(nodata, dp)) ) ) &
             stop '***ERROR kernel width contains nodata values'
        print *, 'read kernel width from file... ok'
     end if    
@@ -315,6 +358,87 @@ contains
 300 format (  i10, i5, i5, es15.5)
   end subroutine WriteResultsKernel
 
+
+  ! ##################################################################
+  ! subroutine for writting the SMI to nc file
+  ! author: Stephan Thober
+  ! created: 5.7.2014
+  ! ##################################################################
+  subroutine WriteSMI( SMI, mask, nodata, yStart, mStart, time, hh ) 
+    !
+    use mo_kind,         only: i4, sp
+    use mo_string_utils, only: num2str
+    use mo_ncwrite,      only: var2nc
+    !
+    implicit none
+    !
+
+    ! input variables
+    real(sp), dimension(:,:),           intent(in) :: SMI
+    logical, dimension(:,:),            intent(in) :: mask
+    real(sp),                           intent(in) :: nodata
+    real(dp), dimension(:,:), optional, intent(in) :: hh
+    integer(i4),                        intent(in) :: yStart
+    integer(i4),                        intent(in) :: mStart
+    real(sp), dimension(:), allocatable,intent(in) :: time
+
+    ! local Variables
+    character(256)                              :: Fname
+    integer(i4)                                 :: mm            ! month
+    integer(i4), dimension(:,:,:), allocatable  :: Ziu           ! field integer unpacked 
+    real(sp),    dimension(:,:,:), allocatable  :: dummy_D3_sp   ! field real unpacked 
+    real(dp),    dimension(:,:,:), allocatable  :: dummy_D3_dp   ! field real unpacked 
+    ! dimension names
+    character(256), dimension(3)                :: dnames
+    character(256), dimension(3)                :: dims_hopt
+
+    ! initialize dimension names
+    dnames(1) = 'nrows'
+    dnames(2) = 'ncols'
+    dnames(3) = 'time'    
+    dims_hopt(1) = 'nrows'
+    dims_hopt(2) = 'ncols'
+    dims_hopt(3) = 'months'
+
+    ! fname
+    fName = trim(DataPathOut)//'mSMI.nc'
+
+    ! unpack estimated SMIp
+    allocate( dummy_d3_sp( size( mask, 1), size( mask, 2), size( SMI, 2) ) )
+    do mm = 1, size( SMI, 2 )
+       dummy_d3_sp( :, :, mm) = unpack ( SMI(:,mm), mask, nodata )
+    end do
+    ! save SMI (same sequence as in 1)
+    call var2nc( fName, dummy_d3_sp, dnames, v_name = 'SMI', &
+         long_name = 'monthly soil moisture index', units = '-', &
+         missing_value = nodata, create = .true. ) ! &
+    ! scale_factor = 1., coordinates = 'lon lat' )
+    deallocate( dummy_d3_sp )
+
+    ! write out kernel width if it has been optimised
+    if ( present( hh ) ) then
+       allocate( dummy_D3_dp( size( mask, 1 ), size( mask, 2), size( hh, 2 ) ) )
+       do mm = 1, nMy
+          dummy_D3_dp( :, :, mm ) = unpack( hh(:,mm), mask, real( nodata, dp ) ) 
+       end do
+       call var2nc( fname, dummy_D3_dp, dims_hopt, v_name = 'kernel_width', &
+            long_name = 'optimised kernel width', units = '-', &
+            missing_value = real( nodata, dp ) )
+       deallocate( dummy_D3_dp ) 
+    end if
+
+    ! add lat and lon
+    call var2nc( fname, lats, dnames(1:2), v_name = 'lat', &
+         long_name = 'longitude', units = 'degrees_east' )
+    call var2nc( fname, lons, dnames(1:2), v_name = 'lon', &
+         long_name = 'latitude', units = 'degrees_north' )
+
+    ! add time
+    call var2nc( fname, time, dnames(3:3), v_name='time', &
+         long_name = 'time', units = 'months since ' // &
+         trim(num2str(ystart, '(i4)')) // '-' // trim(num2str(mStart,'(i2.2)')) // '-01 00:00:00' )
+  end subroutine WriteSMI
+
   !*************************************************************************
   !    PURPOSE    WRITE netCDF files
   !    FORMAT     netCDF
@@ -338,7 +462,7 @@ contains
     logical, dimension(:,:),            intent(in) :: mask
     real(sp),                           intent(in) :: nodata
     real(sp), dimension(:,:),           intent(in) :: SM_est
-    real(sp), dimension(:,:),           intent(in) :: opt_h
+    real(dp), dimension(:,:),           intent(in) :: opt_h
     integer(i4),                        intent(in) :: yStart
     integer(i4),              optional, intent(in) :: d                ! optional, duration
     real(sp), dimension(:,:), optional, intent(in) :: SMI_eval
@@ -366,69 +490,7 @@ contains
     dims_hopt(3) = 'months'
     !
     select case (wFlag)
-    case (1)
-       ! fname
-       fName = trim(DataPathOut)//'mean_m_SM.nc'
-       ! unpack estimated SM
-       allocate( dummy_D3_sp( size( mask, 1), size( mask, 2), size( SM_est, 2) ) )
-       do m = 1, nMonths
-          dummy_D3_sp( :, :, m) = unpack ( real( SM_est(:,m), sp ), mask, nodata )
-       end do
-       ! save monthly soil moisture averages
-       call var2nc( fName, dummy_D3_sp, dnames, v_name = 'mSMmean', &
-            long_name = 'monthly mean SM/SMs', units = '%', &
-            missing_value = nodata, create = .true. ) ! &
-            ! scale_factor = 1., coordinates = 'lon lat' )
-       ! add lat and lon
-       call var2nc( fname, lats, dnames(1:2), v_name = 'lat', &
-            long_name = 'longitude', units = 'degrees_east' )
-       call var2nc( fname, lons, dnames(1:2), v_name = 'lon', &
-            long_name = 'latitude', units = 'degrees_north' )
-       ! add time
-       call var2nc( fname, time, dnames(3:3), v_name='time', &
-            long_name = 'time', units = 'months since '//trim(num2str(ystart))//'-01-01 00:00:00' )
-    case (2)
-       ! fname
-       fName = trim(DataPathOut)//'mSMI.nc'
-       ! unpack estimated SMIp
-       allocate( dummy_d3_sp( size( mask, 1), size( mask, 2), size( SMIp, 2) ) )
-       do m = 1, nMonths
-          dummy_d3_sp( :, :, m) = unpack ( real( SMIp(:,m), sp ), mask, nodata )
-       end do
-       ! save SMIp (same sequence as in 1)
-       call var2nc( fName, dummy_d3_sp, dnames, v_name = 'SMI', &
-            long_name = 'monthly soil moisture index', units = '-', &
-            missing_value = nodata, create = .true. ) ! &
-            ! scale_factor = 1., coordinates = 'lon lat' )
-       deallocate( dummy_d3_sp )
-       ! write out kernel width if it has been optimised
-       allocate( dummy_D3_dp( size( mask, 1 ), size( mask, 2), size( opt_h, 2 ) ) )
-       do m = 1, nMy
-          dummy_D3_dp( :, :, m ) = unpack( real(opt_h(:,m),dp), mask, real( nodata, dp ) ) 
-       end do
-       call var2nc( fname, dummy_D3_dp, dims_hopt, v_name = 'h_opt', &
-            long_name = 'optimised kernel width', units = '-', &
-            missing_value = real( nodata, dp ) )
-       deallocate( dummy_D3_dp ) 
-       ! write out evaluated SMI
-       if ( present( SMI_eval ) ) then
-          allocate( dummy_D3_sp( size( mask, 1 ), size( mask, 2), size( SMI_eval, 2 ) ) )
-          do m = 1, size( SMI_eval, 2)
-             dummy_D3_sp( :, :, m ) = unpack( SMI_eval(:,m), mask, nodata ) 
-          end do
-          call var2nc( fname, dummy_D3_sp, dims_hopt, v_name = 'mSMI_eval', &
-               long_name = 'soil moisture index at evaluation array', units = '-', &
-               missing_value = nodata )
-          deallocate( dummy_D3_sp ) 
-       end if
-       ! add lat and lon
-       call var2nc( fname, lats, dnames(1:2), v_name = 'lat', &
-            long_name = 'longitude', units = 'degrees_east' )
-       call var2nc( fname, lons, dnames(1:2), v_name = 'lon', &
-            long_name = 'latitude', units = 'degrees_north' )
-       ! add time
-       call var2nc( fname, time, dnames(3:3), v_name='time', &
-            long_name = 'time', units = 'months since '//trim(num2str(ystart))//'-01-01 00:00:00' )
+
     case (3)
        ! fname
        fName = trim(DataPathOut)//'mSMIc.nc'

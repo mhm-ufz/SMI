@@ -1066,6 +1066,12 @@ CONTAINS
     Real(dp)    :: XXcp(3)
     Integer(i4) :: IIpt(3)
 
+    ! dont sort if size equal to one
+    if ( size(X) .eq. 1 ) Then
+       Ipt = 1
+       return
+    end if
+
     Allocate(Stack(Size(X)))
 
     Stack(:)%Ileft = 0
@@ -1077,7 +1083,7 @@ CONTAINS
     Stack(ISpos)%Ileft  = 1
     Stack(ISpos)%Iright = Size(X)
 
-    Do While (Stack(ISpos)%Ileft /= 0)
+    Do While (Stack(ISpos)%Ileft .ne. 0)
 
        Ileft = Stack(ISPos)%Ileft
        Iright = Stack(ISPos)%Iright
