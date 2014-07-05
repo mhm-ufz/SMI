@@ -17,7 +17,7 @@
  opt_h_vname    = "h_opt"
  opt_h_file     = "new_output/mSMI.nc"
  eval_SMI       = .true.
- SM_eval_file   = "input/NCEP_CFSv2_sm_anomaly.nc"
+ SM_eval_file   = "input/sm_anomaly.nc"
  SM_eval_vname  = "sm_anomaly"
  flagKerneltype = 7
  nInter         = 100 ! 500

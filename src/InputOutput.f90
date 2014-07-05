@@ -436,7 +436,7 @@ contains
     ! add time
     call var2nc( fname, time, dnames(3:3), v_name='time', &
          long_name = 'time', units = 'months since ' // &
-         trim(num2str(ystart, '(i4)')) // '-' // trim(num2str(mStart,'(i2.2)')) // '-01 00:00:00' )
+         trim(num2str(ystart, '(i4)')) // '-' // trim(num2str(mStart,'(i2.2)')) // '-28 00:00:00' )
   end subroutine WriteSMI
 
   !*************************************************************************
