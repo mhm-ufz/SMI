@@ -193,14 +193,14 @@ contains
     end do
     deallocate( dummy_D3_dp )
     ! determine time mask 
-    print *, '***CAUTION: time axis assumed to be starting with 1!'
+    print *, '***CAUTION: time axis assumed to be starting with 0!'
     call Get_NcVarAtt( DataPathIn, 'time', 'units', time_units )
     call DIVIDE_STRING(trim(time_units), ' ', strArr)
     call DIVIDE_STRING(trim(strArr(3)), '-', strArr) 
     read( strArr(1), * ) yStart
     read( strArr(2), * ) mStart
     allocate( time_sp( size( SM_est, 2 ) ) )
-    forall( mm = 1 : size( time_sp, 1 ) ) time_sp(mm) = real(mm,sp)
+    forall( mm = 1 : size( time_sp, 1 ) ) time_sp(mm) = real(mm-1,sp)
     allocate ( tmask_est( size(SM_est, 2), nMy ) )
     tmask_est = .false.
     do mm = 1, nMy
