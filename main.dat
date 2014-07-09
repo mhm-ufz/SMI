@@ -1,23 +1,23 @@
 !***DROUGHT-INDEX        *** Main configuration file Germany for SMI uncertainty analysis ***
 &mainconfig
  basin_flag     = .False.       
- basinfName     = "input/mask.nc"
+ basinfName     = "/home/thober/projects/2014/NMME-Forecast/SMI/input/mask.nc"
  basin_vname    = "mask"
- maskfName      = "input/error_mask.nc"
+ maskfName      = "/home/thober/projects/2014/NMME-Forecast/SMI/input/error_mask.nc"
  mask_vname     = "mask"
- DataPathIn     = "input/monthly_sm_anomaly.nc" ! "input/mHM_Fluxes_States_3L.nc"
+ DataPathIn     = "/home/thober/projects/2014/NMME-Forecast/SMI/input/monthly_sm_anomaly.nc"
  SM_vname       = "SM_Lall"
  yStart         = 1981
  yEnd           = 2010
  DataPathOut    = "output/"
  monthly_flag   = .true.
- SMI_flag       = 5
- silverman_h    = .true.
+ SMI_flag       =  5
+ silverman_h    = .false.
  read_opt_h     = .true.
- opt_h_vname    = "h_opt"
- opt_h_file     = "new_output/mSMI.nc"
+ opt_h_vname    = "kernel_width"
+ opt_h_file     = "/home/thober/projects/2014/NMME-Forecast/SMI/output/mSMI_opti.nc"
  eval_SMI       = .true.
- SM_eval_file   = "input/sm_anomaly.nc"
+ SM_eval_file   = "/home/thober/projects/2014/NMME-Forecast/SMI/input/test.nc"
  SM_eval_vname  = "sm_anomaly"
  flagKerneltype = 7
  nInter         = 100 ! 500
@@ -28,34 +28,3 @@
  do_cluster     = .false.
 /end
 !***END
-
-
-**************************************************************
-NOTES v4. Samaniego 22.06.2012
-**************************************************************
-SMI_flag:
-         1   read SM binP
-             optimise hOpt
-             calculate SMI
-
-         2   read SMI
-
-         3   read SM (e.g. from a scenario)
-             read hOpt parameter file (put a file after flag)
-             calculate SMI
-
-         4   read NetCDF files (COSMO)
-             optimise hOpt
-             calculate SMI
- 
-         5   read NetCDF files (WRF-NOAH)
-             optimise hOpt
-             calculate SMI
-
-
-	     in this case the file name has to be provided for the SM file
-
-
-DAT_flag
-	 1   daily values
-   2   monthly values
