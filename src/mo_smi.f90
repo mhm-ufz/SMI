@@ -17,20 +17,22 @@ module SMIndex
   private
 
 contains
+
   ! subroutine for estimating SMI for first array
-  subroutine optimize_width( opt_h, silverman_h, SM, tmask, nodata, offSet )
+  subroutine optimize_width( opt_h, silverman_h, SM, tmask, offSet )
+
     use mo_kind,             only : i4, sp
     use mo_utils,            only : equal
+    use mo_kernel,           only : kernel_density_h, kernel_cumdensity
+    use mo_smi_constants,    only : nodata_dp, YearMonths
+
     ! use numerical_libraries, only : DGCDF
     ! use GCDF_INT
-    use InputOutput,         only : nMy
-
     ! use setGRG2,             only : OPTI, checkLimits
-    use mo_kernel,           only : kernel_density_h, kernel_cumdensity
+
     ! input variables
     logical,                  intent(in) :: silverman_h ! optimize kernel width
     logical,  dimension(:,:), intent(in) :: tmask
-    real(sp),                 intent(in) :: nodata
     real(sp), dimension(:,:), intent(in) :: SM
     real(dp),                 intent(in) :: offSet
 
@@ -46,12 +48,12 @@ contains
     !
     ! Initialization
     nObs   = size( SM, 2 )
-    nYears = nObs / nMy
+    nYears = nObs / YearMonths
     allocate ( X(nYears) )
-    X    = -9999._dp
+    X    = nodata_dp
 
     do ii = 1, size( SM, 1 )
-       do mm = 1, nMy
+       do mm = 1, YearMonths
           ! select values for month j (1...12)
           if ( count( tmask(:,mm) ) .eq. 0_i4 ) cycle
           X(:) = pack( SM( ii, :), tmask(:,mm) )
@@ -70,9 +72,9 @@ contains
   ! subroutine for calculating SMI for second array with pdf of first one
   subroutine calSMI( hh, sm_est, tmask_est, sm_eval, tmask_eval, SMI )
     
-    use mo_kind,     only: i4, sp, dp
-    use InputOutput, only: nMy
-    use mo_kernel,   only: kernel_cumdensity
+    use mo_kind,          only: i4, sp, dp
+    use mo_kernel,        only: kernel_cumdensity
+    use mo_smi_constants, only: YearMonths
     
     implicit none
 
@@ -88,15 +90,13 @@ contains
     ! local variables
     integer(i4)                                        :: mm  ! loop index
     integer(i4)                                        :: ii  ! cell index
-    integer(i4)                                        :: nObs_est
-    integer(i4)                                        :: nObs_eval
     real(dp), dimension(:), allocatable                :: cdf
     real(dp), dimension(:), allocatable                :: X_est
     real(dp), dimension(:), allocatable                :: X_eval
 
     ! evaluate cumulative density
     do ii = 1, size( SM_est, 1 )
-       do mm = 1, nMy
+       do mm = 1, YearMonths
           ! cycle if month not present
           if ( count( tmask_eval(:,mm) ) .eq. 0_i4 ) cycle
           allocate( X_est( count( tmask_est(:,mm) ) ), &

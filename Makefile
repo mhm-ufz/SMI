@@ -73,11 +73,13 @@
 #    GNU Lesser General Public License for more details.
 #
 #    You should have received a copy of the GNU Lesser General Public License
-#    along with the UFZ makefile project. If not, see <http://www.gnu.org/licenses/>.
+#    along with the UFZ makefile project (cf. gpl.txt and lgpl.txt).
+#    If not, see <http://www.gnu.org/licenses/>.
 #
-#    Copyright 2011-2013 Matthias Cuntz, Juliane Mai, Stephan Thober
+#    Copyright 2011-2014 Matthias Cuntz
 #
-# Written Matthias Cuntz & Juliane Mai, UFZ Leipzig, Germany, Nov. 2011 - mc (at) macu.de
+# Written Matthias Cuntz, Nov. 2011 - mc (at) macu.de
+# Modified Matthias Cuntz, Juliane Mai, Stephan Thober, UFZ Leipzig, Germany
 
 SHELL = /bin/bash
 
@@ -86,23 +88,24 @@ SHELL = /bin/bash
 #
 
 # . is current directory, .. is parent directory
-SRCPATH    := src                # where are the source files; use test_??? to run a test directory
-PROGPATH   := .                # where shall be the executable
-CONFIGPATH := ~/lib/makefile_chs/make.config      # where are the $(system).$(compiler) files
-MAKEDPATH  := ~/lib/makefile_chs/make.config      # where is the make.d.sh script
-DOXPATH    := .                # where is doxygen.config
-CHECKPATH  := .                # path for $(CHECKPATH)/test* and $(CHECKPATH)/check* directories if target is check
+SRCPATH    := src                  # where are the source files; use test_??? to run a test directory
+PROGPATH   := .                	   # where shall be the executable
+CONFIGPATH := ~/lib/makefile_chs/make.config # where are the $(system).$(compiler) files
+MAKEDPATH  := ~/lib/makefile_chs/make.config # where is the make.d.sh script
+DOXPATH    := .                	   # where is doxygen.config
+CHECKPATH  := test             	   # path for $(CHECKPATH)/test* and $(CHECKPATH)/check* directories if target is check
 #
 PROGNAME := smi # Name of executable
 LIBNAME  := #libminpack.a # Name of library
 #
 # Options
-# Systems: eve, mcimac, mcpowerbook, mcair, jcthinkpad, jmmacbookpro, gdmacbookpro, stdesk, stubuntu, stufz, burnet, lsimac, lsair
+# Systems: eve and personal computers such as mcimac for Matthias Cuntz' iMac; look in $(MAKEDPATH) or type 'make info'
 system   := eve2
-# Compiler: intel11, intel12, gnu41, gnu42, gnu44, gnu45, gnu46, gnu47, gnu48, absoft, nag51, nag52, nag53, sun12
-compiler := intel
+# Compiler: intelX, gnuX, nagX, sunX, where X stands for version number, e.g. intel13;
+#   look at $(MAKEDPATH)/$(system).alias for shortcuts or type 'make info'
+compiler := gnu
 # Releases: debug, release
-release  := release
+release  := debug
 # Netcdf versions (Network Common Data Form): netcdf3, netcdf4, [anything else]
 netcdf   := netcdf4
 # LAPACK (Linear Algebra Pack): true, [anything else]
@@ -135,6 +138,16 @@ static   := shared
 #     EXTRA_F90FLAGS := -mcmodel=medium
 #     EXTRA_LDFLAGS  := -mcmodel=medium -shared-intel
 #
+# If you encouter with the intel compiler the following error (compiler bug):
+#      0_10708
+#     : catastrophic error: **Internal compiler error: internal abort** Please report this error along with the
+#     circumstances in which it occurred in a Software Problem Report.
+#      Note: File and line given may not be explicit cause of this error.
+# then add the file to the list
+#     INTEL_EXCLUDE
+# below. This will not set the compiler flag -assume realloc-lhs.
+# If this does not work, try to reduce the optimisation in the make.config files (e.g. -O1)
+#
 #
 # Specific notes on optimisation and debugging
 # INTEL optimisation: -fast (=-ipo -O3 -static)
@@ -160,6 +173,8 @@ EXTRA_INCLUDES :=
 EXTRA_LDFLAGS  :=
 EXTRA_LIBS     :=
 EXTRA_CFLAGS   :=
+
+INTEL_EXCLUDE  := InputOutput.f90 mo_read.f90
 
 #
 # --- CHECK 0 ---------------------------------------------------
@@ -236,7 +251,7 @@ endif
 #
 # --- CHECK 2 ---------------------------------------------------
 #
-compilers := $(shell ls -1 $(CONFIGPATH) | sed -e "/$(MAKEDSCRIPT)/d" -e '/f2html/d' -e '/alias/d' | grep $(system) | cut -d '.' -f 2 | sort | uniq)
+compilers := $(shell ls -1 $(CONFIGPATH) | sed -e "/$(MAKEDSCRIPT)/d" -e '/f2html/d' -e '/alias/d' -e '/~$$/d' | grep $(system) | cut -d '.' -f 2 | sort | uniq)
 gnucompilers := $(filter gnu%, $(compilers))
 nagcompilers := $(filter nag%, $(compilers))
 intelcompilers := $(filter intel%, $(compilers))
@@ -595,6 +610,14 @@ ifneq (,$(filter doxygen html latex pdf, $(MAKECMDGOALS)))
     endif
 endif
 
+# --- INTEL ERROR ---------------------------------------------------
+ifneq (,$(findstring $(icompiler),$(intelcompilers)))
+    F90FLAGS1 = $(subst -assume realloc-lhs,,"$(F90FLAGS)")
+else
+    F90FLAGS1 = $(F90FLAGS)
+endif
+
+
 #
 # --- FINISH SETUP ---------------------------------------------------
 #
@@ -751,17 +774,23 @@ $(OBJS):
 ifneq (,$(findstring $(icompiler),gnu41 gnu42))
 	@nobj=$$(echo $(OBJS) | tr ' ' '\n' | grep -n -w -F $@ | sed 's/:.*//') ; \
 	src=$$(echo $(SRCS) | tr ' ' '\n' | sed -n $${nobj}p) ; \
+	ssrc=$$(basename $$(echo $(SRCS) | tr ' ' '\n' | sed -n $${nobj}p)) ; \
 	tmp=$@.$$(echo $${src} | sed 's/.*\.//') ; \
-	echo "$(F90) -E $(DEFINES) $(INCLUDES) $(F90FLAGS) $${src} | sed 's/^#[[:blank:]]\{1,\}[[:digit:]]\{1,\}.*$$//' > $${tmp}" ; \
-	$(F90) -E $(DEFINES) $(INCLUDES) $(F90FLAGS) $${src} | sed 's/^#[[:blank:]]\{1,\}[[:digit:]]\{1,\}.*$$//' > $${tmp} ; \
+	doex=$$(echo $(INTEL_EXCLUDE) | grep -i "$${ssrc}" -) ; \
+	f90flag=$$(if [[ "$${doex}" == "" ]] ; then echo "$(F90FLAGS)"; else echo "$(F90FLAGS1)" ; fi) ; \
+	echo "$(F90) -E $(DEFINES) $(INCLUDES) $${f90flag} $${src} | sed 's/^#[[:blank:]]\{1,\}[[:digit:]]\{1,\}.*$$//' > $${tmp}" ; \
+	$(F90) -E $(DEFINES) $(INCLUDES) $${f90flag} $${src} | sed 's/^#[[:blank:]]\{1,\}[[:digit:]]\{1,\}.*$$//' > $${tmp} ; \
 	echo "$(F90) $(DEFINES) $(INCLUDES) $(F90FLAGS) $(MODFLAG)$(dir $@) -c $${tmp} -o $@" ; \
 	$(F90) $(DEFINES) $(INCLUDES) $(F90FLAGS) $(MODFLAG)$(dir $@) -c $${tmp} -o $@ ; \
 	rm $${tmp}
 else
 	@nobj=$$(echo $(OBJS) | tr ' ' '\n' | grep -n -w -F $@ | sed 's/:.*//') ; \
 	src=$$(echo $(SRCS) | tr ' ' '\n' | sed -n $${nobj}p) ; \
-	echo $(F90) $(DEFINES) $(INCLUDES) $(F90FLAGS) $(MODFLAG)$(dir $@) -c $${src} -o $@ ; \
-	$(F90) $(DEFINES) $(INCLUDES) $(F90FLAGS) $(MODFLAG)$(dir $@) -c $${src} -o $@
+	ssrc=$$(basename $$(echo $(SRCS) | tr ' ' '\n' | sed -n $${nobj}p)) ; \
+	doex=$$(echo $(INTEL_EXCLUDE) | grep -i "$${ssrc}" -) ; \
+	f90flag=$$(if [[ "$${doex}" == "" ]] ; then echo "$(F90FLAGS)"; else echo "$(F90FLAGS1)" ; fi) ; \
+	echo $(F90) $(DEFINES) $(INCLUDES) $${f90flag} $(MODFLAG)$(dir $@) -c $${src} -o $@ ; \
+	$(F90) $(DEFINES) $(INCLUDES) $${f90flag} $(MODFLAG)$(dir $@) -c $${src} -o $@
 endif
 
 $(FOBJS):
@@ -823,20 +852,20 @@ endif
 	for i in $(shell ls -d $(CHECKPATH)/test* $(CHECKPATH)/check*) ; do \
 	    rm -f "$(PROGNAME)" ; \
 	    j=$${i/minpack/maxpack} ; \
-	    ldextra= ; \
+	    libextra= ; \
 	    if [ $$i != $$j ] ; then \
 	    	 $(MAKE) -s MAKEDPATH=$(MAKEDPATH) SRCPATH="$$i"/../../minpack PROGPATH=$(PROGPATH) \
 	    	      CONFIGPATH=$(CONFIGPATH) PROGNAME= LIBNAME=libminpack.a system=$(system) \
 	    	      release=$(release) netcdf=$(netcdf) static=$(static) proj=$(proj) \
 	    	      imsl=$(imsl) mkl=$(mkl) lapack=$(lapack) compiler=$(compiler) \
 	    	      openmp=$(openmp) > /dev/null ; \
-                 ldextra="-L. -lminpack" ; \
+                 libextra="-L. -lminpack" ; \
 	    fi ; \
 	    $(MAKE) -s MAKEDPATH=$(MAKEDPATH) SRCPATH=$$i PROGPATH=$(PROGPATH) \
 	         CONFIGPATH=$(CONFIGPATH) PROGNAME=$(PROGNAME) system=$(system) \
 	         release=$(release) netcdf=$(netcdf) static=$(static) proj=$(proj) \
 	         imsl=$(imsl) mkl=$(mkl) lapack=$(lapack) compiler=$(compiler) \
-	         openmp=$(openmp) NOMACWARN=true EXTRA_LDFLAGS="$$ldextra" > /dev/null \
+	         openmp=$(openmp) NOMACWARN=true EXTRA_LIBS="$$libextra" > /dev/null \
 	    && { $(PROGNAME) 2>&1 | grep -E '(o\.k\.|failed)' ;} ; status=$$? ; \
 	    if [ $$status != 0 ] ; then echo "$$i failed!" ; fi ; \
 	    $(MAKE) -s SRCPATH=$$i cleanclean ; \

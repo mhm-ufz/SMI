@@ -1,30 +1,32 @@
-!***DROUGHT-INDEX        *** Main configuration file Germany for SMI uncertainty analysis ***
+! Emacs: -*- mode: f90 -*-
+!***DROUGHT-INDEX        *** Main configuration file ***
 &mainconfig
  basin_flag     = .False.       
- basinfName     = "/home/thober/projects/2014/NMME-Forecast/SMI/input/mask.nc"
- basin_vname    = "mask"
- maskfName      = "/home/thober/projects/2014/NMME-Forecast/SMI/input/error_mask.nc"
+ basinfName     = "./test_smi/basin.nc"
+ basin_vname    = "basins"
+ maskfName      = "./test_smi/mask.nc"
  mask_vname     = "mask"
- DataPathIn     = "/home/thober/projects/2014/NMME-Forecast/SMI/input/monthly_sm_anomaly.nc"
+ soilmoist_file = "./test_smi/soilmoisture.nc"
  SM_vname       = "SM_Lall"
- yStart         = 1981
- yEnd           = 2010
- DataPathOut    = "output/"
- monthly_flag   = .true.
- SMI_flag       =  5
- silverman_h    = .false.
- read_opt_h     = .true.
- opt_h_vname    = "kernel_width"
+ yStart         = 1951    ! immer 1.Januar als start
+ yEnd           = 2013
+ outpath        = "./test_smi/"
+ silverman_h    = .false. ! optimierung der Kernel width wenn .false., if .true. 'Siverman rule' is applied
+ read_opt_h     = .false.  ! readin h if .true. silverman_h ignored, if .false. h is written ti output directory
+ opt_h_vname    = "kernel_width" 
+ ! input file for kernel widths h if read_opt_h = .true., otherwise opt_h_file is ignored
  opt_h_file     = "/home/thober/projects/2014/NMME-Forecast/SMI/output/mSMI_opti.nc"
- eval_SMI       = .true.
- SM_eval_file   = "/home/thober/projects/2014/NMME-Forecast/SMI/input/test.nc"
- SM_eval_vname  = "sm_anomaly"
- flagKerneltype = 7
+ ! take SM_eval_file if true for calculating SMI, but PDF of DataPathIn if eval_SMI = .true.  
+ eval_SMI       = .false.  
+ SM_eval_file   = "xxx" !/home/thober/projects/2014/NMME-Forecast/SMI/input/test.nc" 
+ SM_eval_vname  = "xxx" !sm_anomaly"
+ ! ignored from here on --> check from here on check everython !!!!!!
+ flagKerneltype = 7    
  nInter         = 100 ! 500
  OFFSET         = 0.01
  flagCDF        = .true.
+ ! stop ignore
  SMI_thld       = 0.20
- nodata         = -9999.
  do_cluster     = .false.
-/end
-!***END
+/ !end
+
