@@ -30,11 +30,10 @@ CONTAINS
   !*********************************************************************
   subroutine ReadDataMain( do_cluster, eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons, basin_flag,   &
                            mask, SM_est, tmask_est, SM_eval, tmask_eval, yStart, yEnd, mstart,  Basin_Id,  &
-                           time_sp, offSet, SMI_thld, outpath  )   
+                           time_sp, SMI_thld, outpath  )   
 
     use mo_kind,          only: i4
     use mo_utils,         only: equal
-    use kernelSmoother,   only: flagKernelType, nInter, flagCDF   
     use mo_string_utils,  only: DIVIDE_STRING
     use mo_ncread,        only: Get_NcVar, Get_NcDim, Get_NcVarAtt
 
@@ -60,18 +59,19 @@ CONTAINS
     logical,     dimension(:,:), allocatable, intent(out) :: tmask_eval  ! temporal mask of evaluated arr
     real(dp),    dimension(:,:), allocatable, intent(out) :: opt_h
     real(dp),    dimension(:,:), allocatable, intent(out) :: lats, lons  ! latitude and longitude fields of input
-    real(dp),                                 intent(out) :: offSet      ! shift starting/ending x
     real(dp),                                 intent(out) :: SMI_thld    ! SMI threshold for clustering
     character(len=*),                         intent(out) :: outpath     ! ouutput path for results
 
     ! local Variables
     integer(i4)                                     :: ii
     integer(i4)                                     :: mm
-    integer(i4)                                     :: datatype  ! datatype of attribute
-    integer(i4)                                     :: nCells    ! number of effective cells
+    integer(i4)                                     :: datatype       ! datatype of attribute
+    integer(i4)                                     :: nCells         ! number of effective cells
+    integer(i4)                                     :: last_julianday ! last day of dataset in julian days
+    integer(i4)                                     :: mEnd, dEnd     ! last day and month of dataset
 
     ! directories, filenames, attributes
-    character(256)                                  :: AttValues    ! netcdf attribute values
+    character(256)                                  :: AttValues      ! netcdf attribute values
     character(256)                                  :: maskfName
     character(256)                                  :: opt_h_file
     character(256)                                  :: SM_eval_file
@@ -94,17 +94,14 @@ CONTAINS
 
     ! read main config
     namelist/mainconfig/basin_flag, basinfName, basin_vname, maskfName, mask_vname, soilmoist_file, SM_vname,  &
-                        yStart, yEnd, outpath, eval_SMI, silverman_h, read_opt_h, opt_h_vname, opt_h_file,     &
-                        SM_eval_file, SM_eval_vname, flagKerneltype, nInter, offSet, flagCDF, SMI_thld, do_cluster
+                        yEnd, outpath, eval_SMI, silverman_h, read_opt_h, opt_h_vname, opt_h_file,     &
+                        SM_eval_file, SM_eval_vname, SMI_thld, do_cluster
 
     ! read namelist
     open (unit=10, file='main.dat', status='old')
       read(10, nml=mainconfig)
     close (10)
     print*, 'main.dat read ...ok'
-
-
-
 
     ! read main mask
     call Get_ncVar( maskfName, trim(mask_vname), dummy_D2_sp )
@@ -116,9 +113,15 @@ CONTAINS
     ! create mask
     mask = merge( .true., .false., (dummy_D2_sp > nodata_value ) )
     deallocate( dummy_D2_sp )
+
+    ! consistency check
+    nCells   = count( mask )
+    if ( nCells .eq. 0 ) then
+       print *, '***ERROR: no cell selected in mask'
+       stop
+    end if 
+    
     print*, 'mask read ...ok'
-
-
 
     ! read basin mask
     if ( basin_flag ) then
@@ -134,18 +137,11 @@ CONTAINS
           stop
        end if
        ! intersect mask and basin_id
-       mask     = merge( .true., .false., mask .and. ( Basin_Id .gt. nodata_value ) )
+       mask     = merge( .true., .false., mask .and. ( Basin_Id .ne. int(nodata_value, i4) ) )
        Basin_Id = merge( Basin_Id, int(nodata_value, i4), mask )
+       print*, 'basin ID read ...ok'
     end if
 
-    nCells   = count( mask )
-    ! consistency check
-    if ( nCells .eq. 0 ) then
-       print *, '***ERROR: no cell selected in mask'
-       stop
-    end if
-    print*, 'basin ID read ...ok'
-    
     ! read SM field
     call Get_ncVar( soilmoist_file, trim(SM_vname), dummy_D3_dp )
     ! consistency check
@@ -162,6 +158,11 @@ CONTAINS
     ! determine time mask 
     print *, '***CAUTION: time axis assumed to be starting with 0!'
     call Get_NcVarAtt( soilmoist_file, 'time', 'units', time_units )
+
+    !allocate( time_sp(size( dummy_D3_dp, 3 )) )
+    !call get_time(soilmoist_file, trim(SM_vname), time_sp)
+
+
     call DIVIDE_STRING(trim(time_units), ' ', strArr)
     call DIVIDE_STRING(trim(strArr(3)), '-', strArr) 
     read( strArr(1), * ) yStart
@@ -196,8 +197,7 @@ CONTAINS
        call DIVIDE_STRING(trim(time_units), ' ', strArr)
        call DIVIDE_STRING(trim(strArr(3)), '-', strArr) 
        read(strArr(1),*) yStart
-       read(strArr(2),*) mStart
-       ! determine time mask
+       read(strArr(2),*) mStart       ! determine time mask
        allocate ( tmask_eval( size(SM_eval, 2), YearMonths ) )
        tmask_eval = .false.
        do mm = 1, YearMonths
@@ -209,6 +209,7 @@ CONTAINS
     end if
 
     ! initialize opt_h
+!    subroutine read_kernerl_width_h(opt_h_file, opt_h_vname, opt_h, mask, )
     allocate ( opt_h( ncells, YearMonths ) )
     opt_h = nodata_dp
     !
@@ -227,5 +228,107 @@ CONTAINS
     print *, '***WARNING: yStart and yEnd are only considered for output writing'
     
   end subroutine ReadDataMain
+
+
+  !
+  !     PORPOSE
+  !         Determine data time interval & check timesteps
+  
+  !     CALLING SEQUENCE
+  !         BIAS(NetCDF_filename, VariableName, startJulianDay, endJulianDay)
+  
+  !     RESTRICTIONS
+  !         Input values must be floating points.
+  
+  !     LITERATURE
+  !         None
+  
+  !     HISTORY
+  !         Written,  Matthias Zink, Oct 2012
+
+  subroutine get_time(fName, vname, timevector)
+    !
+    use mo_julian,       only: date2dec
+    use mo_message,      only: message
+    use mo_NcRead,       only: Get_NcVar, Get_NcDim, Get_NcVarAtt
+    use mo_string_utils, only: DIVIDE_STRING
+    !
+    implicit none
+    !
+    character(len=*)            , intent(in)  :: fName               ! name of NetCDF file
+    character(len=*)            , intent(in)  :: vName               ! name of variable
+    real(sp),    dimension(:)   , intent(out) :: timevector          ! timestep in months
+    !
+    integer(i4)                               :: i
+    integer(i4)                               :: deltaT              ! diff between single time steps in NetCDF
+    integer(i4)                               :: yRef, dRef, mRef, hRef ! reference time of NetCDF (unit attribute of
+    integer(i4)                               :: datatype            ! datatype of attribute
+    integer(i4),    dimension(5)              :: dimen 
+    !
+    integer(i4),   dimension(:), allocatable  :: timesteps           ! time variable of NetCDF in input units
+    !
+    character(256)                            :: AttValues           ! netcdf attribute values
+    character(256), dimension(:), allocatable :: strArr              ! dummy for netcdf attribute handling
+    character(256), dimension(:), allocatable :: date                ! dummy for netcdf attribute handling
+    character(256), dimension(:), allocatable :: hours               ! dummy for netcdf attribute handling
+    real(dp)                                  :: jday_frac           ! julian day from dec2date
+    !
+    ! get unit attribute of variable 'time'
+    call Get_NcVarAtt(fName, 'time', 'units', AttValues, dtype=datatype)
+    ! AttValues looks like "<unit> since YYYY-MM-DD HH:MM:SS"
+    call DIVIDE_STRING(trim(AttValues), ' ', strArr)
+    !
+    call DIVIDE_STRING(trim(strArr(3)), '-', date) 
+    read(date(1),*) yRef
+    read(date(2),*) mRef
+    read(date(3),*) dRef
+    
+    call DIVIDE_STRING(trim(strArr(4)), ':', hours) 
+    read(hours(1),*) hRef
+
+    print* , yRef, mRef, dRef, hRef
+    pause 
+
+    dimen = Get_NCDim(fName, trim(vName))
+    allocate(timesteps( dimen(3)))
+    call Get_NcVar(fName, 'time', timesteps)
+    
+    ! strArr(1) is <unit>
+    select case (strArr(1))
+    case('hours')
+       do i = 1, size(timevector, dim=1)    
+          !date2dec = date2dec(dd, mm, yy, hh, nn, ss)
+
+          jday_frac = date2dec(dd=dRef, mm=mRef, yy=yRef)       
+
+          call message('***ERROR: Timestep has to be equidistant as one day.')
+       end do
+    case('days')
+       ! determine reference time and convert to integer
+       !
+       ! check if timestep is one day
+       do i = 2, size(timevector, dim=1)
+          deltaT = timesteps(i) - timesteps(i-1)
+          ! deltaT has to be one but with inetger conversion 1000
+          if ( deltaT .NE. 1_i4) then
+             call message('***ERROR: Timestep has to be equidistant as one day.')
+             stop
+          end if
+       end do
+       !
+       ! determine starting and ending julian day of the dataset
+       ! jday_frac = date2dec(dd=dRef, mm=mRef, yy=yRef)
+       ! i  = nint(jday_frac, i4 ) 
+       ! julStart = i + timesteps(1)       
+       ! julEnd   = i + timesteps(dimen(3))
+
+    case('months')
+       call message('***ERROR: Timestep has to be equidistant as one day.')
+    case DEFAULT
+       call message('***ERROR: Time slicing in ' , trim(strArr(1)), ' not implemented!')
+       stop
+    end select
+    !
+  end subroutine get_time
 
 end module mo_read

@@ -73,8 +73,7 @@ program SM_Drought_Index
   real(sp),    dimension(:),   allocatable :: time
   real(sp),    dimension(:,:), allocatable :: SMI        ! soil moisture index at evaluation array
 
-  real(dp)                                 :: SMI_thld    ! SMI threshold for clustering
-  real(dp)                                 :: offSet
+  real(dp)                                 :: SMI_thld   ! SMI threshold for clustering
   real(dp),    dimension(:,:), allocatable :: opt_h      ! optimized kernel width field
   real(dp),    dimension(:,:), allocatable :: lats, lons ! latitude and longitude fields of input
   
@@ -84,7 +83,7 @@ program SM_Drought_Index
 
   call ReadDataMain( do_cluster, eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons, do_basin,    &
        mask, SM_est, tmask_est, SM_eval, tmask_eval, yStart, yEnd, mStart, Basin_Id, time,          &
-       offSet, SMI_thld, outpath)
+       SMI_thld, outpath)
   !
   ! initialize some variables
   nMonths  = size( SM_est, 2 ) ! number of months in dataset
@@ -94,7 +93,7 @@ program SM_Drought_Index
 
   ! optimize kernel width
   if ( .not. read_opt_h ) then
-     call optimize_width( opt_h, silverman_h, SM_est, tmask_est, offSet )
+     call optimize_width( opt_h, silverman_h, SM_est, tmask_est )
      print *, 'optimizing kernel width...ok'
   end if
 

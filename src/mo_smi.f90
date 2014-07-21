@@ -19,7 +19,7 @@ module SMIndex
 contains
 
   ! subroutine for estimating SMI for first array
-  subroutine optimize_width( opt_h, silverman_h, SM, tmask, offSet )
+  subroutine optimize_width( opt_h, silverman_h, SM, tmask )
 
     use mo_kind,             only : i4, sp
     use mo_utils,            only : equal
@@ -34,7 +34,6 @@ contains
     logical,                  intent(in) :: silverman_h ! optimize kernel width
     logical,  dimension(:,:), intent(in) :: tmask
     real(sp), dimension(:,:), intent(in) :: SM
-    real(dp),                 intent(in) :: offSet
 
     ! output variables
     real(dp), dimension(:,:), intent(inout) :: opt_h

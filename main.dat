@@ -1,32 +1,43 @@
 ! Emacs: -*- mode: f90 -*-
 !***DROUGHT-INDEX        *** Main configuration file ***
 &mainconfig
- basin_flag     = .False.       
- basinfName     = "./test_smi/basin.nc"
- basin_vname    = "basins"
+ ! mask to define the domain for which the SMI calculation is performed
  maskfName      = "./test_smi/mask.nc"
  mask_vname     = "mask"
+ ! file and variable name for monthly soil moisture fileds
  soilmoist_file = "./test_smi/soilmoisture.nc"
  SM_vname       = "SM_Lall"
- yStart         = 1951    ! immer 1.Januar als start
- yEnd           = 2013
+ ! directory iti which output will be written
  outpath        = "./test_smi/"
- silverman_h    = .false. ! optimierung der Kernel width wenn .false., if .true. 'Siverman rule' is applied
- read_opt_h     = .false.  ! readin h if .true. silverman_h ignored, if .false. h is written ti output directory
- opt_h_vname    = "kernel_width" 
- ! input file for kernel widths h if read_opt_h = .true., otherwise opt_h_file is ignored
- opt_h_file     = "/home/thober/projects/2014/NMME-Forecast/SMI/output/mSMI_opti.nc"
- ! take SM_eval_file if true for calculating SMI, but PDF of DataPathIn if eval_SMI = .true.  
- eval_SMI       = .false.  
- SM_eval_file   = "xxx" !/home/thober/projects/2014/NMME-Forecast/SMI/input/test.nc" 
- SM_eval_vname  = "xxx" !sm_anomaly"
- ! ignored from here on --> check from here on check everython !!!!!!
- flagKerneltype = 7    
- nInter         = 100 ! 500
- OFFSET         = 0.01
- flagCDF        = .true.
- ! stop ignore
+ ! start and end year for netcdf timestamp 
+ yEnd           = 2013
+ ! Determination of the kernel width:
+ ! silverman_h == .TRUE.  - 'Silverman rule' is applied for determination of the kernel width - no optimization
+ ! silverman_h == .FALSE. - optimization of the kernel width 
+ silverman_h    = .FALSE.
+ ! Treshhold of SMI for drought indentification
  SMI_thld       = 0.20
- do_cluster     = .false.
+
+ ! *** Analysis options which can be activated or deactivated ****
+ ! if  .TRUE. kernel widths h are read from variable "opt_h_vname" in file "opt_h_file with"
+ ! if .FALSE. kernel widths are optimized or determined by 'Silverman rule', "opt_h_file" and "opt_h_vname" are ignored
+ read_opt_h     = .TRUE.
+ opt_h_file     = "./test_smi/ref_smi.nc"
+ opt_h_vname    = "kernel_width" 
+
+ ! if .TRUE. PDFs are calculated based on soilmoist_file but the SMI is determined for SM_eval_file and varible SM_eval_vname
+ ! if .FALSE. "SM_eval_file" and "SM_eval_vname" are ignored
+ eval_SMI       = .FALSE.  
+ SM_eval_file   = "./test_smi/soilmoisture.nc"  !/home/thober/projects/2014/NMME-Forecast/SMI/input/test.nc"
+ SM_eval_vname  = "SM_Lall"  !sm_anomaly"
+
+ ! if .TRUE. cluster analysis is performed
+ do_cluster     = .FALSE.
+
+ ! if .TRUE. SMI is evaluated for subregions (e.g. basins)
+ basin_flag     = .FALSE.       
+ basinfName     = "./test_smi/basin.nc"
+ basin_vname    = "basins"
+
 / !end
 
