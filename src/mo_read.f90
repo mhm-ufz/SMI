@@ -159,8 +159,8 @@ CONTAINS
     print *, '***CAUTION: time axis assumed to be starting with 0!'
     call Get_NcVarAtt( soilmoist_file, 'time', 'units', time_units )
 
-    !allocate( time_sp(size( dummy_D3_dp, 3 )) )
-    !call get_time(soilmoist_file, trim(SM_vname), time_sp)
+    allocate( time_sp(size( dummy_D3_dp, 3 )) )
+    call get_time(soilmoist_file, trim(SM_vname), time_sp)
 
 
     call DIVIDE_STRING(trim(time_units), ' ', strArr)
@@ -271,7 +271,8 @@ CONTAINS
     character(256), dimension(:), allocatable :: strArr              ! dummy for netcdf attribute handling
     character(256), dimension(:), allocatable :: date                ! dummy for netcdf attribute handling
     character(256), dimension(:), allocatable :: hours               ! dummy for netcdf attribute handling
-    real(dp)                                  :: jday_frac           ! julian day from dec2date
+    real(dp)                                  :: jday                ! julian day from dec2date
+    real(dp)                                  :: first_jday          ! julian day from dec2date
     !
     ! get unit attribute of variable 'time'
     call Get_NcVarAtt(fName, 'time', 'units', AttValues, dtype=datatype)
@@ -296,10 +297,12 @@ CONTAINS
     ! strArr(1) is <unit>
     select case (strArr(1))
     case('hours')
+       first_jday = date2dec(dd=dRef, mm=mRef, yy=yRef, hh=hRef)
        do i = 1, size(timevector, dim=1)    
-          !date2dec = date2dec(dd, mm, yy, hh, nn, ss)
+          call dec2date(timesteps(i) + first_jday, mm=m,) 
+          timevector(i) = m
+          ! mask(i,month) = .TRUE.
 
-          jday_frac = date2dec(dd=dRef, mm=mRef, yy=yRef)       
 
           call message('***ERROR: Timestep has to be equidistant as one day.')
        end do

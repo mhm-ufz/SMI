@@ -90,8 +90,8 @@ SHELL = /bin/bash
 # . is current directory, .. is parent directory
 SRCPATH    := src                  # where are the source files; use test_??? to run a test directory
 PROGPATH   := .                	   # where shall be the executable
-CONFIGPATH := ~/lib/makefile_chs/make.config # where are the $(system).$(compiler) files
-MAKEDPATH  := ~/lib/makefile_chs/make.config # where is the make.d.sh script
+CONFIGPATH := ~/ufz/lib/makefile_chs/make.config # where are the $(system).$(compiler) files
+MAKEDPATH  := ~/ufz/lib/makefile_chs/make.config # where is the make.d.sh script
 DOXPATH    := .                	   # where is doxygen.config
 CHECKPATH  := test             	   # path for $(CHECKPATH)/test* and $(CHECKPATH)/check* directories if target is check
 #
@@ -100,7 +100,7 @@ LIBNAME  := #libminpack.a # Name of library
 #
 # Options
 # Systems: eve and personal computers such as mcimac for Matthias Cuntz' iMac; look in $(MAKEDPATH) or type 'make info'
-system   := eve2
+system   := mzdell
 # Compiler: intelX, gnuX, nagX, sunX, where X stands for version number, e.g. intel13;
 #   look at $(MAKEDPATH)/$(system).alias for shortcuts or type 'make info'
 compiler := gnu
