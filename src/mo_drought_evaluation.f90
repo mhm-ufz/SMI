@@ -25,19 +25,23 @@ CONTAINS
 !  Luis Samaniego, created  28.02.2011
 !                  updated  05.10.2011
 !*********************************************************************
-subroutine droughtIndicator( mask, nMonths, SMI_thld )
+subroutine droughtIndicator( SMI, mask, nMonths, SMI_thld )
 
-  use InputOutput,      only : SMIc, SMI, cellCoor
+  use InputOutput,      only : SMIc, cellCoor
   use mo_smi_constants, only : nodata_sp, nodata_i4
+  use mo_utils,         only : lesserequal, notequal
 
   implicit none
 
   ! input variable
-  logical, dimension(:,:),    intent(in)        :: mask
+  real(sp), dimension(:,:),   intent(in)        :: SMI
+  logical,  dimension(:,:),   intent(in)        :: mask
   integer(i4),                intent(in)        :: nMonths
-  real(dp),                   intent(in)        :: SMI_thld
+  real(sp),                   intent(in)        :: SMI_thld
 
   ! local variables
+  real(sp), dimension(size(mask, dim=1),&
+                      size(mask, dim=2))        :: dummy_2d_sp
   integer(i4)                                   :: i, j, m, k
   integer(i4)                                   :: nrows
   integer(i4)                                   :: ncols
@@ -50,11 +54,12 @@ subroutine droughtIndicator( mask, nMonths, SMI_thld )
   if ( .not. allocated (SMIc) ) allocate ( SMIc( nrows, ncols, nMonths) )
 
   do m = 1, nMonths
-     !
+     dummy_2d_sp = unpack(SMI(:,m), mask, nodata_sp)
      ! filter for possible error within domain
-     where (SMI(:,:,m) .le. SMI_thld .and. SMI(:,:,m) .ne. nodata_sp )
+     ! where (SMI(:,:,m) .le. SMI_thld .and. SMI(:,:,m) .ne. nodata_sp )
+     where ( (lesserequal(dummy_2d_sp, SMI_thld)) .and. (notequal(dummy_2d_sp, nodata_sp)) )
         SMIc(:,:,m) = 1
-     elsewhere (SMI(:,:,m) .ne. nodata_sp )
+     elsewhere ( notequal(dummy_2d_sp, nodata_sp) )
         SMIc(:,:,m) = 0
      elsewhere
         SMIc(:,:,m) = nodata_i4
@@ -224,7 +229,7 @@ subroutine ClusterStats( nrows, ncols, nMonths, nCells, Basin_Id, SMI_thld )
   integer(i4),                 intent(in) :: nMonths
   integer(i4),                 intent(in) :: nCells      ! number of effective cell
   integer(i4), dimension(:,:), intent(in) :: Basin_Id    ! IDs for basinwise drought analysiss
-  real(dp),                    intent(in) :: SMI_thld    ! SMI threshold for clustering
+  real(sp),                    intent(in) :: SMI_thld    ! SMI threshold for clustering
 
   ! local variables
   integer(i4)                                         :: ic
@@ -305,6 +310,8 @@ subroutine calSAD(iDur, nrows, ncols, nMonths, nCells)
   use mo_percentile,    only : percentile
   use mo_smi_constants, only : nodata_dp 
 
+  use mo_utils,         only : ne
+
   use InputOutput, only                                : shortCnoList, deltaArea, SMI, &
                                                          nInterArea, nEvents, nClusters,  idCluster, &
                                                          SAD, SADperc, DAreaEvol, severity, nDsteps, &
@@ -384,7 +391,8 @@ subroutine calSAD(iDur, nrows, ncols, nMonths, nCells)
      ms = (d-1)*durList(iDur) + 1
      me = ms + durList(iDur) - 1
      if (me > nMonths) me = nMonths
-     where ( SMI(:,:,1) .ne.  nodata_dp )
+     !where ( SMI(:,:,1) .ne.  nodata_dp )
+     where ( ne(SMI(:,:,1), nodata_dp) )
         severity(:,:,d) = 1.0_dp - sum( SMI(:,:,ms:me), DIM=3 ) / real( me-ms+1, dp )
      end where
   end do
@@ -449,7 +457,7 @@ subroutine findClusters (t,iC,nCluster, nrows, ncols, nCells)
   integer(i4), dimension(nrows,ncols), intent(out)      :: iC
 
 
-  integer(i4)                                           :: i, j, k, klu, klu1, kk
+  integer(i4)                                           :: i, j, k, klu, klu1
   integer(i4)                                           :: iul, idr, jul, jdr
   integer(i4)                                           :: krow, kcol
   integer(i4), dimension(:), allocatable                :: cno, vec

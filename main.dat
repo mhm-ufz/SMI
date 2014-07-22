@@ -5,12 +5,10 @@
  maskfName      = "./test_smi/mask.nc"
  mask_vname     = "mask"
  ! file and variable name for monthly soil moisture fileds
- soilmoist_file = "./test_smi/soilmoisture.nc"
+ soilmoist_file = "./test_smi/soilmoisture_month.nc"
  SM_vname       = "SM_Lall"
  ! directory iti which output will be written
  outpath        = "./test_smi/"
- ! start and end year for netcdf timestamp 
- yEnd           = 2013
  ! Determination of the kernel width:
  ! silverman_h == .TRUE.  - 'Silverman rule' is applied for determination of the kernel width - no optimization
  ! silverman_h == .FALSE. - optimization of the kernel width 

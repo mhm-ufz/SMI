@@ -20,6 +20,7 @@ MODULE mo_smi_constants
   real(dp),    public, parameter :: nodata_dp          = -9999._dp ! [-]     global no data value
 
   integer(i4), public, parameter :: YearMonths         = 12        ! months per year
+  integer(i4), public, parameter :: DayHours           = 24        ! months per year
 
 
 END MODULE mo_smi_constants

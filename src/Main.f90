@@ -67,13 +67,13 @@ program SM_Drought_Index
   integer(i4)                              :: nCells     ! number of effective cells
   integer(i4)                              :: d
   integer(i4), dimension(:,:), allocatable :: Basin_Id   ! IDs for basinwise drought analysis
+  integer(i4), dimension(:),   allocatable :: times      ! vector containing timesteps for output writing
 
   real(sp),    dimension(:,:), allocatable :: SM_est     ! monthly fields packed for estimation
   real(sp),    dimension(:,:), allocatable :: SM_eval    ! monthly fields packed for evaluation
-  real(sp),    dimension(:),   allocatable :: time
   real(sp),    dimension(:,:), allocatable :: SMI        ! soil moisture index at evaluation array
+  real(sp)                                 :: SMI_thld   ! SMI threshold for clustering
 
-  real(dp)                                 :: SMI_thld   ! SMI threshold for clustering
   real(dp),    dimension(:,:), allocatable :: opt_h      ! optimized kernel width field
   real(dp),    dimension(:,:), allocatable :: lats, lons ! latitude and longitude fields of input
   
@@ -82,7 +82,7 @@ program SM_Drought_Index
 
 
   call ReadDataMain( do_cluster, eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons, do_basin,    &
-       mask, SM_est, tmask_est, SM_eval, tmask_eval, yStart, yEnd, mStart, Basin_Id, time,          &
+       mask, SM_est, tmask_est, SM_eval, tmask_eval, yStart, yEnd, mStart, Basin_Id, times,         &
        SMI_thld, outpath)
   !
   ! initialize some variables
@@ -111,16 +111,16 @@ program SM_Drought_Index
 
   ! write output
   if ( read_opt_h ) then
-     call WriteSMI( outpath, SMI, mask, yStart, mStart, time, lats, lons )
+     call WriteSMI( outpath, SMI, mask, yStart, mStart, times, lats, lons )
   else
-     call WriteSMI( outpath, SMI, mask, yStart, mStart, time, lats, lons, hh = opt_h )
+     call WriteSMI( outpath, SMI, mask, yStart, mStart, times, lats, lons, hh = opt_h )
   end if
   print *, 'write SMI...ok'
 
   ! calculate drought cluster
   if ( do_cluster ) then
      ! drought indicator 
-     call droughtIndicator( mask, nMonths, SMI_thld )
+     call droughtIndicator( SMI, mask, nMonths, SMI_thld )
      call WriteNetCDF(outpath, 3, opt_h, SM_est, mask, yStart, lats, lons)
      
      ! cluster indentification

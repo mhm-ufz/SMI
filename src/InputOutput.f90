@@ -74,7 +74,7 @@ contains
   ! author: Stephan Thober
   ! created: 5.7.2014
   ! ##################################################################
-  subroutine WriteSMI( outpath, SMI, mask, yStart, mStart, time, lats, lons, hh ) 
+  subroutine WriteSMI( outpath, SMI, mask, yStart, mStart, times, lats, lons, hh ) 
 
     use mo_kind,          only: i4, sp
     use mo_string_utils,  only: num2str
@@ -90,7 +90,7 @@ contains
     integer(i4),                                   intent(in) :: yStart
     integer(i4),                                   intent(in) :: mStart
     real(sp),       dimension(:,:),                intent(in) :: SMI 
-    real(sp),       dimension(:),   allocatable,   intent(in) :: time
+    integer(i4),    dimension(:),   allocatable,   intent(in) :: times
     real(dp),       dimension(:,:),                intent(in) :: lats, lons   ! latitude and longitude fields of input
     real(dp),       dimension(:,:), optional,      intent(in) :: hh
 
@@ -145,9 +145,11 @@ contains
          long_name = 'latitude', units = 'degrees_north' )
 
     ! add time
-    call var2nc( fname, time, dnames(3:3), v_name='time', &
-         long_name = 'time', units = 'months since ' // &
-         trim(num2str(ystart, '(i4)')) // '-' // trim(num2str(mStart,'(i2.2)')) // '-28 00:00:00' )
+    call var2nc( fname, times, dnames(3:3), v_name='time', &
+         ! long_name = 'time', units = 'months since ' // &
+         ! trim(num2str(ystart, '(i4)')) // '-' // trim(num2str(mStart,'(i2.2)')) // '-15 00:00:00' )
+         long_name = 'time', units = 'days since ' // &
+         trim(num2str(ystart, '(i4)')) // '-' // trim(num2str(mStart,'(i2.2)')) // '-15 00:00:00' )
   end subroutine WriteSMI
 
   !*************************************************************************
@@ -185,7 +187,7 @@ contains
     integer(i4), target                           :: m                  ! netCDF counter
 
     integer(i4)                                   :: nMonths       ! number of simulated months
-    integer(i4),    dimension(:),     allocatable :: time
+    integer(i4),    dimension(:),     allocatable :: times
     integer(i4),    dimension(:,:,:), allocatable :: Ziu           ! field integer unpacked 
 
     !               dimension names
@@ -194,8 +196,8 @@ contains
 
     ! initialize time
     nMonths = size( SM_est, 2 )
-    allocate( time( nMonths ) )
-    forall( m = 1:nMonths ) time( m ) = m
+    allocate( times( nMonths ) )
+    forall( m = 1:nMonths ) times( m ) = m
     ! initialize dimension names
     dnames(1) = 'nrows'
     dnames(2) = 'ncols'
