@@ -60,7 +60,7 @@ CONTAINS
     real(dp),    dimension(:,:), allocatable, intent(out) :: opt_h
     real(dp),    dimension(:,:), allocatable, intent(out) :: lats, lons  ! latitude and longitude fields of input
     real(sp),                                 intent(out) :: SMI_thld    ! SMI threshold for clustering
-    character(len=*),                         intent(out) :: outpath     ! ouutput path for results
+    character(len=256),                       intent(out) :: outpath     ! ouutput path for results
 
     ! local Variables
     integer(i4)                                     :: ii
@@ -265,8 +265,6 @@ CONTAINS
     read(date(2),*) mRef
     read(date(3),*) dRef
     
-    print* , yRef, mRef, dRef
-
     allocate(timesteps( sizing ))             ; timesteps = nodata_i4
     allocate(times    ( sizing ))             ; times     = 0
     allocate(mask     ( sizing , YearMonths)) ; mask      = .FALSE.
@@ -302,10 +300,9 @@ CONTAINS
           mStart = month
        end if
        if (i .EQ. sizing) yEnd   = year  ! save end year
+
+       ! save month in tim mask
        mask(i,month) = .TRUE.
-       print*, timesteps(i), d, month, year          
-       print*, mask(i,:)
-       !call message('***ERROR: Timestep has to be equidistant as one day.')
     end do
 
   end subroutine get_time
