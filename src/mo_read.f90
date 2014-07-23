@@ -171,16 +171,16 @@ CONTAINS
     ! check whether second SM field and optimized h should be written
     if ( eval_SMI ) then
        ! read second SM field that uses CDF of the first one
-       call Get_ncVar( trim( SM_eval_file ), trim( SM_eval_vname ), dummy_D3_sp )
-       allocate( SM_eval( nCells, size( dummy_D3_sp, 3 ) ) )
-       do ii = 1, size( dummy_D3_sp, 3 )
-          SM_eval(:, ii) = pack( dummy_D3_sp(:,:,ii), mask)
+       call Get_ncVar( trim( SM_eval_file ), trim( SM_eval_vname ), dummy_D3_dp )
+       allocate( SM_eval( nCells, size( dummy_D3_dp, 3 ) ) )
+       do ii = 1, size( dummy_D3_dp, 3 )
+          SM_eval(:, ii) = pack( real(dummy_D3_dp(:,:,ii),sp), mask)
        end do
-       deallocate( dummy_D3_sp )
+       deallocate( dummy_D3_dp )
 
        ! get times in days and mask of months
        if ( allocated( times ) ) deallocate( times )
-       call get_time(soilmoist_file, size(SM_est, dim=2), yStart, mStart, yEnd, times, tmask_eval)
+       call get_time(soilmoist_file, size(SM_eval, dim=2), yStart, mStart, yEnd, times, tmask_eval)
 
        if ( all( count( tmask_eval, dim = 1 ) .eq. 0_i4 ) ) &
             stop '***ERROR no data in eval given, check time axis'
