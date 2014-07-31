@@ -171,8 +171,10 @@ MODULE mo_quicksort
   !             http://sourceforge.net/projects/afnl
 
   !     HISTORY
-  !>        \author Matthias Cuntz - adapted qsort
+  !>        \author  Matthias Cuntz - adapted qsort
   !>        \date May 2014
+  !         modified Stephan Thober - added if clause when given array has size 1
+  !                                 - modified documentation in subroutine
   INTERFACE qsort_index
      MODULE PROCEDURE qsort_index_dp, qsort_index_sp, qsort_index_i4
   END INTERFACE qsort_index
@@ -1044,8 +1046,7 @@ CONTAINS
 
     ! ***********************************
     ! * Sort Array X(:) in ascendent order
-    ! * If present Ipt, a pointer with the
-    ! * changes is returned in Ipt.
+    ! * and return permutation in Ipt
     ! ***********************************
 
     IMPLICIT NONE
@@ -1083,7 +1084,7 @@ CONTAINS
     Stack(ISpos)%Ileft  = 1
     Stack(ISpos)%Iright = Size(X)
 
-    Do While (Stack(ISpos)%Ileft .ne. 0)
+    Do While (Stack(ISpos)%Ileft /= 0)
 
        Ileft = Stack(ISPos)%Ileft
        Iright = Stack(ISPos)%Iright
@@ -1206,8 +1207,7 @@ CONTAINS
 
     ! ***********************************
     ! * Sort Array X(:) in ascendent order
-    ! * If present Ipt, a pointer with the
-    ! * changes is returned in Ipt.
+    ! * and return permutation in Ipt
     ! ***********************************
 
     IMPLICIT NONE
@@ -1227,6 +1227,12 @@ CONTAINS
     Type(Limits), Allocatable :: Stack(:)
     Real(sp)    :: XXcp(3)
     Integer(i4) :: IIpt(3)
+
+    ! dont sort if size equal to one
+    if ( size(X) .eq. 1 ) Then
+       Ipt = 1
+       Return
+    end if
 
     Allocate(Stack(Size(X)))
 
@@ -1361,8 +1367,7 @@ CONTAINS
 
     ! ***********************************
     ! * Sort Array X(:) in ascendent order
-    ! * If present Ipt, a pointer with the
-    ! * changes is returned in Ipt.
+    ! * and return permutation in Ipt
     ! ***********************************
 
     IMPLICIT NONE
@@ -1382,6 +1387,12 @@ CONTAINS
     Type(Limits), Allocatable :: Stack(:)
     integer(i4)    :: XXcp(3)
     Integer(i4) :: IIpt(3)
+
+    ! dont sort if size equal to one
+    if ( size(X) .eq. 1 ) Then
+       Ipt = 1
+       Return
+    end if
 
     Allocate(Stack(Size(X)))
 
@@ -2060,7 +2071,7 @@ CONTAINS
        ! SORT PIECES
        !$omp parallel do &
        !$omp num_threads(nt1) &
-       !$omp private(t) &
+       ! !$omp private(t) &
        !$omp shared(A, A2, nA, indx, indx2, s, f, nt2, chunks, swap_flag)
        do i = 1, chunks
           s(i) = nA * (i-1) / chunks + 1     ! start
@@ -2685,7 +2696,7 @@ CONTAINS
        ! SORT PIECES
        !$omp parallel do &
        !$omp num_threads(nt1) &
-       !$omp private(t) &
+       ! !$omp private(t) &
        !$omp shared(A, A2, nA, indx, indx2, s, f, nt2, chunks, swap_flag)
        do i = 1, chunks
           s(i) = nA * (i-1) / chunks + 1     ! start
@@ -3310,7 +3321,7 @@ CONTAINS
        ! SORT PIECES
        !$omp parallel do &
        !$omp num_threads(nt1) &
-       !$omp private(t) &
+       ! !$omp private(t) &
        !$omp shared(A, A2, nA, indx, indx2, s, f, nt2, chunks, swap_flag)
        do i = 1, chunks
           s(i) = nA * (i-1) / chunks + 1     ! start
