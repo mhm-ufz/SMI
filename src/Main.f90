@@ -63,6 +63,7 @@ program SM_Drought_Index
   integer(i4)                              :: yStart
   integer(i4)                              :: yEnd
   integer(i4)                              :: mStart
+  integer(i4)                              :: dStart
   integer(i4)                              :: nMonths    ! number of simulated months
   integer(i4)                              :: nCells     ! number of effective cells
   integer(i4)                              :: d
@@ -82,7 +83,7 @@ program SM_Drought_Index
 
 
   call ReadDataMain( do_cluster, eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons, do_basin,    &
-       mask, SM_est, tmask_est, SM_eval, tmask_eval, yStart, yEnd, mStart, Basin_Id, times,         &
+       mask, SM_est, tmask_est, SM_eval, tmask_eval, yStart, yEnd, mStart, dStart, Basin_Id, times, &
        SMI_thld, outpath)
   !
   ! initialize some variables
@@ -111,9 +112,9 @@ program SM_Drought_Index
 
   ! write output
   if ( read_opt_h ) then
-     call WriteSMI( outpath, SMI, mask, yStart, mStart, times, lats, lons )
+     call WriteSMI( outpath, SMI, mask, yStart, mStart, dStart, times, lats, lons )
   else
-     call WriteSMI( outpath, SMI, mask, yStart, mStart, times, lats, lons, hh = opt_h )
+     call WriteSMI( outpath, SMI, mask, yStart, mStart, dStart, times, lats, lons, hh = opt_h )
   end if
   print *, 'write SMI...ok'
 

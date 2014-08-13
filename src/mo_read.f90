@@ -28,8 +28,8 @@ CONTAINS
   !    NOTES:
   !               packed fields are stored in dim1->dim2 sequence 
   !*********************************************************************
-  subroutine ReadDataMain( do_cluster, eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons, basin_flag,   &
-                           mask, SM_est, tmask_est, SM_eval, tmask_eval, yStart, yEnd, mstart,  Basin_Id,  &
+  subroutine ReadDataMain( do_cluster, eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons, basin_flag,         &
+                           mask, SM_est, tmask_est, SM_eval, tmask_eval, yStart, yEnd, mStart, dStart, Basin_Id, &
                            times, SMI_thld, outpath  )   
 
     use mo_kind,          only: i4
@@ -50,7 +50,8 @@ CONTAINS
     logical,     dimension(:,:), allocatable, intent(out) :: mask        ! grid mask
     integer(i4),                              intent(out) :: yStart      ! starting year
     integer(i4),                              intent(out) :: yEnd        ! ending year
-    integer(i4),                              intent(out) :: mStart      ! starting year
+    integer(i4),                              intent(out) :: mStart      ! starting month
+    integer(i4),                              intent(out) :: dStart      ! starting day
     integer(i4), dimension(:,:), allocatable, intent(out) :: Basin_Id    ! IDs for basinwise drought analysis
     integer(i4), dimension(:),   allocatable, intent(out) :: times
     real(sp),    dimension(:,:), allocatable, intent(out) :: SM_est      ! monthly fields packed for estimation
@@ -158,7 +159,7 @@ CONTAINS
     deallocate( dummy_D3_dp )
 
     ! get times in days and mask of months
-    call get_time(soilmoist_file, size(SM_est, dim=2), yStart, mStart, yEnd, times, tmask_est)
+    call get_time(soilmoist_file, size(SM_est, dim=2), yStart, mStart, dStart, yEnd, times, tmask_est)
 
     if ( any( count( tmask_est, dim = 1 ) .eq. 0_i4 ) ) &
          stop '***ERROR no data for estimation given for all calendar months, check time axis'
@@ -180,7 +181,7 @@ CONTAINS
 
        ! get times in days and mask of months
        if ( allocated( times ) ) deallocate( times )
-       call get_time(SM_eval_file, size(SM_eval, dim=2), yStart, mStart, yEnd, times, tmask_eval)
+       call get_time(SM_eval_file, size(SM_eval, dim=2), yStart, mStart, dStart, yEnd, times, tmask_eval)
 
        if ( all( count( tmask_eval, dim = 1 ) .eq. 0_i4 ) ) &
             stop '***ERROR no data in eval given, check time axis'
@@ -224,7 +225,7 @@ CONTAINS
   !     HISTORY
   !         Written,  Matthias Zink, Oct 2012
 
-  subroutine get_time(fName, sizing, yStart, mStart, yEnd, times, mask)
+  subroutine get_time(fName, sizing, yStart, mStart, dStart, yEnd, times, mask)
     !
     use mo_julian,       only: date2dec, dec2date
     use mo_message,      only: message
@@ -237,8 +238,9 @@ CONTAINS
 
     character(len=*),                         intent(in)  :: fName      ! name of NetCDF file
     integer(i4),                              intent(in)  :: sizing     ! size of the time dimension
-    integer(i4),                              intent(out) :: yStart     ! start year of the dataser
+    integer(i4),                              intent(out) :: yStart     ! start year  of the dataser
     integer(i4),                              intent(out) :: mStart     ! start month of the dataser
+    integer(i4),                              intent(out) :: dStart     ! start day   of the dataser
     integer(i4),                              intent(out) :: yEnd       ! end year of the dataset
     integer(i4), dimension(:),   allocatable, intent(out) :: times      ! timestep in months
     logical    , dimension(:,:), allocatable, intent(out) :: mask       ! masking months in timespace
@@ -298,6 +300,7 @@ CONTAINS
        if (i .EQ. 1) then
           yStart = year  ! save start year and month output timestamp
           mStart = month
+          dStart = d
        end if
        if (i .EQ. sizing) yEnd   = year  ! save end year
 

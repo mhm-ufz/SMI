@@ -74,7 +74,7 @@ contains
   ! author: Stephan Thober
   ! created: 5.7.2014
   ! ##################################################################
-  subroutine WriteSMI( outpath, SMI, mask, yStart, mStart, times, lats, lons, hh ) 
+  subroutine WriteSMI( outpath, SMI, mask, yStart, mStart, dStart, times, lats, lons, hh ) 
 
     use mo_kind,          only: i4, sp
     use mo_string_utils,  only: num2str
@@ -89,6 +89,7 @@ contains
     logical,        dimension(:,:),                intent(in) :: mask
     integer(i4),                                   intent(in) :: yStart
     integer(i4),                                   intent(in) :: mStart
+    integer(i4),                                   intent(in) :: dStart
     real(sp),       dimension(:,:),                intent(in) :: SMI 
     integer(i4),    dimension(:),   allocatable,   intent(in) :: times
     real(dp),       dimension(:,:),                intent(in) :: lats, lons   ! latitude and longitude fields of input
@@ -146,10 +147,10 @@ contains
 
     ! add time
     call var2nc( fname, times, dnames(3:3), v_name='time', &
-         ! long_name = 'time', units = 'months since ' // &
-         ! trim(num2str(ystart, '(i4)')) // '-' // trim(num2str(mStart,'(i2.2)')) // '-15 00:00:00' )
-         long_name = 'time', units = 'days since ' // &
-         trim(num2str(ystart, '(i4)')) // '-' // trim(num2str(mStart,'(i2.2)')) // '-15 00:00:00' )
+         long_name = 'time', units = 'days since '                               // &
+                                      trim(num2str(yStart,   '(i4)')) // '-'     // &
+                                      trim(num2str(mStart, '(i2.2)')) // '-'     // &
+                                      trim(num2str(dStart, '(i2.2)')) // ' 00:00:00' )
   end subroutine WriteSMI
 
   !*************************************************************************
