@@ -27,7 +27,9 @@
  ! if .FALSE. "SM_eval_file" and "SM_eval_vname" are ignored
  eval_SMI       = .TRUE.  
  SM_eval_file   = "./test_smi/soilmoisture_eval.nc"  !/home/thober/projects/2014/NMME-Forecast/SMI/input/test.nc"
- SM_eval_vname  = "SM_Lall"  !sm_anomaly"
+ SM_eval_vname  = "SM_Lall"
+ type_var_eval  = "dp"
+ type_time_eval = "i4"
 
  ! if .TRUE. cluster analysis is performed
  do_cluster     = .FALSE.

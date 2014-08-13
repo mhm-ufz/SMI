@@ -80,6 +80,8 @@ CONTAINS
     character(256)                                  :: mask_vname
     character(256)                                  :: SM_vname
     character(256)                                  :: SM_eval_vname
+    character(256)                                  :: type_var_eval
+    character(256)                                  :: type_time_eval
     character(256)                                  :: basin_vname
     character(256)                                  :: opt_h_vname
     real(sp)                                        :: nodata_value ! local data nodata value in nc for mask creation
@@ -91,7 +93,8 @@ CONTAINS
     ! read main config
     namelist/mainconfig/basin_flag, basinfName, basin_vname, maskfName, mask_vname, soilmoist_file, SM_vname,  &
                         outpath, eval_SMI, silverman_h, read_opt_h, opt_h_vname, opt_h_file,     &
-                        SM_eval_file, SM_eval_vname, SMI_thld, do_cluster
+                        SM_eval_file, SM_eval_vname, type_var_eval, type_time_eval, SMI_thld,    &
+                        do_cluster
 
 
     do_cluster = .FALSE.
@@ -103,6 +106,11 @@ CONTAINS
       read(10, nml=mainconfig)
     close (10)
     print*, 'main.dat read ...ok'
+
+    ! consistency check
+    if ( ( trim( type_var_eval ) .ne. 'dp' ) .and. &
+         ( trim( type_var_eval ) .ne. 'sp' ) ) &
+         stop '***ERROR: mo_read: var_type_eval must be dp or sp'
 
     ! read main mask
     call Get_ncVar( maskfName, trim(mask_vname), dummy_D2_sp )
@@ -159,7 +167,7 @@ CONTAINS
     deallocate( dummy_D3_dp )
 
     ! get times in days and mask of months
-    call get_time(soilmoist_file, size(SM_est, dim=2), yStart, mStart, dStart, yEnd, times, tmask_est)
+    call get_time(soilmoist_file, size(SM_est, dim=2), 'i4', yStart, mStart, dStart, yEnd, times, tmask_est)
 
     if ( any( count( tmask_est, dim = 1 ) .eq. 0_i4 ) ) &
          stop '***ERROR no data for estimation given for all calendar months, check time axis'
@@ -172,16 +180,30 @@ CONTAINS
     ! check whether second SM field and optimized h should be written
     if ( eval_SMI ) then
        ! read second SM field that uses CDF of the first one
-       call Get_ncVar( trim( SM_eval_file ), trim( SM_eval_vname ), dummy_D3_dp )
-       allocate( SM_eval( nCells, size( dummy_D3_dp, 3 ) ) )
-       do ii = 1, size( dummy_D3_dp, 3 )
-          SM_eval(:, ii) = pack( real(dummy_D3_dp(:,:,ii),sp), mask)
-       end do
-       deallocate( dummy_D3_dp )
+       if ( trim( type_var_eval ) .eq. 'dp' ) then
+          ! var_type is double precision
+          call Get_ncVar( trim( SM_eval_file ), trim( SM_eval_vname ), dummy_D3_dp )
+          allocate( SM_eval( nCells, size( dummy_D3_dp, 3 ) ) )
+          do ii = 1, size( dummy_D3_dp, 3 )
+             SM_eval(:, ii) = pack( real(dummy_D3_dp(:,:,ii),sp), mask)
+          end do
+          deallocate( dummy_D3_dp )
+       end if
+       if ( trim( type_var_eval ) .eq. 'sp' ) then
+          ! var_type is single precision
+          call Get_ncVar( trim( SM_eval_file ), trim( SM_eval_vname ), dummy_D3_sp )
+          allocate( SM_eval( nCells, size( dummy_D3_sp, 3 ) ) )
+          do ii = 1, size( dummy_D3_sp, 3 )
+             SM_eval(:, ii) = pack( dummy_D3_sp(:,:,ii), mask)
+          end do
+          deallocate( dummy_D3_sp )
+       end if
 
        ! get times in days and mask of months
        if ( allocated( times ) ) deallocate( times )
-       call get_time(SM_eval_file, size(SM_eval, dim=2), yStart, mStart, dStart, yEnd, times, tmask_eval)
+       call get_time(SM_eval_file, size(SM_eval, dim=2), trim(type_time_eval), &
+            yStart, mStart, dStart, &
+            yEnd, times, tmask_eval)
 
        if ( all( count( tmask_eval, dim = 1 ) .eq. 0_i4 ) ) &
             stop '***ERROR no data in eval given, check time axis'
@@ -189,7 +211,7 @@ CONTAINS
     end if
 
     ! initialize opt_h
-!    subroutine read_kernerl_width_h(opt_h_file, opt_h_vname, opt_h, mask, )
+    ! subroutine read_kernerl_width_h(opt_h_file, opt_h_vname, opt_h, mask, )
     allocate ( opt_h( ncells, YearMonths ) )
     opt_h = nodata_dp
     !
@@ -225,7 +247,7 @@ CONTAINS
   !     HISTORY
   !         Written,  Matthias Zink, Oct 2012
 
-  subroutine get_time(fName, sizing, yStart, mStart, dStart, yEnd, times, mask)
+  subroutine get_time(fName, sizing, dtype, yStart, mStart, dStart, yEnd, times, mask)
     !
     use mo_julian,       only: date2dec, dec2date
     use mo_message,      only: message
@@ -238,6 +260,7 @@ CONTAINS
 
     character(len=*),                         intent(in)  :: fName      ! name of NetCDF file
     integer(i4),                              intent(in)  :: sizing     ! size of the time dimension
+    character(len=*),                         intent(in)  :: dtype      ! data type of var time
     integer(i4),                              intent(out) :: yStart     ! start year  of the dataser
     integer(i4),                              intent(out) :: mStart     ! start month of the dataser
     integer(i4),                              intent(out) :: dStart     ! start day   of the dataser
@@ -251,6 +274,7 @@ CONTAINS
     integer(i4)                               :: datatype               ! datatype of attribute
     !
     integer(i4),   dimension(:), allocatable  :: timesteps              ! time variable of NetCDF in input units
+    real(sp),      dimension(:), allocatable  :: timesteps_sp           ! time variable of NetCDF in input units
     !
     character(256)                            :: AttValues              ! netcdf attribute values
     character(256), dimension(:), allocatable :: strArr                 ! dummy for netcdf attribute handling
@@ -271,7 +295,14 @@ CONTAINS
     allocate(times    ( sizing ))             ; times     = 0
     allocate(mask     ( sizing , YearMonths)) ; mask      = .FALSE.
 
-    call Get_NcVar(fName, 'time', timesteps)
+    select case ( dtype )
+    case ( 'i4' ) 
+       call Get_NcVar(fName, 'time', timesteps)
+    case ( 'sp' )
+       call Get_NcVar(fName, 'time', timesteps_sp )
+       timesteps = int( timesteps_sp, i4 )
+       deallocate( timesteps_sp )
+    end select
     
     ! strArr(1) is <unit>
     ref_jday = date2dec(dd=dRef, mm=mRef, yy=yRef)
