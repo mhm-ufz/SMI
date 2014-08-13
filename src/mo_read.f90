@@ -33,7 +33,7 @@ CONTAINS
                            times, SMI_thld, outpath  )   
 
     use mo_kind,          only: i4
-    use mo_utils,         only: equal
+    use mo_utils,         only: equal, notequal
     use mo_string_utils,  only: DIVIDE_STRING
     use mo_ncread,        only: Get_NcVar, Get_NcDim, Get_NcVarAtt
 
@@ -111,7 +111,7 @@ CONTAINS
     ! convert to number 
     read(AttValues, *) nodata_value 
     ! create mask
-    mask = merge( .true., .false., (dummy_D2_sp > nodata_value ) )
+    mask = merge( .true., .false., notequal(dummy_D2_sp, nodata_value ) )
     deallocate( dummy_D2_sp )
 
     ! consistency check
@@ -180,7 +180,7 @@ CONTAINS
 
        ! get times in days and mask of months
        if ( allocated( times ) ) deallocate( times )
-       call get_time(soilmoist_file, size(SM_eval, dim=2), yStart, mStart, yEnd, times, tmask_eval)
+       call get_time(SM_eval_file, size(SM_eval, dim=2), yStart, mStart, yEnd, times, tmask_eval)
 
        if ( all( count( tmask_eval, dim = 1 ) .eq. 0_i4 ) ) &
             stop '***ERROR no data in eval given, check time axis'

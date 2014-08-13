@@ -25,8 +25,8 @@
 
  ! if .TRUE. PDFs are calculated based on soilmoist_file but the SMI is determined for SM_eval_file and varible SM_eval_vname
  ! if .FALSE. "SM_eval_file" and "SM_eval_vname" are ignored
- eval_SMI       = .FALSE.  
- SM_eval_file   = "./test_smi/soilmoisture.nc"  !/home/thober/projects/2014/NMME-Forecast/SMI/input/test.nc"
+ eval_SMI       = .TRUE.  
+ SM_eval_file   = "./test_smi/soilmoisture_eval.nc"  !/home/thober/projects/2014/NMME-Forecast/SMI/input/test.nc"
  SM_eval_vname  = "SM_Lall"  !sm_anomaly"
 
  ! if .TRUE. cluster analysis is performed
