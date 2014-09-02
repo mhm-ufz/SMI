@@ -14,7 +14,7 @@
 # submission for Statistical model
 # #$ -t 1-3239
 # submission for ESP 28 years X 12 months
-#$ -t 1-335
+#$ -t 1-325
 #$ -l h_rt=0:10:00                    # Request resource: hard run time hours:minutes:seconds
 #$ -l h_vmem=1G                       # Request resource: memory requirements/per slot
 #$ -l centos6=false                   # run on eve idiv  
