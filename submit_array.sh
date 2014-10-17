@@ -11,13 +11,17 @@
 # #$ -t 1-32723
 # submission for Grand Ensemble, or Ensemble for one model
 # #$ -t 1-323
+# submission for NASA model
+#$ -t 1-3563
 # submission for Statistical model
 # #$ -t 1-3239
-# submission for ESP 28 years X 12 months
-#$ -t 1-325
+# # submission for ESP 28 years X 12 months
+# #$ -t 1-325
+# submission for ESP 28 years x 28 years X 12 months
+# #$ -t 1-9407
 #$ -l h_rt=0:10:00                    # Request resource: hard run time hours:minutes:seconds
 #$ -l h_vmem=1G                       # Request resource: memory requirements/per slot
-#$ -l centos6=false                   # run on eve idiv  
+#$ -l centos6=true                    # run on eve idiv  
 #$ -cwd                               # Change into directory where you wrote qsub
 #$ -binding linear:1
 #----------------------------------------------------
