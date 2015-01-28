@@ -13,9 +13,10 @@
 #
 #     Sources are in $(SRCPATH), which can be several directories separated by whitespace.
 #
-#     Fortran 90 file endings: .f90, .F90, .f95, .F95, .f03, .F03, .f08, .F08
-#     Fortran 77 file endings: .f,   .F,   .for, .FOR, .f77, .F77, .ftn, .FTN
-#     C file endings:          .c,   .C
+#     File suffixes can be given in $(F90SUFFIXES), $(F77SUFFIXES), and $(CSUFFIXES)
+#     Default Fortran 90 is: .f90, .F90, .f95, .F95, .f03, .F03, .f08, .F08
+#     Default Fortran 77 is: .f,   .F,   .for, .FOR, .f77, .F77, .ftn, .FTN
+#     Default C is:          .c,   .C
 #
 # TARGETS
 #     all (default), check (=test), clean, cleanclean, cleancheck (=cleantest=checkclean=testclean),
@@ -41,22 +42,27 @@
 #    This makefile uses the following files:
 #        $(MAKEDPATH)/make.d.sh, $(CONFIGPATH)/$(system).$(compiler), $(CONFIGPATH)/$(system).alias
 #    The default $(MAKEDPATH) and $(CONFIGPATH) is make.config
-#    The makefile can use doxygen for html and pdf automatic documentation. It is then using:
-#        $(DOXPATH)/doxygen.config
+#    The makefile can use doxygen for html and pdf automatic documentation.
+#        It is then using $(DOXCONFIG).
 #    If this is not available, it uses the perl script f2html for html documentation:
 #        $(CONFIGPATH)/f2html, $(CONFIGPATH)/f2html.fgenrc
 #
 # RESTRICTIONS
 #    Not all packages work with or are compiled for all compilers.
 #    The static switch is maintained like a red-headed stepchild. Libraries might be not ordered correctly
-#    if static linking and --begin/end-group is not supported.
+#    if static linking and --begin-group/--end-group is not supported.
+#
+#    C-file dependencies are generated with
+#        $(CC) -E $(DEFINES) -MM
 #
 # EXAMPLE
-#    make release=debug compiler=intel11 imsl=vendor mkl=mkl95 PROGNAME=prog
+#    make system=eve compiler=intel release=debug mkl=mkl95 PROGNAME=prog
 #
 # NOTES
-#    Further information is given in the README, for example
-#    on the repository of the makefile, further reading, how to add a new compiler on a system, or
+#    Further information is given in the README, for example on
+#    the repository of the makefile,
+#    further reading,
+#    how to add a new compiler on a given system, or
 #    how to add a new system.
 #
 # LICENSE
@@ -88,12 +94,12 @@ SHELL = /bin/bash
 #
 
 # . is current directory, .. is parent directory
-SRCPATH    := src                  # where are the source files; use test_??? to run a test directory
-PROGPATH   := .                	   # where shall be the executable
-CONFIGPATH := ~/lib/makefile_chs/make.config # where are the $(system).$(compiler) files
-MAKEDPATH  := ~/lib/makefile_chs/make.config # where is the make.d.sh script
-DOXPATH    := .                	   # where is doxygen.config
-CHECKPATH  := test             	   # path for $(CHECKPATH)/test* and $(CHECKPATH)/check* directories if target is check
+SRCPATH    := src # where are the source files; use test_??? to run a test directory
+PROGPATH   := .                  # where shall be the executable
+CONFIGPATH := ~/lib/makefile_chs/make.config        # where are the $(system).$(compiler) files
+MAKEDPATH  := $(CONFIGPATH)      # where is the make.d.sh script
+CHECKPATH  := .              # path for $(CHECKPATH)/test* and $(CHECKPATH)/check* directories if target is check
+DOXCONFIG  := .   # the doxygen config file
 #
 PROGNAME := smi # Name of executable
 LIBNAME  := #libminpack.a # Name of library
@@ -103,7 +109,7 @@ LIBNAME  := #libminpack.a # Name of library
 system   := eve2
 # Compiler: intelX, gnuX, nagX, sunX, where X stands for version number, e.g. intel13;
 #   look at $(MAKEDPATH)/$(system).alias for shortcuts or type 'make info'
-compiler := intel13
+compiler := gnu
 # Releases: debug, release
 release  := release
 # Netcdf versions (Network Common Data Form): netcdf3, netcdf4, [anything else]
@@ -118,18 +124,25 @@ proj     :=
 imsl     :=
 # OpenMP parallelization: true, [anything else]
 openmp   := 
+# MPI parallelization - experimental: true, [anything else]
+mpi      :=
 # Linking: static, shared, dynamic (last two are equal)
 static   := shared
 
 # The Makefile sets the following variables depending on the above options:
-# FC, FCFLAGS, F90FLAGS, DEFINES, INCLUDES, LD, LDFLAGS, LIBS
+# FC, FCFLAGS, F90, F90FLAGS, CC, CFLAGS, CPP, DEFINES, INCLUDES, LD, LDFLAGS, LIBS
 # flags, defines, etc. will be set incremental. They will be initialised with
 # the following EXTRA_* variables. This allows for example to set an extra compiler
 # option or define a preprocessor variable such as: EXTRA_DEFINES := -DNOGUI -DDPREC
 #
 #
+# The Makefile compiles all files found in the source directories.
+# If you want excludes files from compilation, set EXCLUDE_FILES, e.g.
+# make EXCLUDE_FILES="*mpi*.f90"
+#
+#
 # Specific notes
-# If you encounter during linking error messages such as
+# If you encounter error messages during linking such as
 #     ... relocation truncated to fit: R_X86_64_PC32 against ...
 # then you ran out of memory address space, i.e. some hard-coded numbers in the code got too big.
 # Check that you have set the 64-bit addressing model in the F90FLAGS and LDFAGS: -m64
@@ -138,12 +151,13 @@ static   := shared
 #     EXTRA_F90FLAGS := -mcmodel=medium
 #     EXTRA_LDFLAGS  := -mcmodel=medium -shared-intel
 #
-# If you encouter with the intel compiler the following error (compiler bug):
+# If you encouter the following error with the intel compiler (compiler bug):
 #      0_10708
 #     : catastrophic error: **Internal compiler error: internal abort** Please report this error along with the
 #     circumstances in which it occurred in a Software Problem Report.
 #      Note: File and line given may not be explicit cause of this error.
-# then add the file to the list
+# then you probably assume the F2003 feature that arrays can be allocated as a result of a function.
+# Add the file afected to the list
 #     INTEL_EXCLUDE
 # below. This will not set the compiler flag -assume realloc-lhs.
 # If this does not work, try to reduce the optimisation in the make.config files (e.g. -O1)
@@ -166,6 +180,8 @@ static   := shared
 #     -C=undefined must be used on all routines, i.e. also on netcdf for example.
 #                  This means that all tests do not work which use netcdf and/or lapack.
 #     -C=intovf    check integer overflow, which is intentional in UFZ mo_xor4096.
+
+# Special compilation flags 
 EXTRA_FCFLAGS  :=
 EXTRA_F90FLAGS := #-C=undefined
 EXTRA_DEFINES  :=
@@ -174,7 +190,20 @@ EXTRA_LDFLAGS  :=
 EXTRA_LIBS     :=
 EXTRA_CFLAGS   :=
 
-INTEL_EXCLUDE  := InputOutput.f90 mo_read.f90
+# Intel F2003 -assume realloc-lhs
+INTEL_EXCLUDE  :=
+
+# Exclude certin files from compilation
+EXCLUDE_FILES  :=
+
+#     Fortran 90 file endings: .f90 .F90 .f95 .F95 .f03 .F03 .f08 .F08
+F90SUFFIXES = .f90 .F90 .f95 .F95 .f03 .F03 .f08 .F08
+#     Fortran 77 file endings: .f .F .for .FOR .f77 .F77 .ftn .FTN
+F77SUFFIXES = .f .F .for .FOR .f77 .F77 .ftn .FTN
+#     C file endings: .c .C
+CSUFFIXES   = .c .C
+#     Library file endings: .a .so .dylib
+LIBSUFFIXES = .a .so .dylib
 
 #
 # --- CHECK 0 ---------------------------------------------------
@@ -196,7 +225,7 @@ ifeq (,$(findstring $(static),static shared dynamic))
 endif
 
 #
-# --- PATHES ------------------------------------------------
+# --- PATHS ------------------------------------------------
 #
 
 # Make absolute pathes from relative pathes - there should be no space nor comment at the end of the next lines
@@ -204,8 +233,9 @@ SRCPATH    := $(abspath $(SRCPATH:~%=${HOME}%))
 PROGPATH   := $(abspath $(PROGPATH:~%=${HOME}%))
 CONFIGPATH := $(abspath $(CONFIGPATH:~%=${HOME}%))
 MAKEDPATH  := $(abspath $(MAKEDPATH:~%=${HOME}%))
-DOXPATH    := $(abspath $(DOXPATH:~%=${HOME}%))
 CHECKPATH  := $(abspath $(CHECKPATH:~%=${HOME}%))
+DOXCONFIG  := $(abspath $(DOXCONFIG:~%=${HOME}%))
+#$(info "DOXCONFIG: "$(DOXCONFIG))
 
 # Program names
 # Only Prog or Lib
@@ -244,7 +274,7 @@ endif
 # Include compiler alias on specific systems, e.g. nag for nag53
 icompiler := $(compiler)
 ALIASINC  := $(CONFIGPATH)/$(system).alias
-ifeq (exists, $(shell if [ -f $(ALIASINC) ] ; then echo 'exists' ; fi))
+ifneq ("$(wildcard $(ALIASINC))","")
     include $(ALIASINC)
 endif
 
@@ -270,6 +300,7 @@ F90      :=
 F90FLAGS := $(EXTRA_F90FLAGS)
 CC       :=
 CFLAGS   := $(EXTRA_CFLAGS)
+CPP      :=
 DEFINES  := $(EXTRA_DEFINES)
 INCLUDES := $(EXTRA_INCLUDES)
 # and link, and therefore set below
@@ -290,7 +321,7 @@ OBJPATH := $(addsuffix /.$(strip $(icompiler)).$(strip $(release)), $(SRCPATH))
 # Include the individual configuration files
 MAKEINC := $(addsuffix /$(system).$(icompiler), $(abspath $(CONFIGPATH:~%=${HOME}%)))
 #$(info "MAKEINC: "$(MAKEINC))
-ifneq (exists, $(shell if [ -f $(MAKEINC) ] ; then echo 'exists' ; fi))
+ifeq ("$(wildcard $(MAKEINC))","")
     $(error Error: '$(MAKEINC)' not found.)
 endif
 include $(MAKEINC)
@@ -320,7 +351,7 @@ endif
 
 # --- COMPILER ---------------------------------------------------
 ifneq (,$(findstring $(icompiler),$(gnucompilers)))
-    ifneq (exists, $(shell if [ -d "$(GFORTRANDIR)" ] ; then echo 'exists' ; fi))
+    ifeq ("$(wildcard $(GFORTRANDIR))","")
         $(error Error: GFORTRAN path '$(GFORTRANDIR)' not found.)
     endif
     GFORTRANLIB ?= $(GFORTRANDIR)/lib
@@ -330,7 +361,7 @@ endif
 
 # --- IMSL ---------------------------------------------------
 ifneq (,$(findstring $(imsl),vendor imsl))
-    ifneq (exists, $(shell if [ -d "$(IMSLDIR)" ] ; then echo 'exists' ; fi))
+    ifeq ("$(wildcard $(IMSLDIR))","")
         $(error Error: IMSL path '$(IMSLDIR)' not found.)
     endif
     IMSLINC ?= $(IMSLDIR)/include
@@ -389,7 +420,7 @@ endif
 # --- MKL ---------------------------------------------------
 ifneq (,$(findstring $(mkl),mkl mkl95))
     ifeq ($(mkl),mkl95) # First mkl95 then mkl for .mod files other then intel
-        ifneq (exists, $(shell if [ -d "$(MKL95DIR)" ] ; then echo 'exists' ; fi))
+        ifeq ("$(wildcard $(MKL95DIR))","")
             $(error Error: MKL95 path '$(MKL95DIR)' not found.)
         endif
         MKL95INC ?= $(MKL95DIR)/include
@@ -408,7 +439,7 @@ ifneq (,$(findstring $(mkl),mkl mkl95))
         endif
     endif
 
-    ifneq (exists, $(shell if [ -d "$(MKLDIR)" ] ; then echo 'exists' ; fi))
+    ifeq ("$(wildcard $(MKLDIR))","")
         $(error Error: MKL path '$(MKLDIR)' not found.)
     endif
     MKLINC ?= $(MKLDIR)/include
@@ -443,7 +474,7 @@ endif
 
 # --- NETCDF ---------------------------------------------------
 ifneq (,$(findstring $(netcdf),netcdf3 netcdf4))
-    ifneq (exists, $(shell if [ -d "$(NCDIR)" ] ; then echo 'exists' ; fi))
+    ifeq ("$(wildcard $(NCDIR))","")
         $(error Error: NETCDF path '$(NCDIR)' not found.)
     endif
     NCINC ?= $(strip $(NCDIR))/include
@@ -462,7 +493,7 @@ ifneq (,$(findstring $(netcdf),netcdf3 netcdf4))
     endif
     iLIBS += -lnetcdf
 
-    ifeq (exists, $(shell if [ -d "$(NCFDIR)" ] ; then echo 'exists' ; fi))
+    ifneq ("$(wildcard $(NCFDIR))","")
         NCFINC ?= $(strip $(NCFDIR))/include
         NCFLIB ?= $(strip $(NCFDIR))/lib
 
@@ -508,14 +539,14 @@ endif
 
 # --- PROJ --------------------------------------------------
 ifeq ($(proj),true)
-    ifneq (exists, $(shell if [ -d "$(PROJ4DIR)" ] ; then echo 'exists' ; fi))
+    ifeq ("$(wildcard $(PROJ4DIR))","")
         $(error Error: PROJ4 path '$(PROJ4DIR)' not found.)
     endif
     PROJ4LIB ?= $(PROJ4DIR)/lib
     iLIBS    += -L$(PROJ4LIB) -lproj
     RPATH    += -Wl,-rpath=$(PROJ4LIB)
 
-    ifneq (exists, $(shell if [ -d "$(FPROJDIR)" ] ; then echo 'exists' ; fi))
+    ifeq ("$(wildcard $(FPROJDIR))","")
         $(error Error: FPROJ path '$(FPROJDIR)' not found.)
     endif
     FPROJINC ?= $(FPROJDIR)/include
@@ -536,7 +567,7 @@ ifeq ($(lapack),true)
     ifneq (,$(findstring $(iOS),Darwin))
         iLIBS += -framework veclib
     else
-        ifneq (exists, $(shell if [ -d "$(LAPACKDIR)" ] ; then echo 'exists' ; fi))
+        ifeq ("$(wildcard $(LAPACKDIR))","")
             $(error Error: LAPACK path '$(LAPACKDIR)' not found.)
         endif
         LAPACKLIB ?= $(LAPACKDIR)/lib
@@ -546,12 +577,25 @@ ifeq ($(lapack),true)
     DEFINES += -DLAPACK
 endif
 
+# --- MPI ---------------------------------------------------
+ifeq ($(mpi),true)
+    ifeq ("$(wildcard $(MPIDIR))","")
+        $(error Error: MPI path '$(MPIDIR)' not found.)
+    endif
+    MPIINC   ?= $(MPIDIR)/include
+    MPILIB   ?= $(MPIDIR)/lib
+    iLIBS    += -L$(MPILIB) # -lproj
+    RPATH    += -Wl,-rpath=$(MPILIB)
+    INCLUDES += -I$(MPIINC) -I$(MPILIB) # mpi.h in lib and not include <- strange
+    DEFINES  += -DMPI
+endif
+
 # --- DOXYGEN ---------------------------------------------------
-ISDOX := True
 ifneq (,$(filter doxygen html latex pdf, $(MAKECMDGOALS)))
-    ifeq (exists, $(shell if [ -f $(DOXPATH)/"doxygen.config" ] ; then echo 'exists' ; fi))
+    ifneq ("$(wildcard $(DOXCONFIG))","")
+        ISDOX := True
         ifneq ($(DOXYGENDIR),)
-            ifneq (exists, $(shell if [ -f $(strip $(DOXYGENDIR))/"doxygen" ] ; then echo 'exists' ; fi))
+            ifeq ("$(wildcard $(DOXYGENDIR))","")
                 $(error Error: doxygen not found in $(strip $(DOXYGENDIR)).)
             else
                 DOXYGEN := $(strip $(DOXYGENDIR))/"doxygen"
@@ -564,7 +608,7 @@ ifneq (,$(filter doxygen html latex pdf, $(MAKECMDGOALS)))
             endif
         endif
         ifneq ($(DOTDIR),)
-            ifneq (exists, $(shell if [ -f $(strip $(DOTDIR))/"dot" ] ; then echo 'exists' ; fi))
+            ifeq ("$(wildcard $(DOTDIR))","")
                 $(error Error: dot not found in $(strip $(DOTDIR)).)
             else
                 DOTPATH := $(strip $(DOTDIR))
@@ -577,7 +621,7 @@ ifneq (,$(filter doxygen html latex pdf, $(MAKECMDGOALS)))
             endif
         endif
         ifneq ($(TEXDIR),)
-            ifneq (exists, $(shell if [ -f $(strip $(TEXDIR))/"latex" ] ; then echo 'exists' ; fi))
+            ifeq ("$(wildcard $(strip $(TEXDIR))/latex)","")
                 $(error Error: latex not found in $(strip $(TEXDIR)).)
             else
                 TEXPATH := $(strip $(TEXDIR))
@@ -590,7 +634,7 @@ ifneq (,$(filter doxygen html latex pdf, $(MAKECMDGOALS)))
             endif
         endif
         ifneq ($(PERLDIR),)
-            ifneq (exists, $(shell if [ -f $(strip $(PERLDIR))/"perl" ] ; then echo 'exists' ; fi))
+            ifeq ("$(wildcard $(strip $(PERLDIR))/perl)","")
                 $(error Error: perl not found in $(strip $(PERLDIR)).)
             else
                 PERLPATH := $(strip $(PERLDIR))
@@ -603,11 +647,13 @@ ifneq (,$(filter doxygen html latex pdf, $(MAKECMDGOALS)))
             endif
         endif
     else
-        ISDOX += False
+        ISDOX := False
         ifneq (,$(filter doxygen latex pdf, $(MAKECMDGOALS)))
-            $(error Error: no doxygen.config found in $(DOXPATH).)
+            $(error Error: no doxygen config file $(DOXCONFIG) found in.)
         endif
     endif
+else
+    ISDOX := False
 endif
 
 # --- INTEL ERROR ---------------------------------------------------
@@ -663,10 +709,12 @@ endif
 
 # ASRCS contain Fortran 90 source dir informations
 ifeq (False,$(iphony))
-    SRCS := $(wildcard $(addsuffix /*.f90, $(SRCPATH))) $(wildcard $(addsuffix /*.F90, $(SRCPATH)))  $(wildcard $(addsuffix /*.f95, $(SRCPATH))) $(wildcard $(addsuffix /*.F95, $(SRCPATH))) $(wildcard $(addsuffix /*.f03, $(SRCPATH))) $(wildcard $(addsuffix /*.F03, $(SRCPATH))) $(wildcard $(addsuffix /*.f08, $(SRCPATH))) $(wildcard $(addsuffix /*.F08, $(SRCPATH)))
+    SRCS1 := $(foreach suff,$(F90SUFFIXES),$(wildcard $(addsuffix /*$(suff), $(SRCPATH))))
 endif
+# exclude files from compilation
+SRCS  := $(foreach f,$(SRCS1),$(if $(findstring $(f),$(abspath $(EXCLUDE_FILES))),,$(f)))
 # source files but all with .o
-OSRCS := $(patsubst %.f90,%.o,$(patsubst %.F90,%.o,$(patsubst %.f95,%.o,$(patsubst %.F95,%.o,$(patsubst %.f03,%.o,$(patsubst %.F03,%.o,$(patsubst %.f08,%.o,$(patsubst %.F08,%.o,$(SRCS)))))))))
+OSRCS := $(foreach suff, $(F90SUFFIXES), $(patsubst %$(suff), %.o, $(filter %$(suff), $(SRCS))))
 # object files
 OBJS  := $(join $(dir $(OSRCS)), $(addprefix .$(strip $(icompiler)).$(strip $(release))/,$(notdir $(OSRCS))))
 # dependency files
@@ -677,10 +725,12 @@ GOBJS := $(addprefix $(CURDIR)/,$(patsubst %.o,%.g90,$(notdir $(OBJS)))) $(patsu
 
 # Same for Fortran77 files
 ifeq (False,$(iphony))
-    FSRCS := $(wildcard $(addsuffix /*.f, $(SRCPATH))) $(wildcard $(addsuffix /*.F, $(SRCPATH)))  $(wildcard $(addsuffix /*.for, $(SRCPATH))) $(wildcard $(addsuffix /*.FOR, $(SRCPATH))) $(wildcard $(addsuffix /*.f77, $(SRCPATH))) $(wildcard $(addsuffix /*.F77, $(SRCPATH))) $(wildcard $(addsuffix /*.ftn, $(SRCPATH))) $(wildcard $(addsuffix /*.FTN, $(SRCPATH)))
+    FSRCS1 := $(foreach suff,$(F77SUFFIXES),$(wildcard $(addsuffix /*$(suff), $(SRCPATH))))
 endif
+# exclude files from compilation
+FSRCS  := $(foreach f,$(FSRCS1),$(if $(findstring $(f),$(abspath $(EXCLUDE_FILES))),,$(f)))
 # source files but all with .o
-FOSRCS := $(patsubst %.f,%.o,$(patsubst %.F,%.o,$(patsubst %.for,%.o,$(patsubst %.FOR,%.o,$(patsubst %.f77,%.o,$(patsubst %.F77,%.o,$(patsubst %.ftn,%.o,$(patsubst %.FTN,%.o,$(FSRCS)))))))))
+FOSRCS := $(foreach suff, $(F77SUFFIXES), $(patsubst %$(suff), %.o, $(filter %$(suff), $(FSRCS))))
 # object files
 FOBJS  := $(join $(dir $(FOSRCS)), $(addprefix .$(strip $(icompiler)).$(strip $(release))/,$(notdir $(FOSRCS))))
 # dependency files
@@ -691,9 +741,12 @@ FGOBJS := $(addprefix $(CURDIR)/,$(patsubst %.o,%.g90,$(notdir $(FOBJS)))) $(pat
 
 # Same for C files with ending .c
 ifeq (False,$(iphony))
-    CSRCS := $(wildcard $(addsuffix /*.c, $(SRCPATH))) $(wildcard $(addsuffix /*.C, $(SRCPATH)))
+    CSRCS1 := $(foreach suff,$(CSUFFIXES),$(wildcard $(addsuffix /*$(suff), $(SRCPATH))))
 endif
-COSRCS := $(patsubst %.c,%.o,$(patsubst %.C,%.o,$(CSRCS)))
+# exclude files from compilation
+CSRCS  := $(foreach f,$(CSRCS1),$(if $(findstring $(f),$(abspath $(EXCLUDE_FILES))),,$(f)))
+# source files but all with .o
+COSRCS := $(foreach suff, $(CSUFFIXES), $(patsubst %$(suff), %.o, $(filter %$(suff), $(CSRCS))))
 # object files
 COBJS  := $(join $(dir $(COSRCS)), $(addprefix .$(strip $(icompiler)).$(strip $(release))/,$(notdir $(COSRCS))))
 # dependency files
@@ -701,9 +754,10 @@ CDOBJS := $(COBJS:.o=.d)
 
 # Libraries in source path
 ifeq (False,$(iphony))
-    LSRCS := $(wildcard $(addsuffix /*.a, $(SRCPATH))) $(wildcard $(addsuffix /*.so, $(SRCPATH)))  $(wildcard $(addsuffix /*.dylib, $(SRCPATH)))
+    LSRCS1 := $(foreach suff,$(LIBSUFFIXES),$(wildcard $(addsuffix /*$(suff), $(SRCPATH))))
 endif
-LOSRCS := $(patsubst %.a,,$(patsubst %.so,,$(patsubst %.dylib,,$(LSRCS))))
+LSRCS  := $(foreach f,$(LSRCS1),$(if $(findstring $(f),$(abspath $(EXCLUDE_FILES))),,$(f)))
+LOSRCS := $(foreach suff, $(LIBSUFFIXES), $(patsubst %$(suff), %.o, $(filter %$(suff), $(LSRCS))))
 LOBJS  := $(addprefix -L,$(dir $(SRCPATH))) $(addprefix -l, $(patsubst lib%, %, $(notdir $(LOSRCS))))
 
 # The Absoft compiler needs that ABSOFT is set to the Absoft base path
@@ -752,7 +806,9 @@ $(DOBJS):
 	@dirname $@ | xargs mkdir -p 2>/dev/null
 	@nobj=$$(echo $(DOBJS) | tr ' ' '\n' | grep -n -w -F $@ | sed 's/:.*//') ; \
 	src=$$(echo $(SRCS) | tr ' ' '\n' | sed -n $${nobj}p) ; \
-	$(MAKEDEPSPROG) $$src .$(strip $(icompiler)).$(strip $(release)) $(SRCS) $(FSRCS)
+	$(CPP) -C -P $(DEFINES) $(INCLUDES) $$src > $$src.pre 2>/dev/null ; \
+	$(MAKEDEPSPROG) $$src.pre $$src .$(strip $(icompiler)).$(strip $(release)) $(SRCS) $(FSRCS) ; \
+	\rm $$src.pre
 
 $(FDOBJS):
 	@dirname $@ | xargs mkdir -p 2>/dev/null
@@ -767,7 +823,7 @@ $(CDOBJS):
 	@nobj=$$(echo $(CDOBJS) | tr ' ' '\n' | grep -n -w -F $@ | sed 's/:.*//') ; \
 	src=$$(echo $(CSRCS) | tr ' ' '\n' | sed -n $${nobj}p) ; \
 	pobj=$$(dirname $@) ; psrc=$$(dirname $$src) ; \
-	gcc $(DEFINES) -MM $$src | sed "s|.*:|$(patsubst %.d,%.o,$@) $@ :|" > $@
+	$(CC) -E $(DEFINES) $(INCLUDES) -MM $$src | sed "s|.*:|$(patsubst %.d,%.o,$@) $@ :|" > $@
 
 # Compile
 $(OBJS):
@@ -828,8 +884,8 @@ endif
 cleanclean: clean
 	rm -rf $(addsuffix /.*.r*, $(SRCPATH)) $(addsuffix /.*.d*, $(SRCPATH))
 	rm -rf "$(PROGNAME)".dSYM $(addsuffix /html, $(SRCPATH))
-	@if [ -f $(DOXPATH)/"doxygen.config" ] ; then rm -rf $(PROGPATH)/latex ; fi
-	@if [ -f $(DOXPATH)/"doxygen.config" ] ; then rm -rf $(PROGPATH)/html ; fi
+	@if [ -f "$(DOXCONFIG)" ] ; then rm -rf $(PROGPATH)/latex ; fi
+	@if [ -f "$(DOXCONFIG)" ] ; then rm -rf $(PROGPATH)/html ; fi
 ifeq (True,$(islib))
 	rm -f "$(LIBNAME)"
 endif
@@ -900,13 +956,13 @@ dependencies:
 	@rm -f $(addsuffix /$(MAKEDSCRIPT).dict, $(OBJPATH))
 
 doxygen:
-	@cat $(DOXPATH)/"doxygen.config" | \
+	@cat $(DOXCONFIG) | \
 	     sed -e "/^PERL_PATH/s|=.*|=$(PERLPATH)|" | \
 	     sed -e "/^DOT_PATH/s|=.*|=$(DOTPATH)|" | env PATH=${PATH}:$(TEXPATH) $(DOXYGEN) -
 
 html:
 	@if [ $(ISDOX) == True ] ; then \
-	    cat $(DOXPATH)/"doxygen.config" | \
+	    cat "$(DOXCONFIG)" | \
 	        sed -e "/^PERL_PATH/s|=.*|=$(PERLPATH)|" | \
 	        sed -e "/^DOT_PATH/s|=.*|=$(DOTPATH)|" | env PATH=${PATH}:$(TEXPATH) $(DOXYGEN) - ; \
 	else \
@@ -962,7 +1018,7 @@ info:
 	@echo "RANLIB    = $(RANLIB)"
 	@echo ""
 	@echo "Configured compilers on $(system): $(compilers)"
-ifeq (exists, $(shell if [ -f $(ALIASINC) ] ; then echo 'exists' ; fi))
+ifneq ("$(wildcard $(ALIASINC))","")
 	@echo ""
 	@echo "Compiler aliases for $(system)"
 	@sed -n '/ifneq (,$$(findstring $$(compiler)/,/endif/p' $(ALIASINC) | \

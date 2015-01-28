@@ -111,9 +111,14 @@ wpath='/work/thober/forecast_T+P/'
 # wpath='/work/thober/esp/'
 
 # set all variables that are going to be changed in mhm.nml
-OutPath=${wpath}${yy}'_'${mm}'/'${model}'/M'${mem}'/' # submit for model member
-# OutPath=${wpath}${yy}'_'${mm}'/'${model}'/'         # submit for model ensemble
-# OutPath=${wpath}${yy}'_'${mm}'/'                    # submit for multi ensemble
+OutPath=${wpath}${yy}'_'${mm}'/subensembles/'         # submit for subensembles
+InPath='/data/stohyd/mHM_project/europe/entire_domain/ST_RK_06_2014/forecast/pre_tavg/'
+InPath=${InPath}${yy}'_'${mm}'/subensembles/'
+#
+# implementation of backward search algorithm
+ens_config='11111111'
+Nmodels=8 # Number of models equals the length of ens_config
+#
 
 # create outpath if not exists
 if [[ ! -d ${wpath} ]]; then
@@ -122,51 +127,64 @@ if [[ ! -d ${wpath} ]]; then
     exit 1
 fi
 
-InFile=${OutPath}sm_anomaly.nc
-OutFile=${OutPath}mSMI.nc
-echo ${OutFile}
-# check whether outfile exists
-# if [[ -f ${OutFile} ]]; then 
-#     echo 'SKIPPING!'
-#     exit 0
-# fi
-
-# check if script is run on local machine or frontends of eve
-machine=$(uname -a | cut -d ' ' -f 2)
-
-if [[ ${machine%[0-9]} != 'ces220l' ]]; then
+# Loop over configurations (see average_subensembles.sh for details)
+for (( cc = 0; cc < ${Nmodels}; cc++ )); do
+    # if model has not been used, loop
+    if [[ ${ens_config:${cc}:1} -eq 0 ]]; then continue; fi
+    # copy configuration and set 0 at position cc
+    config=${ens_config:0:${cc}}0${ens_config:((${cc}+1)):${Nmodels}}
+    echo 'processing config: '${config}
+    # set Paths for this configuration
+    SubOutPath=${OutPath}${config}'/'
+    SubInPath=${InPath}${config}'/'
+    EvalFile=${SubInPath}'sm_anomaly.nc'
+    OutFile=${SubInPath}mSMI.nc
+    echo ${OutFile}
     
-    echo 'processing InFile:  '${InFile}
-    echo 'processing OutFile: '${OutFile}
+    # check whether outfile exists
+    # if [[ -f ${OutFile} ]]; then 
+    #     echo 'SKIPPING!'
+    #     exit 0
+    # fi
 
-    # create run dir in OutPath
-    if [[ -d ${OutPath}run/ ]]; then
-	rm -r ${OutPath}run/
+    # check if script is run on local machine or frontends of eve
+    machine=$(uname -a | cut -d ' ' -f 2)
+
+    if [[ ${machine%[0-9]} != 'ces220l' ]]; then
+        
+        echo 'processing InFile:  '${EvalFile}
+        echo 'processing OutFile: '${OutFile}
+
+        # create run dir in OutPath
+        if [[ -d ${SubOutPath}run/ ]]; then
+	    rm -r ${SubOutPath}run/
+        fi
+
+        mkdir -p ${SubOutPath}run/
+        echo ${SubOutPath}run/
+        # copy all required files in this directory
+        cp main.dat ${SubOutPath}run
+        ln -s ${PWD}/smi ${SubOutPath}run/smi
+        # change directory
+        cd ${SubOutPath}run/${Fname%.*}
+
+        # modify main namelist
+        sed -i -e "s# outpath        = .*# outpath        = \"${SubInPath}\"#" \
+               -e "s# SM_eval_file   = .*# SM_eval_file   = \"${EvalFile}\"#" \
+            main.dat
+        
+        # commit the job
+        #time ./smi
+        
+        # go back
+        cd - > /dev/null
+
+    else
+        
+        echo '***ERROR: not implemented!'
+        exit 1
+
     fi
-
-    mkdir -p ${OutPath}run/
-    # copy all required files in this directory
-    cp main.dat ${OutPath}run
-    ln -s ${PWD}/smi ${OutPath}run/smi
-    # change directory
-    cd ${OutPath}run/${Fname%.*}
-
-    # modify main namelist
-    sed -i -e "s# outpath        = .*# outpath        = \"${OutPath}\"#" \
-           -e "s# SM_eval_file   = .*# SM_eval_file   = \"${OutPath}sm_anomaly.nc\"#" \
-        main.dat
-          
-    # commit the job
-    time ./smi
- 
-    # go back
-    cd - > /dev/null
-
-else
-    
-    echo '***ERROR: not implemented!'
-    exit 1
-
-fi
+done
 #
 #echo 'Done!'

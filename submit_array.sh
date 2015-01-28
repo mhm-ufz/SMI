@@ -10,12 +10,12 @@
 # submission for all model members, months, and years
 # #$ -t 1-32723
 # submission for Grand Ensemble, or Ensemble for one model
-# #$ -t 1-323
+#$ -t 1-323
 # submission for NASA model
-#$ -t 1-3563
+# #$ -t 1-3887
 # submission for Statistical model
 # #$ -t 1-3239
-# # submission for ESP 28 years X 12 months
+# submission for ESP 28 years X 12 months
 # #$ -t 1-325
 # submission for ESP 28 years x 28 years X 12 months
 # #$ -t 1-9407
