@@ -40,31 +40,6 @@ Nyears=27
 # Nyears=28
 month_start=1
 Nmonths=12
-# !!! NMME models !!!
-models="CMC1-CanCM3 COLA-RSMAS-CCSM3 GFDL-CM2p1 IRI-ECHAM4p5-AnomalyCoupled IRI-ECHAM4p5-DirectCoupled NASA-GMAO-062012 NCEP-CFSv1 NCEP-CFSv2"
-Nmodels=8
-cum_realizations="10 16 26 38 50 62 77 101"
-Ndisag=25
-
-# !!! ONE MODEL ONLY !!!
-models="NCEP-CFSv2"
-Nmodels=1
-cum_realizations="24"
-Ndisag=0
-year_start=2009
-Nyears=1
-month_start=3
-Nmonths=1
-
-# !!! Statistical model !!!
-# models="AR_forecast"
-# Nmodels=1
-# cum_realizations="10"
-
-# !!! ESP !!!
-# models=''
-# Nmodels=28
-# cum_realizations="0"
 
 # extract model 
 (( model_ID = ( ${task} / (${Nyears}*${Nmonths}) ) ))
@@ -174,7 +149,7 @@ for (( cc = 0; cc < ${Nmodels}; cc++ )); do
             main.dat
         
         # commit the job
-        #time ./smi
+        time ./smi
         
         # go back
         cd - > /dev/null

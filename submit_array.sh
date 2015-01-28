@@ -26,4 +26,8 @@
 #$ -binding linear:1
 #----------------------------------------------------
 
-time ./launch_smi.sh -t $SGE_TASK_ID
+# submitting NMME, ESP or single models
+# time ./launch_smi.sh -t $SGE_TASK_ID
+#
+# submitting subensembles
+time ./launch_smi_subensembles.sh -t $SGE_TASK_ID
