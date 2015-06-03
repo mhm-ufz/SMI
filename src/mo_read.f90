@@ -118,7 +118,7 @@ CONTAINS
     ! determine no data value
     call Get_NcVarAtt(maskfName, trim(mask_vname), 'missing_value', AttValues, dtype=datatype)
     ! convert to number 
-    read(AttValues, *) nodata_value 
+    read(AttValues, *) nodata_value
     ! create mask
     mask = merge( .true., .false., notequal(dummy_D2_sp, nodata_value ) )
     deallocate( dummy_D2_sp )
@@ -314,10 +314,16 @@ CONTAINS
        case('days')
           call dec2date(real(timesteps(i), dp) + ref_jday, dd=d, mm=month, yy=year) 
           times(i) = times(i) + timesteps(i) - timesteps(1)
-       case('months')  
+       case('months')
+          d       = dRef ! set to dref as default
           month   = mod( (timesteps(i) + mRef ), YearMonths )
-          if (month == 0 ) month = 12
           year    = yRef + floor(real( timesteps(i) + mRef, dp) / real(YearMonths, dp) )
+          ! correct month and year for december
+          if (month == 0 ) then
+             month = 12
+             year  = year - 1
+          end if
+          !
           if (i .EQ. 1) then
              times(i) = 0
           else
