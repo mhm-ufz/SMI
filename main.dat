@@ -2,37 +2,37 @@
 !***DROUGHT-INDEX        *** Main configuration file ***
 &mainconfig
  ! mask to define the domain for which the SMI calculation is performed
- maskfName      = "/data/stohyd/mHM_project/europe/entire_domain/ST_RK_06_2014/refrun/monthly_output/1980-2010/mask.nc"
- mask_vname     = "mask_float"
+ maskfName      = "./test_smi/mask.nc"
+ mask_vname     = "mask"
  ! file and variable name for monthly soil moisture fileds
- soilmoist_file = "/data/stohyd/mHM_project/europe/entire_domain/ST_RK_06_2014/refrun/monthly_output/1980-2010/monthly_sm_anomaly.nc"
+ soilmoist_file = "./test_smi/soilmoisture_month.nc"
  SM_vname       = "SM_Lall"
  ! directory iti which output will be written
- outpath        = "test_output/"
+ outpath        = "./test_smi/"
  ! Determination of the kernel width:
  ! silverman_h == .TRUE.  - 'Silverman rule' is applied for determination of the kernel width - no optimization
  ! silverman_h == .FALSE. - optimization of the kernel width 
  silverman_h    = .FALSE.
- ! Treshhold of SMI for drought indentification
- SMI_thld       = 0.20
 
  ! *** Analysis options which can be activated or deactivated ****
  ! if  .TRUE. kernel widths h are read from variable "opt_h_vname" in file "opt_h_file with"
  ! if .FALSE. kernel widths are optimized or determined by 'Silverman rule', "opt_h_file" and "opt_h_vname" are ignored
  read_opt_h     = .TRUE.
- opt_h_file     = "/data/stohyd/mHM_project/europe/entire_domain/ST_RK_06_2014/refrun/monthly_output/1980-2010/mSMI_opti.nc"
+ opt_h_file     = "./test_smi/ref_smi.nc"
  opt_h_vname    = "kernel_width" 
 
  ! if .TRUE. PDFs are calculated based on soilmoist_file but the SMI is determined for SM_eval_file and varible SM_eval_vname
  ! if .FALSE. "SM_eval_file" and "SM_eval_vname" are ignored
  eval_SMI       = .TRUE.  
- SM_eval_file   = "/work/thober/forecast/2003_01/sm_anomaly.nc"  !/home/thober/projects/2014/NMME-Forecast/SMI/input/test.nc"
- SM_eval_vname  = "sm_anomaly"
- type_var_eval  = "sp"
- type_time_eval = "sp"
+ SM_eval_file   = "./test_smi/soilmoisture_eval.nc"
+ SM_eval_vname  = "SM_Lall"
+ type_var_eval  = "dp"
+ type_time_eval = "i4"
 
  ! if .TRUE. cluster analysis is performed
- do_cluster     = .FALSE.
+ do_cluster     = .TRUE.
+ ! Treshhold of SMI for drought indentification
+ SMI_thld       = 0.20
 
  ! if .TRUE. SMI is evaluated for subregions (e.g. basins)
  basin_flag     = .FALSE.       

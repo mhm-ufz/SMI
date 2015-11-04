@@ -45,13 +45,13 @@ module InputOutput
   ! main parameters 
   integer(i4)                                    :: DAT_flag     ! daily of monthly inputs
   ! for mHM (4 x 4) km2
-!!$  integer(i4), parameter                         :: thCellClus = 40        ! treshold  for cluster formation in space ~ 640 km2
-!!$  integer(i4), parameter                         :: nCellInter = 400       ! number cells for joining clusters in time ~ 6400 km2
-!!$  integer(i4), parameter                         :: deltaArea  = 20        ! number of cells per area interval
+  integer(i4), parameter                         :: thCellClus = 40        ! treshold  for cluster formation in space ~ 640 km2
+  integer(i4), parameter                         :: nCellInter = 400       ! number cells for joining clusters in time ~ 6400 km2
+  integer(i4), parameter                         :: deltaArea  = 20        ! number of cells per area interval
   ! for COSMO ~(7 x 7) km2
-  integer(i4), parameter                         :: thCellClus = 13        ! treshold  for cluster formation in space ~ 640 km2
-  integer(i4), parameter                         :: nCellInter = 130       ! number cells for joining clusters in time ~ 6400 km2
-  integer(i4), parameter                         :: deltaArea  = 7         ! number of cells per area interval
+!!  integer(i4), parameter                         :: thCellClus = 13        ! treshold  for cluster formation in space ~ 640 km2
+!!  integer(i4), parameter                         :: nCellInter = 130       ! number cells for joining clusters in time ~ 6400 km2
+!!  integer(i4), parameter                         :: deltaArea  = 7         ! number of cells per area interval
   !
   integer(i4), parameter                         :: nDurations = 4         ! number of durations
   integer(i4), dimension(nDurations), parameter  :: durList = (/3,6,9,12/) !(/3,6,9,12/)   ! list of durations to evaluate
