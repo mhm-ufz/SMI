@@ -121,20 +121,20 @@ program SM_Drought_Index
   ! calculate drought cluster
   if ( do_cluster ) then
      ! drought indicator 
-     call droughtIndicator( SMI, mask, nMonths, SMI_thld )
+     call droughtIndicator( SMI, mask, SMI_thld )
      call WriteNetCDF(outpath, 3, opt_h, SM_est, mask, yStart, lats, lons)
      
      ! cluster indentification
-     call ClusterEvolution( size( mask, 1), size( mask, 2 ), nMonths, nCells)
+     call ClusterEvolution( size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells)
      call WriteNetCDF(outpath, 4, opt_h, SM_est, mask, yStart, lats, lons)
      ! statistics  
-     call ClusterStats( size( mask, 1), size( mask, 2 ), nMonths, nCells, Basin_Id, SMI_thld )
+     call ClusterStats(SMI, mask, size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells, SMI_thld )
      !
      ! SAD analysis
      do d = 1, nDurations
-        call calSAD(d, size( mask, 1), size( mask, 2 ), nMonths, nCells)
+        call calSAD(SMI, mask, d, size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells)
         ! write SAD for a given duration + percentiles
-        call writeResultsCluster(outpath, 2, yStart, yEnd, nMonths, nCells, durList(d) )
+        call writeResultsCluster(outpath, 2, yStart, yEnd, size(SMI, 2), nCells, durList(d) )
         call WriteNetCDF(outpath, 5, opt_h, SM_est, mask, yStart, lats, lons, durList(d))
      end do
      ! write results
@@ -146,7 +146,7 @@ program SM_Drought_Index
   if ( do_basin ) then
      ! write SMI average over major basins
      print *, 'calculate Basin Results ...'
-     call WriteResultsBasins( outpath, mask, yStart, yEnd, nMonths, Basin_Id )
+     call WriteResultsBasins( outpath, SMI, mask, yStart, yEnd, nMonths, Basin_Id )
   end if
 
   print *, 'DONE!'

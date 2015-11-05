@@ -25,7 +25,7 @@ CONTAINS
 !  Luis Samaniego, created  28.02.2011
 !                  updated  05.10.2011
 !*********************************************************************
-subroutine droughtIndicator( SMI, mask, nMonths, SMI_thld )
+subroutine droughtIndicator( SMI, mask, SMI_thld )
 
   use InputOutput,      only : SMIc, cellCoor
   use mo_smi_constants, only : nodata_sp, nodata_i4
@@ -36,7 +36,6 @@ subroutine droughtIndicator( SMI, mask, nMonths, SMI_thld )
   ! input variable
   real(sp), dimension(:,:),   intent(in)        :: SMI
   logical,  dimension(:,:),   intent(in)        :: mask
-  integer(i4),                intent(in)        :: nMonths
   real(sp),                   intent(in)        :: SMI_thld
 
   ! local variables
@@ -45,10 +44,12 @@ subroutine droughtIndicator( SMI, mask, nMonths, SMI_thld )
   integer(i4)                                   :: i, j, m, k
   integer(i4)                                   :: nrows
   integer(i4)                                   :: ncols
+  integer(i4)                                   :: nMonths
 
   ! initialize
-  nrows  = size( mask, 1 )
-  ncols  = size( mask, 2 )
+  nrows   = size( mask, 1 )
+  ncols   = size( mask, 2 )
+  nMonths = size( SMI,  2 )
   !
   print *, 'Drought  th: ', SMI_thld
   if ( .not. allocated (SMIc) ) allocate ( SMIc( nrows, ncols, nMonths) )
@@ -213,30 +214,34 @@ end subroutine ClusterEvolution
 !-------------------------------------------------------
 ! SVAT statistics
 !-------------------------------------------------------
-subroutine ClusterStats( nrows, ncols, nMonths, nCells, Basin_Id, SMI_thld )
+subroutine ClusterStats( SMI, mask, nrows, ncols, nMonths, nCells, SMI_thld )
 
   !  use numerical_libraries, only                       : SVIGN , DSVRGN, DEQTIL
-  use InputOutput, only                                : aDA, aDD, TDM, DTMagEvol, DAreaEvol,     &
-                                                         SMI, nClusters, idCluster, shortCnoList, &
-                                                         dASevol, nBasins
+  use mo_smi_constants, only: nodata_sp
+  use InputOutput,      only: aDA, aDD, TDM, DTMagEvol, DAreaEvol,     &
+       nClusters, idCluster, shortCnoList, &
+       dASevol, nBasins
 
   implicit none
 
   ! input variables
 
+  real(sp), dimension(:,:),    intent(in) :: SMI
+  logical,  dimension(:,:),    intent(in) :: mask
   integer(i4),                 intent(in) :: nrows
   integer(i4),                 intent(in) :: ncols
   integer(i4),                 intent(in) :: nMonths
   integer(i4),                 intent(in) :: nCells      ! number of effective cell
-  integer(i4), dimension(:,:), intent(in) :: Basin_Id    ! IDs for basinwise drought analysiss
+!  integer(i4), dimension(:,:), intent(in) :: Basin_Id    ! IDs for basinwise drought analysiss
   real(sp),                    intent(in) :: SMI_thld    ! SMI threshold for clustering
 
   ! local variables
-  integer(i4)                                         :: ic
-  integer(i4)                                         :: t, i
-  integer(i4) , dimension(:), allocatable             :: counterA
-  integer(i4) , dimension(:,:), allocatable           :: aDDG
-  real(dp) , dimension(:,:), allocatable              :: mSev
+  real(sp), dimension(nrows, ncols)                         :: dummy_2d_sp
+  integer(i4)                                               :: ic
+  integer(i4)                                               :: t, i
+  integer(i4) , dimension(:), allocatable                   :: counterA
+  integer(i4) , dimension(:,:), allocatable                 :: aDDG
+  real(dp) , dimension(:,:), allocatable                    :: mSev
 
   allocate ( aDDG     (nrows, ncols) )
   allocate ( DAreaEvol(nMonths,nClusters) )
@@ -264,7 +269,8 @@ subroutine ClusterStats( nrows, ncols, nMonths, nCells, Basin_Id, SMI_thld )
         DAreaEvol(t,ic) =  real( count(idCluster(:,:,t) == shortCnoList(ic) ), dp) / real(nCells, dp)
         if (DAreaEvol(t,ic) > 0) counterA(ic) = counterA(ic) + 1
         ! total magnitude (NEW  SM_tr -SMI) !!!
-        DTMagEvol(t,ic) = sum( (SMI_thld - SMI(:,:,t)), mask = idCluster(:,:,t) == shortCnoList(ic) )
+        dummy_2d_sp = unpack(SMI(:,t), mask, nodata_sp)
+        DTMagEvol(t,ic) = sum( (SMI_thld - dummy_2d_sp), mask = idCluster(:,:,t) == shortCnoList(ic) )
      end do
      ! AVERAGE (MEAN) DURATION
      aDD(ic) = real( sum(aDDG, mask = aDDG > 0),dp ) / real( count(aDDG > 0), dp)
@@ -279,23 +285,24 @@ subroutine ClusterStats( nrows, ncols, nMonths, nCells, Basin_Id, SMI_thld )
   ! whole domain
   do t = 1, nMonths
      dASevol(t,1,nBasins+1) = real( count( idCluster(:,:,t) > 0 ), dp ) / real( nCells, dp) * 1e2_dp
+     dummy_2d_sp = unpack(SMI(:,t), mask, nodata_sp)
      where (idCluster(:,:,t) > 0 )
-         mSev(:,:) = 1.0_dp - SMI(:,:,t)
+        mSev(:,:) = 1.0_dp - real(dummy_2d_sp, dp)
      end where
      dASevol(t,2,nBasins+1) = sum( mSev(:,:), mask = idCluster(:,:,t) > 0 ) / real( nCells, dp)  
   end do
-  ! evolution at basin wise
-  do t = 1, nMonths
-    do i = 1, nBasins
-      dASevol(t,1,i) = real ( count( idCluster(:,:,t) > 0 .and.  Basin_Id(:,:) == i  ), dp) &
-                       / real(count(Basin_Id(:,:) == i), dp)  * 1e2_dp
-      where (idCluster(:,:,t) > 0 .and.  Basin_Id(:,:) == i )
-         mSev(:,:) = 1.0_dp - SMI(:,:,t)
-      end where
-      dASevol(t,2,i) = sum( mSev(:,:), mask = idCluster(:,:,t) > 0 .and. Basin_Id(:,:) == i ) &
-                      / real(count(Basin_Id(:,:) == i), dp)
-    end do
-  end do
+  ! ! evolution at basin wise
+  ! do t = 1, nMonths
+  !   do i = 1, nBasins
+  !     dASevol(t,1,i) = real ( count( idCluster(:,:,t) > 0 .and.  Basin_Id(:,:) == i  ), dp) &
+  !                      / real(count(Basin_Id(:,:) == i), dp)  * 1e2_dp
+  !     where (idCluster(:,:,t) > 0 .and.  Basin_Id(:,:) == i )
+  !        mSev(:,:) = 1.0_dp - SMI(:,:,t)
+  !     end where
+  !     dASevol(t,2,i) = sum( mSev(:,:), mask = idCluster(:,:,t) > 0 .and. Basin_Id(:,:) == i ) &
+  !                     / real(count(Basin_Id(:,:) == i), dp)
+  !   end do
+  ! end do
  print*, 'Cluster statistics were estimated ... '
   deallocate ( counterA, aDDG, mSev )
 end subroutine ClusterStats
@@ -303,7 +310,7 @@ end subroutine ClusterStats
 !-------------------------------------------------------
 ! SAD analysis
 !-------------------------------------------------------
-subroutine calSAD(iDur, nrows, ncols, nMonths, nCells)
+subroutine calSAD(SMI, mask, iDur, nrows, ncols, nMonths, nCells)
 
   ! use numerical_libraries, only                        : DSVRGN, DEQTIL, SVIGP
   use mo_sort,          only : sort, sort_index
@@ -312,7 +319,7 @@ subroutine calSAD(iDur, nrows, ncols, nMonths, nCells)
 
   use mo_utils,         only : ne
 
-  use InputOutput, only                                : shortCnoList, deltaArea, SMI, &
+  use InputOutput, only                                : shortCnoList, deltaArea, & ! SMI
                                                          nInterArea, nEvents, nClusters,  idCluster, &
                                                          SAD, SADperc, DAreaEvol, severity, nDsteps, &
                                                          durList, eventId, eIdPerm, &
@@ -321,13 +328,16 @@ subroutine calSAD(iDur, nrows, ncols, nMonths, nCells)
   implicit none
 
   ! input variable
-  integer(i4), intent(in)                             :: iDur
-  integer(i4), intent(in)                             :: nrows
-  integer(i4), intent(in)                             :: ncols
-  integer(i4), intent(in)                             :: nMonths
-  integer(i4), intent(in)                             :: nCells  ! number of effective cells
+  real(sp),    dimension(:,:), intent(in) :: SMI
+  logical,     dimension(:,:), intent(in) :: mask
+  integer(i4),                 intent(in) :: iDur
+  integer(i4),                 intent(in) :: nrows
+  integer(i4),                 intent(in) :: ncols
+  integer(i4),                 intent(in) :: nMonths
+  integer(i4),                 intent(in) :: nCells  ! number of effective cells
 
   ! local variable
+  real(dp),    dimension(nrows,ncols, nMonths)        :: SMI_unpack
   integer(i4)                                         :: t, i, k
   integer(i4)                                         :: ic
   integer(i4)                                         :: iDc
@@ -342,6 +352,10 @@ subroutine calSAD(iDur, nrows, ncols, nMonths, nCells)
   integer(i4)                                         :: nObs
   integer(i4), dimension(:), allocatable              :: vec
   !
+  do i = 1, size(SMI,2)
+     SMI_unpack(:,:,i) = unpack(real(SMI(:,i), dp), mask, nodata_dp)
+  end do
+  
   if (iDur == 1) then
      ! set up SAD curves
      nInterArea = int( ceiling( real(nCells,dp) / real(deltaArea, dp) ), i4 )
@@ -392,8 +406,8 @@ subroutine calSAD(iDur, nrows, ncols, nMonths, nCells)
      me = ms + durList(iDur) - 1
      if (me > nMonths) me = nMonths
      !where ( SMI(:,:,1) .ne.  nodata_dp )
-     where ( ne(SMI(:,:,1), nodata_dp) )
-        severity(:,:,d) = 1.0_dp - sum( SMI(:,:,ms:me), DIM=3 ) / real( me-ms+1, dp )
+     where ( ne(SMI_unpack(:,:,1), nodata_dp) )
+        severity(:,:,d) = 1.0_dp - sum( SMI_unpack(:,:,ms:me), DIM=3 ) / real( me-ms+1, dp )
      end where
   end do
   !

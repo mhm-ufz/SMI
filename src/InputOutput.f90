@@ -15,7 +15,6 @@ module InputOutput
   ! fields
   real(sp),    dimension(:,:), allocatable        :: h_opt             ! optimized kernel width h
   real(dp), dimension(:,:), allocatable           :: SMIp              ! SMI field packed
-  real(dp), dimension(:,:,:), allocatable         :: SMI               ! SMI field unpacked
   integer(i4), dimension(:,:,:), allocatable      :: SMIc              ! SMI indicator
   !
   ! clusters
@@ -230,7 +229,7 @@ contains
             long_name = 'consolidated cluster evolution', units = '-', &
             missing_value = nodata_i4, create = .true. ) ! &
             ! scale_factor = 1., coordinates = 'lon lat' )
-       deallocate( Ziu )
+       !deallocate( Ziu )
        ! add lat and lon
        call var2nc( fname, lats, dnames(1:2), v_name = 'lat', &
             long_name = 'longitude', units = 'degrees_east' )
@@ -406,7 +405,7 @@ end subroutine WriteResultsCluster
 !               Created        Sa   24.05.2011
 !               Last Update    Sa
 !**********************************************************************
-subroutine WriteResultsBasins( outpath, mask, yStart, yEnd, nMonths, Basin_Id )
+subroutine WriteResultsBasins( outpath, SMI, mask, yStart, yEnd, nMonths, Basin_Id )
 
   use mo_kind,          only : i4
   use mo_smi_constants, only : nodata_dp, YearMonths
@@ -415,6 +414,7 @@ subroutine WriteResultsBasins( outpath, mask, yStart, yEnd, nMonths, Basin_Id )
 
   ! input variables
   character(len=*),            intent(in) :: outpath     ! ouutput path for results
+  real(sp),    dimension(:,:), intent(in) :: SMI
   logical,     dimension(:,:), intent(in) :: mask
   integer(i4),                 intent(in) :: yStart
   integer(i4),                 intent(in) :: yEnd
@@ -422,23 +422,30 @@ subroutine WriteResultsBasins( outpath, mask, yStart, yEnd, nMonths, Basin_Id )
   integer(i4), dimension(:,:), intent(in) :: Basin_Id    ! IDs for basinwise drought analysis
 
   ! local variables
-  character(len=256)                         :: fName
-  integer(i4)                                :: i, m, y, j
-  real(dp),    dimension(:,:), allocatable   :: Basin_SMI        
+  real(dp),    dimension(size(mask,1), &
+                        size(mask,2), nMonths) :: SMI_unpack
+  character(len=256)                           :: fName
+  integer(i4)                                  :: i, m, y, j
+  real(dp),    dimension(:,:), allocatable     :: Basin_SMI        
 
   !-------------------------
   ! basin wise
   !-------------------------
   allocate( Basin_SMI (nMonths, nBasins+1) )
+  ! unpack SMI
+  do i = 1, size(SMI,2)
+     SMI_unpack(:,:,i) = unpack(real(SMI(:,i), dp), mask, nodata_dp)
+  end do
+
   Basin_SMI = nodata_dp
   !
   do m = 1, nMonths
     do i = 1, nBasins
       !
-      Basin_SMI(m,i) = sum( SMI(:,:,m), Basin_Id(:,:) == i ) / real(count(Basin_Id(:,:) == i), dp)
+      Basin_SMI(m,i) = sum( SMI_unpack(:,:,m), Basin_Id(:,:) == i ) / real(count(Basin_Id(:,:) == i), dp)
       !
     end do
-    Basin_SMI(m,nBasins+1) = sum(SMI(:,:,m), mask ) /  &
+    Basin_SMI(m,nBasins+1) = sum(SMI_unpack(:,:,m), mask ) /  &
          real(count(mask), dp)
   end do
   !
