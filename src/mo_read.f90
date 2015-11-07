@@ -28,21 +28,22 @@ CONTAINS
   !    NOTES:
   !               packed fields are stored in dim1->dim2 sequence 
   !*********************************************************************
-  subroutine ReadDataMain( do_cluster, eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons, basin_flag,         &
-                           mask, SM_est, tmask_est, SM_eval, tmask_eval, yStart, yEnd, mStart, dStart, Basin_Id, &
-                           times, SMI_thld, outpath  )   
+  subroutine ReadDataMain( SMI, do_cluster, cluster_ext_smi, eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons,  &
+                           basin_flag, mask, SM_est, tmask_est, SM_eval, tmask_eval, yStart, yEnd, mStart, dStart,  &
+                            Basin_Id, times, SMI_thld, outpath, cellsize, thCellClus, nCellInter, deltaArea  )   
 
     use mo_kind,          only: i4
     use mo_utils,         only: equal, notequal
-    use mo_string_utils,  only: DIVIDE_STRING
-    use mo_ncread,        only: Get_NcVar, Get_NcDim, Get_NcVarAtt
+    use mo_ncread,        only: Get_NcVar, Get_NcVarAtt
 
     use mo_smi_constants, only: nodata_dp, YearMonths
  
     implicit none
 
     ! input / output Variables
+    real(sp),    dimension(:,:), allocatable, intent(out) :: SMI         ! SMI only read if cluster_ext_smi is TRUE
     logical,                                  intent(out) :: do_cluster  ! do cluster calculation
+    logical,                                  intent(out) :: cluster_ext_smi ! clsutering external data
     logical,                                  intent(out) :: eval_SMI    ! should SMI be calculated
     logical,                                  intent(out) :: read_opt_h  ! read kernel width
     logical,                                  intent(out) :: silverman_h ! optimize kernel width
@@ -52,13 +53,17 @@ CONTAINS
     integer(i4),                              intent(out) :: yEnd        ! ending year
     integer(i4),                              intent(out) :: mStart      ! starting month
     integer(i4),                              intent(out) :: dStart      ! starting day
+    integer(i4),                              intent(out) :: thCellClus  ! treshold  for cluster formation in space ~ 640 km2
+    integer(i4),                              intent(out) :: nCellInter  ! number cells for joining clusters in time ~ 6400 km2
+    integer(i4),                              intent(out) :: deltaArea   ! number of cells per area interval
     integer(i4), dimension(:,:), allocatable, intent(out) :: Basin_Id    ! IDs for basinwise drought analysis
-    integer(i4), dimension(:),   allocatable, intent(out) :: times
+    integer(i4), dimension(:),   allocatable, intent(out) :: times       ! timestep as from input NetCDF
+    real(sp),                                 intent(out) :: cellsize    ! cell edge lenght of input data
     real(sp),    dimension(:,:), allocatable, intent(out) :: SM_est      ! monthly fields packed for estimation
     logical,     dimension(:,:), allocatable, intent(out) :: tmask_est   ! temporal mask of estimated arr
     real(sp),    dimension(:,:), allocatable, intent(out) :: SM_eval     ! monthly fields packed for evaluation
     logical,     dimension(:,:), allocatable, intent(out) :: tmask_eval  ! temporal mask of evaluated arr
-    real(dp),    dimension(:,:), allocatable, intent(out) :: opt_h
+    real(dp),    dimension(:,:), allocatable, intent(out) :: opt_h       ! optimized kernel width
     real(dp),    dimension(:,:), allocatable, intent(out) :: lats, lons  ! latitude and longitude fields of input
     real(sp),                                 intent(out) :: SMI_thld    ! SMI threshold for clustering
     character(len=256),                       intent(out) :: outpath     ! ouutput path for results
@@ -82,6 +87,7 @@ CONTAINS
     character(256)                                  :: SM_eval_vname
     character(256)                                  :: type_var_eval
     character(256)                                  :: type_time_eval
+    character(256)                                  :: smi_file_clustering
     character(256)                                  :: basin_vname
     character(256)                                  :: opt_h_vname
     real(sp)                                        :: nodata_value ! local data nodata value in nc for mask creation
@@ -94,12 +100,14 @@ CONTAINS
     namelist/mainconfig/basin_flag, basinfName, basin_vname, maskfName, mask_vname, soilmoist_file, SM_vname,  &
                         outpath, eval_SMI, silverman_h, read_opt_h, opt_h_vname, opt_h_file,     &
                         SM_eval_file, SM_eval_vname, type_var_eval, type_time_eval, SMI_thld,    &
-                        do_cluster
+                        do_cluster, cluster_ext_smi, smi_file_clustering, cellsize, thCellClus, nCellInter, deltaArea
 
 
+    ! dummy init to avoid gnu compiler complaint
+    outpath    = '-999'; cellsize=-999.0_sp; thCellClus=-999; nCellInter=-999; deltaArea=-999
+    
     do_cluster = .FALSE.
     SMI_thld   = 0.0_dp
-    outpath    = 'xxx'
     silverman_h = .FALSE.
     ! read namelist
     open (unit=10, file='main.dat', status='old')
@@ -133,7 +141,7 @@ CONTAINS
     print*, 'mask read ...ok'
 
     ! read basin mask
-    if ( basin_flag ) then
+    if ( basin_flag .AND. (.NOT. cluster_ext_smi)) then
        call Get_ncVar( basinfName, trim(basin_vname), Basin_Id )
        ! determine no data value
        call Get_NcVarAtt(maskfName, trim(mask_vname), 'missing_value', AttValues, dtype=datatype)
@@ -153,32 +161,33 @@ CONTAINS
     end if
 
     ! read SM field
-    call Get_ncVar( soilmoist_file, trim(SM_vname), dummy_D3_dp )
-    ! consistency check
-    if ( ( size( dummy_D3_dp, 1) .ne. size( mask, 1 ) ) .or. &
-         ( size( dummy_D3_dp, 2) .ne. size( mask, 2 ) ) ) then
-       print *, '***ERROR: size mismatch between SM field and given mask file'
-       stop
+    if ( .NOT. cluster_ext_smi )  then
+       call Get_ncVar( soilmoist_file, trim(SM_vname), dummy_D3_dp )
+       ! consistency check
+       if ( ( size( dummy_D3_dp, 1) .ne. size( mask, 1 ) ) .or. &
+            ( size( dummy_D3_dp, 2) .ne. size( mask, 2 ) ) ) then
+          print *, '***ERROR: size mismatch between SM field and given mask file'
+          stop
+       end if
+       allocate( SM_est( nCells, size( dummy_D3_dp, 3 ) ) )
+       do ii = 1, size( dummy_D3_dp, 3 )
+          SM_est(:,ii) = pack( real(dummy_D3_dp(:,:,ii),sp), mask )
+       end do
+       deallocate( dummy_D3_dp )
+
+       ! get times in days and mask of months
+       call get_time(soilmoist_file, size(SM_est, dim=2), 'i4', yStart, mStart, dStart, yEnd, times, tmask_est)
+
+       if ( any( count( tmask_est, dim = 1 ) .eq. 0_i4 ) ) &
+            stop '***ERROR no data for estimation given for all calendar months, check time axis'
+
+       ! read lats and lon from file
+       call Get_ncVar( soilmoist_file, 'lat', lats )
+       call Get_ncVar( soilmoist_file, 'lon', lons )
     end if
-    allocate( SM_est( nCells, size( dummy_D3_dp, 3 ) ) )
-    do ii = 1, size( dummy_D3_dp, 3 )
-       SM_est(:,ii) = pack( real(dummy_D3_dp(:,:,ii),sp), mask )
-    end do
-    deallocate( dummy_D3_dp )
-
-    ! get times in days and mask of months
-    call get_time(soilmoist_file, size(SM_est, dim=2), 'i4', yStart, mStart, dStart, yEnd, times, tmask_est)
-
-    if ( any( count( tmask_est, dim = 1 ) .eq. 0_i4 ) ) &
-         stop '***ERROR no data for estimation given for all calendar months, check time axis'
-
-
-    ! read lats and lon from file
-    call Get_ncVar( soilmoist_file, 'lat', lats )
-    call Get_ncVar( soilmoist_file, 'lon', lons )
-
-    ! check whether second SM field and optimized h should be written
-    if ( eval_SMI ) then
+    
+    ! check whether second SM field and optimized h should be read
+    if ( eval_SMI  .AND. (.NOT. cluster_ext_smi)) then
        ! read second SM field that uses CDF of the first one
        if ( trim( type_var_eval ) .eq. 'dp' ) then
           ! var_type is double precision
@@ -215,7 +224,7 @@ CONTAINS
     allocate ( opt_h( ncells, YearMonths ) )
     opt_h = nodata_dp
     !
-    if ( read_opt_h ) then
+    if ( read_opt_h  .AND. (.NOT. cluster_ext_smi)) then
        ! read optimized kernel width from file
        call Get_ncVar( trim( opt_h_file ), trim( opt_h_vname ), dummy_D3_dp )
        do ii = 1, size( dummy_D3_dp, 3 )
@@ -228,6 +237,31 @@ CONTAINS
        print *, 'read kernel width from file... ok'
     end if    
 
+    if (do_cluster .AND. cluster_ext_smi) then
+       call Get_ncVar( smi_file_clustering, trim('SMI'), dummy_D3_sp )
+       ! consistency check
+       if ( ( size( dummy_D3_sp, 1) .ne. size( mask, 1 ) ) .or. &
+            ( size( dummy_D3_sp, 2) .ne. size( mask, 2 ) ) ) then
+          print *, '***ERROR: size mismatch between SMI field and given mask file'
+          stop
+       end if
+       allocate( SMI( nCells, size( dummy_D3_sp, 3 ) ) )
+       do ii = 1, size( dummy_D3_sp, 3 )
+          SMI(:,ii) = pack( real(dummy_D3_sp(:,:,ii),sp), mask )
+       end do
+       deallocate( dummy_D3_sp )
+
+       ! get times in days and mask of months
+       call get_time(smi_file_clustering, size(SMI, dim=2), 'i4', yStart, mStart, dStart, yEnd, times, tmask_est)
+
+       if ( any( count( tmask_est, dim = 1 ) .eq. 0_i4 ) ) &
+            stop '***ERROR no data for estimation given for all calendar months, check time axis'
+
+       ! read lats and lon from file
+       call Get_ncVar( smi_file_clustering, 'lat', lats )
+       call Get_ncVar( smi_file_clustering, 'lon', lons )
+    end if
+    
   end subroutine ReadDataMain
 
 
@@ -251,7 +285,7 @@ CONTAINS
     !
     use mo_julian,       only: date2dec, dec2date
     use mo_message,      only: message
-    use mo_NcRead,       only: Get_NcVar, Get_NcDim, Get_NcVarAtt
+    use mo_NcRead,       only: Get_NcVar, Get_NcVarAtt
     use mo_string_utils, only: DIVIDE_STRING
 
     use mo_smi_constants, only: nodata_i4, YearMonths, DayHours

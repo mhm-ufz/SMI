@@ -5,9 +5,7 @@
 !**********************************************************************
 module SMIndex
   !
-  use mo_kind,          only: i4, dp
-  use InputOutput,      only: SMIp
-  use InputOutput,      only: WriteNetCDF
+  use mo_kind,          only: dp
   !
   implicit none
   ! public routines
@@ -22,13 +20,8 @@ contains
   subroutine optimize_width( opt_h, silverman_h, SM, tmask )
 
     use mo_kind,             only : i4, sp
-    use mo_utils,            only : equal
-    use mo_kernel,           only : kernel_density_h, kernel_cumdensity
+    use mo_kernel,           only : kernel_density_h
     use mo_smi_constants,    only : nodata_dp, YearMonths
-
-    ! use numerical_libraries, only : DGCDF
-    ! use GCDF_INT
-    ! use setGRG2,             only : OPTI, checkLimits
 
     ! input variables
     logical,                  intent(in) :: silverman_h ! optimize kernel width

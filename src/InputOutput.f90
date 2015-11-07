@@ -11,21 +11,13 @@ module InputOutput
 
   implicit none
 
-  character(256)                                  :: optPDFparfName    ! opt parameter PDF file 
-  ! fields
-  real(sp),    dimension(:,:), allocatable        :: h_opt             ! optimized kernel width h
-  real(dp), dimension(:,:), allocatable           :: SMIp              ! SMI field packed
-  integer(i4), dimension(:,:,:), allocatable      :: SMIc              ! SMI indicator
-  !
-  ! clusters
+  ! ! clusters
   integer(i4), dimension(:,:,:), allocatable      :: idCluster
-  integer(i4), dimension(:,:), allocatable        :: cellCoor
-  real(dp)                                        :: cellArea
   integer(i4)                                     :: nInterArea
   integer(i4)                                     :: nEvents           ! total number of drough events to estimate SAD
   integer(i4), dimension(:), allocatable          :: shortCnoList      ! consolidated cluster no. list
   integer(i4), dimension(:,:), allocatable        :: eventId           ! event identification number, cluster, month of occurence
-  integer(i4)                                     :: nClusters
+  integer(i4)                                     :: nClusters         ! number od clusters
   integer(i4), dimension(:), allocatable          :: eIdPerm           ! permutation of the event Ids with ascending area
   !
   ! cluster statistics
@@ -40,22 +32,9 @@ module InputOutput
   real(dp), dimension(:,:,:), allocatable        :: severity     ! severity for a given duration
   real(dp), dimension(:,:,:), allocatable        :: dASevol      ! evolution of the drought areas and severity
 
-  !
-  ! main parameters 
-  integer(i4)                                    :: DAT_flag     ! daily of monthly inputs
-  ! for mHM (4 x 4) km2
-  integer(i4), parameter                         :: thCellClus = 40        ! treshold  for cluster formation in space ~ 640 km2
-  integer(i4), parameter                         :: nCellInter = 400       ! number cells for joining clusters in time ~ 6400 km2
-  integer(i4), parameter                         :: deltaArea  = 20        ! number of cells per area interval
-  ! for COSMO ~(7 x 7) km2
-!!  integer(i4), parameter                         :: thCellClus = 13        ! treshold  for cluster formation in space ~ 640 km2
-!!  integer(i4), parameter                         :: nCellInter = 130       ! number cells for joining clusters in time ~ 6400 km2
-!!  integer(i4), parameter                         :: deltaArea  = 7         ! number of cells per area interval
-  !
   integer(i4), parameter                         :: nDurations = 4         ! number of durations
   integer(i4), dimension(nDurations), parameter  :: durList = (/3,6,9,12/) !(/3,6,9,12/)   ! list of durations to evaluate
   integer(i4), parameter                         :: nQProp = 3             ! number of SAD percetiles for a given duration
-  ! real(dp), dimension(nQProp), parameter         :: QProp = (/0.90_dp, 0.96_dp, 0.98_dp /)
   real(dp), dimension(nQProp), parameter         :: QProp = (/90._dp, 96._dp, 98._dp /)
                                                                            ! percentiles corresponding
                                                                            ! to return periods of 10,25,50 years
@@ -63,8 +42,6 @@ module InputOutput
   !
   ! Basin summary
   integer(i4), parameter                         :: nBasins = 6
-   ! netCDF
-  integer(i4), dimension(:), allocatable         :: eMask                   ! error field
 
 contains
 
@@ -106,7 +83,8 @@ contains
     ! initialize dimension names
     dnames(1) = 'nrows'
     dnames(2) = 'ncols'
-    dnames(3) = 'time'    
+    dnames(3) = 'time'
+    
     dims_hopt(1) = 'nrows'
     dims_hopt(2) = 'ncols'
     dims_hopt(3) = 'months'
@@ -162,9 +140,9 @@ contains
   !               Created        Sa   16.02.2011   
   !               Last Update    Sa   16.02.2011  
   !**************************************************************************
-  subroutine WriteNetCDF(outpath, wFlag, opt_h, SM_est, mask, yStart, lats, lons, d, SMI_eval) 
+  subroutine WriteNetCDF(outpath, SMIc, wFlag, yStart, dStart, mStart, times, lats, lons, duration) 
     !
-    use mo_kind,          only: i4, sp
+    use mo_kind,          only: i4
     use mo_string_utils,  only: num2str
     use mo_ncwrite,       only: var2nc
     use mo_smi_constants, only: nodata_i4 , nodata_dp 
@@ -172,39 +150,26 @@ contains
     implicit none
     !
     ! input variables
-    character(len=*),                         intent(in) :: outpath     ! ouutput path for results 
-    integer(i4),                              intent(in) :: wFlag
-    logical,        dimension(:,:),           intent(in) :: mask
-    real(sp),       dimension(:,:),           intent(in) :: SM_est
-    real(dp),       dimension(:,:),           intent(in) :: opt_h
-    integer(i4),                              intent(in) :: yStart
-    integer(i4),                    optional, intent(in) :: d            ! optional, duration
-    real(sp),       dimension(:,:), optional, intent(in) :: SMI_eval
-    real(dp),       dimension(:,:),           intent(in) :: lats, lons   ! latitude and longitude fields of input
+    character(len=*),                            intent(in) :: outpath     ! ouutput path for results
+    integer(i4),    dimension(:,:,:),            intent(in) :: SMIc       ! Drought indicator
+    integer(i4),                                 intent(in) :: wFlag
+    integer(i4),                                 intent(in) :: yStart
+    integer(i4),                                 intent(in) :: mStart
+    integer(i4),                                 intent(in) :: dStart
+    integer(i4),    dimension(:),   allocatable, intent(in) :: times
+    real(dp),       dimension(:,:),              intent(in) :: lats, lons   ! latitude and longitude fields of input
+    integer(i4),                    optional,    intent(in) :: duration     ! optional, duration
 
     ! local Variables
     character(256)                                :: Fname
-    integer(i4), target                           :: m                  ! netCDF counter
-
-    integer(i4)                                   :: nMonths       ! number of simulated months
-    integer(i4),    dimension(:),     allocatable :: times
-    integer(i4),    dimension(:,:,:), allocatable :: Ziu           ! field integer unpacked 
 
     !               dimension names
     character(256), dimension(3)                  :: dnames
-    character(256), dimension(3)                  :: dims_hopt
 
-    ! initialize time
-    nMonths = size( SM_est, 2 )
-    allocate( times( nMonths ) )
-    forall( m = 1:nMonths ) times( m ) = m
     ! initialize dimension names
     dnames(1) = 'nrows'
     dnames(2) = 'ncols'
     dnames(3) = 'time'    
-    dims_hopt(1) = 'nrows'
-    dims_hopt(2) = 'ncols'
-    dims_hopt(3) = 'months'
     !
     select case (wFlag)
 
@@ -221,6 +186,13 @@ contains
             long_name = 'longitude', units = 'degrees_east' )
        call var2nc( fname, lons, dnames(1:2), v_name = 'lon', &
             long_name = 'latitude', units = 'degrees_north' )
+       
+       ! add time
+       call var2nc( fname, times, dnames(3:3), v_name='time', &
+            long_name = 'time', units = 'days since '     // &
+            trim(num2str(yStart,   '(i4)')) // '-'        // &
+            trim(num2str(mStart, '(i2.2)')) // '-'        // &
+            trim(num2str(dStart, '(i2.2)')) // ' 00:00:00' )
     case (4)
        ! fname
        fName = trim(outpath)//'mDCluster.nc'
@@ -229,15 +201,22 @@ contains
             long_name = 'consolidated cluster evolution', units = '-', &
             missing_value = nodata_i4, create = .true. ) ! &
             ! scale_factor = 1., coordinates = 'lon lat' )
-       !deallocate( Ziu )
+
        ! add lat and lon
        call var2nc( fname, lats, dnames(1:2), v_name = 'lat', &
             long_name = 'longitude', units = 'degrees_east' )
        call var2nc( fname, lons, dnames(1:2), v_name = 'lon', &
             long_name = 'latitude', units = 'degrees_north' )
+
+       ! add time
+       call var2nc( fname, times, dnames(3:3), v_name='time', &
+            long_name = 'time', units = 'days since '     // &
+            trim(num2str(yStart,   '(i4)')) // '-'        // &
+            trim(num2str(mStart, '(i2.2)')) // '-'        // &
+            trim(num2str(dStart, '(i2.2)')) // ' 00:00:00' )
     case (5)
        ! fname
-       write (fName, '(i2.2)') d
+       write (fName, '(i2.2)') duration
        fName = trim(outpath)//'sev_'//trim(fName)//'.nc'
        ! save Severity for a given duration d (same sequence as in 1)
        call var2nc( fName, severity, dnames, v_name = 'Severity', &
@@ -261,7 +240,8 @@ contains
 !               Created        Sa   17.03.2011
 !               Last Update    Sa
 !**********************************************************************
-subroutine WriteResultsCluster(outpath, wFlag, yStart, yEnd, nMonths, nCells, d)
+subroutine WriteResultsCluster(SMIc, outpath, wFlag, yStart, yEnd, nMonths, nCells, &
+     deltaArea, cellsize, d)
 
   use mo_kind,          only : i4, dp
   use mo_smi_constants, only : YearMonths
@@ -270,13 +250,16 @@ subroutine WriteResultsCluster(outpath, wFlag, yStart, yEnd, nMonths, nCells, d)
   implicit none
 
   ! input variables
-  character(len=*),      intent(in) :: outpath     ! ouutput path for results
-  integer(i4),           intent(in) :: wFlag
-  integer(i4),           intent(in) :: yStart
-  integer(i4),           intent(in) :: yEnd
-  integer(i4),           intent(in) :: nMonths
-  integer(i4),           intent(in) :: nCells
-  integer(i4), optional, intent(in) :: d
+  character(len=*),      intent(in)        :: outpath     ! ouutput path for results
+  integer(i4), dimension(:,:,:),intent(in) :: SMIc       ! Drought indicator 1 - is under drought
+  integer(i4),           intent(in)        :: wFlag
+  integer(i4),           intent(in)        :: yStart
+  integer(i4),           intent(in)        :: yEnd
+  integer(i4),           intent(in)        :: nMonths
+  integer(i4),           intent(in)        :: nCells
+  integer(i4),           intent(in)        :: deltaArea
+  real(sp),              intent(in)        :: cellsize
+  integer(i4), optional, intent(in)        :: d
 
   ! local variables
   real(dp)                  :: pDArea
@@ -372,7 +355,7 @@ subroutine WriteResultsCluster(outpath, wFlag, yStart, yEnd, nMonths, nCells, d)
       write (FMT, 240) '(a15,', nQProp, '(9x,a2,f4.2))'
       write (21,FMT) 'Area[km2]', ('p_', QProp(i), i=1,nQProp)
       write (FMT, 250) '(f15.0,', nQProp, 'f15.5)'
-      write (21,FMT) ( real(i * deltaArea, dp)*cellArea, (SADperc(i,j), j=1,nQProp), i=1, nInterArea)
+      write (21,FMT) ( real(i * deltaArea, dp)*(real(cellsize,dp)**2.0_dp), (SADperc(i,j), j=1,nQProp), i=1, nInterArea)
 
       close (21)
   end select

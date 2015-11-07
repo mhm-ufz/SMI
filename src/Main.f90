@@ -36,109 +36,117 @@ program SM_Drought_Index
 
   use mo_kind,               only : i4, sp, dp
   use InputOutput,           only : WriteNetCDF, &
-                                    nDurations, durList, &
+                                    nDurations, durList, nClusters, &
                                     writeResultsCluster, WriteResultsBasins, &
                                     WriteSMI
   use mo_read,               only : ReadDataMain
   use SMIndex,               only : optimize_width, calSMI
-  use mo_drought_evaluation, only: droughtIndicator, ClusterEvolution, ClusterStats, calSAD
-  use mo_smi_constants,      only: nodata_sp
+  use mo_drought_evaluation, only : droughtIndicator, ClusterEvolution, ClusterStats, calSAD
+  use mo_smi_constants,      only : nodata_sp
 
 
   implicit none
 
   ! variables
-  logical                                  :: do_cluster  ! flag indicating whether cluster should
-  !                                                       ! be calculated
-  logical                                  :: eval_SMI    ! flag indicating whether SMI should be
-  !                                                       ! calculated or read from file
-  logical                                  :: read_opt_h  ! read kernel width from file
-  logical                                  :: silverman_h ! flag indicating whether kernel width 
-  !                                                       ! should be optimized
-  logical                                  :: do_basin    ! do_basin flag
-  logical,     dimension(:,:), allocatable :: tmask_est   ! monthly mask for estimated SM
-  logical,     dimension(:,:), allocatable :: tmask_eval  ! monthly mask for evaluated SM
-  logical,     dimension(:,:), allocatable :: mask
+  logical                                    :: do_cluster  ! flag indicating whether cluster should be calculated
+  logical                                    :: cluster_ext_smi  ! flag indicating to read external data for clustering 
+  logical                                    :: eval_SMI    ! flag indicating whether SMI should be
+  !                                                         ! calculated or read from file
+  logical                                    :: read_opt_h  ! read kernel width from file
+  logical                                    :: silverman_h ! flag indicating whether kernel width 
+  !                                                         ! should be optimized
+  logical                                    :: do_basin    ! do_basin flag
+  logical,     dimension(:,:), allocatable   :: tmask_est   ! monthly mask for estimated SM
+  logical,     dimension(:,:), allocatable   :: tmask_eval  ! monthly mask for evaluated SM
+  logical,     dimension(:,:), allocatable   :: mask
 
-  integer(i4)                              :: yStart
-  integer(i4)                              :: yEnd
-  integer(i4)                              :: mStart
-  integer(i4)                              :: dStart
-  integer(i4)                              :: nMonths    ! number of simulated months
-  integer(i4)                              :: nCells     ! number of effective cells
-  integer(i4)                              :: d
-  integer(i4), dimension(:,:), allocatable :: Basin_Id   ! IDs for basinwise drought analysis
-  integer(i4), dimension(:),   allocatable :: times      ! vector containing timesteps for output writing
+  integer(i4)                                :: yStart
+  integer(i4)                                :: yEnd
+  integer(i4)                                :: mStart
+  integer(i4)                                :: dStart
+  integer(i4)                                :: nCells     ! number of effective cells
+  integer(i4)                                :: d
+  integer(i4)                                :: thCellClus ! treshold  for cluster formation in space ~ 640 km2
+  integer(i4)                                :: nCellInter ! number cells for joining clusters in time ~ 6400 km2
+  integer(i4)                                :: deltaArea  ! number of cells per area interval
+  integer(i4), dimension(:,:), allocatable   :: Basin_Id   ! IDs for basinwise drought analysis
+  integer(i4), dimension(:),   allocatable   :: times      ! vector containing timesteps for output writing
+  integer(i4), dimension(:,:), allocatable   :: cellCoor   ! 
 
-  real(sp),    dimension(:,:), allocatable :: SM_est     ! monthly fields packed for estimation
-  real(sp),    dimension(:,:), allocatable :: SM_eval    ! monthly fields packed for evaluation
-  real(sp),    dimension(:,:), allocatable :: SMI        ! soil moisture index at evaluation array
-  real(sp)                                 :: SMI_thld   ! SMI threshold for clustering
-
-  real(dp),    dimension(:,:), allocatable :: opt_h      ! optimized kernel width field
-  real(dp),    dimension(:,:), allocatable :: lats, lons ! latitude and longitude fields of input
+  real(sp)                                   :: SMI_thld   ! SMI threshold for clustering
+  real(sp)                                   :: cellsize   ! cell edge lenght of input data
+  real(sp),    dimension(:,:), allocatable   :: SM_est     ! monthly fields packed for estimation
+  real(sp),    dimension(:,:), allocatable   :: SM_eval    ! monthly fields packed for evaluation
+  real(sp),    dimension(:,:), allocatable   :: SMI        ! soil moisture index at evaluation array
+  integer(i4), dimension(:,:,:), allocatable :: SMIc       ! Drought indicator 1 - is under drought
+  !                                                        !                   0 - no drought
+  real(dp),    dimension(:,:), allocatable   :: opt_h      ! optimized kernel width field
+  real(dp),    dimension(:,:), allocatable   :: lats, lons ! latitude and longitude fields of input
   
   ! file handling 
   character(256)                           :: outpath    ! ouutput path for results
 
 
-  call ReadDataMain( do_cluster, eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons, do_basin,    &
+  call ReadDataMain( SMI, do_cluster, cluster_ext_smi, eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons, do_basin,    &
        mask, SM_est, tmask_est, SM_eval, tmask_eval, yStart, yEnd, mStart, dStart, Basin_Id, times, &
-       SMI_thld, outpath)
-  !
+       SMI_thld, outpath, cellsize, thCellClus, nCellInter, deltaArea)
+  
   ! initialize some variables
-  nMonths  = size( SM_est, 2 ) ! number of months in dataset
   nCells   = count( mask )     ! number of effective cells
-  !
+  
   print*, 'FINISHED READING'
 
   ! optimize kernel width
-  if ( .not. read_opt_h ) then
+  if ( (.NOT. read_opt_h) .AND. (.NOT. cluster_ext_smi)) then
      call optimize_width( opt_h, silverman_h, SM_est, tmask_est )
      print *, 'optimizing kernel width...ok'
   end if
 
   ! evaluate SMI at second data set SMI_eval
-  if ( eval_SMI ) then
-     allocate( SMI( size( SM_eval, 1 ), size( SM_eval, 2 ) ) )
-     SMI = nodata_sp
-     call calSMI( opt_h, SM_est, tmask_est, SM_eval, tmask_eval, SMI )
-  else
-     allocate( SMI( size( SM_est, 1 ), size( SM_est, 2 ) ) )
-     SMI = nodata_sp
-     call calSMI( opt_h, SM_est, tmask_est,  SM_est,  tmask_est, SMI )
+  if (.NOT. cluster_ext_smi) then 
+     if ( eval_SMI ) then
+        allocate( SMI( size( SM_eval, 1 ), size( SM_eval, 2 ) ) )
+        SMI = nodata_sp
+        call calSMI( opt_h, SM_est, tmask_est, SM_eval, tmask_eval, SMI )
+     else
+        allocate( SMI( size( SM_est, 1 ), size( SM_est, 2 ) ) )
+        SMI = nodata_sp
+        call calSMI( opt_h, SM_est, tmask_est,  SM_est,  tmask_est, SMI )
+     end if
+     print *, 'calculating SMI... ok'
   end if
-  print *, 'calculating SMI... ok'
-
+     
   ! write output
-  if ( read_opt_h ) then
-     call WriteSMI( outpath, SMI, mask, yStart, mStart, dStart, times, lats, lons )
-  else
-     call WriteSMI( outpath, SMI, mask, yStart, mStart, dStart, times, lats, lons, hh = opt_h )
+  if (.NOT. cluster_ext_smi) then
+     if ( read_opt_h ) then
+        call WriteSMI( outpath, SMI, mask, yStart, mStart, dStart, times, lats, lons )
+     else
+        call WriteSMI( outpath, SMI, mask, yStart, mStart, dStart, times, lats, lons, hh = opt_h )
+     end if
+     print *, 'write SMI...ok'
   end if
-  print *, 'write SMI...ok'
-
+     
   ! calculate drought cluster
   if ( do_cluster ) then
      ! drought indicator 
-     call droughtIndicator( SMI, mask, SMI_thld )
-     call WriteNetCDF(outpath, 3, opt_h, SM_est, mask, yStart, lats, lons)
+     call droughtIndicator( SMI, mask, SMI_thld, cellCoor, SMIc )
+     call WriteNetCDF(outpath, SMIc, 3, yStart, dStart, mStart, times, lats, lons)
      
      ! cluster indentification
-     call ClusterEvolution( size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells)
-     call WriteNetCDF(outpath, 4, opt_h, SM_est, mask, yStart, lats, lons)
+     call ClusterEvolution( SMIc,  size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells, cellCoor, nCellInter, thCellClus)
+     call WriteNetCDF(outpath, SMIc, 4, yStart, dStart, mStart, times, lats, lons)
      ! statistics  
      call ClusterStats(SMI, mask, size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells, SMI_thld )
      !
      ! SAD analysis
      do d = 1, nDurations
-        call calSAD(SMI, mask, d, size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells)
+        call calSAD(SMI, mask, d, size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells, deltaArea, cellsize)
         ! write SAD for a given duration + percentiles
-        call writeResultsCluster(outpath, 2, yStart, yEnd, size(SMI, 2), nCells, durList(d) )
-        call WriteNetCDF(outpath, 5, opt_h, SM_est, mask, yStart, lats, lons, durList(d))
+        call writeResultsCluster(SMIc, outpath, 2, yStart, yEnd, size(SMI, 2), nCells, deltaArea, cellsize, durList(d))
+        call WriteNetCDF(outpath, SMIc, 5, yStart, dStart, mStart, times, lats, lons, durList(d))
      end do
      ! write results
-     call writeResultsCluster(outpath, 1, yStart, yEnd, nMonths, nCells)
+     if (nClusters > 0) call writeResultsCluster(SMIc, outpath, 1, yStart, yEnd, size(SMI, 2), nCells, deltaArea, cellsize)
      print *, 'Cluster evolution ...ok'
   end if
 
@@ -146,7 +154,7 @@ program SM_Drought_Index
   if ( do_basin ) then
      ! write SMI average over major basins
      print *, 'calculate Basin Results ...'
-     call WriteResultsBasins( outpath, SMI, mask, yStart, yEnd, nMonths, Basin_Id )
+     call WriteResultsBasins( outpath, SMI, mask, yStart, yEnd, size( SM_est, 2 ), Basin_Id )
   end if
 
   print *, 'DONE!'

@@ -25,19 +25,20 @@ CONTAINS
 !  Luis Samaniego, created  28.02.2011
 !                  updated  05.10.2011
 !*********************************************************************
-subroutine droughtIndicator( SMI, mask, SMI_thld )
+subroutine droughtIndicator( SMI, mask, SMI_thld, cellCoor , SMIc)
 
-  use InputOutput,      only : SMIc, cellCoor
   use mo_smi_constants, only : nodata_sp, nodata_i4
   use mo_utils,         only : lesserequal, notequal
 
   implicit none
 
   ! input variable
-  real(sp), dimension(:,:),   intent(in)        :: SMI
-  logical,  dimension(:,:),   intent(in)        :: mask
-  real(sp),                   intent(in)        :: SMI_thld
-
+  real(sp),    dimension(:,:),                intent(in)  :: SMI
+  logical,     dimension(:,:),                intent(in)  :: mask
+  real(sp),                                   intent(in)  :: SMI_thld
+  integer(i4), dimension(:,:), allocatable,   intent(out) :: cellCoor
+  integer(i4), dimension(:,:,:), allocatable, intent(out) :: SMIc       ! Drought indicator
+  
   ! local variables
   real(sp), dimension(size(mask, dim=1),&
                       size(mask, dim=2))        :: dummy_2d_sp
@@ -51,8 +52,8 @@ subroutine droughtIndicator( SMI, mask, SMI_thld )
   ncols   = size( mask, 2 )
   nMonths = size( SMI,  2 )
   !
-  print *, 'Drought  th: ', SMI_thld
-  if ( .not. allocated (SMIc) ) allocate ( SMIc( nrows, ncols, nMonths) )
+  print *, 'Threshold for drought identification: ', SMI_thld
+  allocate ( SMIc( nrows, ncols, nMonths) )
 
   do m = 1, nMonths
      dummy_2d_sp = unpack(SMI(:,m), mask, nodata_sp)
@@ -72,7 +73,7 @@ subroutine droughtIndicator( SMI, mask, SMI_thld )
   k = 0
   do j=1,ncols
      do i=1,nrows
-        if ( SMIc(i,j,1) .ne. nodata_i4  ) then
+        if ( mask(i,j)) then
            k = k + 1
            cellCoor(k,1) = i
            cellCoor(k,2) = j
@@ -89,25 +90,29 @@ end subroutine droughtIndicator
 !  PURPOSE:  cluster drought clusters in space and time
 !  DATE:     developed in Budapest, 10-11.03.2011
 !**********************************************************************
-subroutine ClusterEvolution( nrows, ncols, nMonths, nCells )
+subroutine ClusterEvolution( SMIc, nrows, ncols, nMonths, nCells, cellCoor, nCellInter, thCellClus)
 
   ! use numerical_libraries, only                        : SVIGN
   use mo_sort,          only : sort
   use mo_smi_constants, only : nodata_i4
-  use InputOutput, only                                : SMIc,&
-                                                         idCluster, &
+  use InputOutput, only                                : idCluster, &
                                                          shortCnoList, &
-                                                         nClusters, &
-                                                         nCellInter,thCellClus
+                                                         nClusters
+                                                         
  
  implicit none
 
   ! input variables
-  integer(i4),                            intent(in)  :: nrows
-  integer(i4),                            intent(in)  :: ncols
-  integer(i4),                            intent(in)  :: nMonths
-  integer(i4),                            intent(in)  :: nCells   ! number of effective cells
+  integer(i4), dimension(:,:,:),            intent(inout) :: SMIc     ! Drought indicator
+  integer(i4),                              intent(in)    :: nrows
+  integer(i4),                              intent(in)    :: ncols
+  integer(i4),                              intent(in)    :: nMonths
+  integer(i4),                              intent(in)    :: nCells   ! number of effective cells
+  integer(i4), dimension(:,:), allocatable, intent(in)    :: cellCoor
+  integer(i4),                              intent(in)    :: thCellClus ! treshold  for cluster formation in space
+  integer(i4),                              intent(in)    :: nCellInter ! number cells for joining clusters in time
 
+  
   ! local variables
   integer(i4)                              :: i, j, t
   integer(i4), dimension(:),   allocatable :: nC
@@ -134,7 +139,7 @@ subroutine ClusterEvolution( nrows, ncols, nMonths, nCells )
         idCluster(:,:,t) = nodata_i4
         cycle
      end if
-     call findClusters (t, idCluster(:,:,t), nC(t), nrows, ncols, nCells)
+     call findClusters (cellCoor, thCellClus, t, idCluster(:,:,t), nC(t), nrows, ncols, nCells, SMIc)
      !print*, 'Finding clusters time :', t, nC(t)
   end do
   print*, 'Clusters in space done ...'
@@ -238,7 +243,7 @@ subroutine ClusterStats( SMI, mask, nrows, ncols, nMonths, nCells, SMI_thld )
   ! local variables
   real(sp), dimension(nrows, ncols)                         :: dummy_2d_sp
   integer(i4)                                               :: ic
-  integer(i4)                                               :: t, i
+  integer(i4)                                               :: t
   integer(i4) , dimension(:), allocatable                   :: counterA
   integer(i4) , dimension(:,:), allocatable                 :: aDDG
   real(dp) , dimension(:,:), allocatable                    :: mSev
@@ -310,21 +315,19 @@ end subroutine ClusterStats
 !-------------------------------------------------------
 ! SAD analysis
 !-------------------------------------------------------
-subroutine calSAD(SMI, mask, iDur, nrows, ncols, nMonths, nCells)
+subroutine calSAD(SMI, mask, iDur, nrows, ncols, nMonths, nCells, deltaArea, cellsize)
 
   ! use numerical_libraries, only                        : DSVRGN, DEQTIL, SVIGP
   use mo_sort,          only : sort, sort_index
   use mo_percentile,    only : percentile
   use mo_smi_constants, only : nodata_dp 
 
-  use mo_utils,         only : ne
-
-  use InputOutput, only                                : shortCnoList, deltaArea, & ! SMI
+  use InputOutput, only                                : shortCnoList, &
                                                          nInterArea, nEvents, nClusters,  idCluster, &
                                                          SAD, SADperc, DAreaEvol, severity, nDsteps, &
                                                          durList, eventId, eIdPerm, &
-                                                         writeResultsCluster, nLargerEvents, &
-                                                         cellArea, nQProp, QProp
+                                                         nLargerEvents, nQProp, QProp
+
   implicit none
 
   ! input variable
@@ -335,7 +338,9 @@ subroutine calSAD(SMI, mask, iDur, nrows, ncols, nMonths, nCells)
   integer(i4),                 intent(in) :: ncols
   integer(i4),                 intent(in) :: nMonths
   integer(i4),                 intent(in) :: nCells  ! number of effective cells
-
+  integer(i4),                 intent(in) :: deltaArea  ! number of cells per area interval
+  real(sp),                    intent(in) :: cellsize
+  
   ! local variable
   real(dp),    dimension(nrows,ncols, nMonths)        :: SMI_unpack
   integer(i4)                                         :: t, i, k
@@ -405,8 +410,8 @@ subroutine calSAD(SMI, mask, iDur, nrows, ncols, nMonths, nCells)
      ms = (d-1)*durList(iDur) + 1
      me = ms + durList(iDur) - 1
      if (me > nMonths) me = nMonths
-     !where ( SMI(:,:,1) .ne.  nodata_dp )
-     where ( ne(SMI_unpack(:,:,1), nodata_dp) )
+     !where ( ne(SMI_unpack(:,:,1), nodata_dp) )
+     where ( mask )
         severity(:,:,d) = 1.0_dp - sum( SMI_unpack(:,:,ms:me), DIM=3 ) / real( me-ms+1, dp )
      end where
   end do
@@ -433,7 +438,7 @@ subroutine calSAD(SMI, mask, iDur, nrows, ncols, nMonths, nCells)
      do k = 1, nIntA
         ke = k*deltaArea
         if (ke > ncic ) ke = ncic
-        SAD(k, 1, eC ) = real(ke, dp) * cellArea                    ! cumulative area
+        SAD(k, 1, eC ) = real(ke, dp) *  real(cellsize,dp)**2.0_dp  ! cumulative area
         SAD(k, 2, eC ) = sum( sevP(ncic+1-ke:ncic) ) / real(ke, dp) ! sorted by incresing value
      end do
   end do
@@ -456,21 +461,24 @@ end subroutine calSAD
 ! clustering in space
 ! assign a unique running number at time t
 !-------------------------------------------------------
-subroutine findClusters (t,iC,nCluster, nrows, ncols, nCells)
+subroutine findClusters (cellCoor, thCellClus, t,iC,nCluster, nrows, ncols, nCells, SMIc)
 
-  use InputOutput,      only : cellCoor, thCellClus, SMIc
+  !use InputOutput,      only : cellCoor, thCellClus, SMIc
   use mo_smi_constants, only : nodata_i4
 
   implicit none
 
-  integer(i4), intent(in)                               :: nrows
-  integer(i4), intent(in)                               :: ncols
-  integer(i4), intent(in)                               :: nCells              ! number of effective cells
-  integer(i4), intent(in)                               :: t                   !  time step
-  integer(i4), intent(out)                              :: nCluster            !  number of clusters larger than a threshold
-  integer(i4), dimension(nrows,ncols), intent(out)      :: iC
+  integer(i4), dimension(:,:),                intent(in)    :: cellCoor
+  integer(i4),                                intent(in)    :: thCellClus ! treshold  for cluster formation
+  integer(i4),                                intent(in)    :: nrows
+  integer(i4),                                intent(in)    :: ncols
+  integer(i4),                                intent(in)    :: nCells     ! number of effective cells
+  integer(i4),                                intent(in)    :: t          !  time step
+  integer(i4), dimension(:,:,:),              intent(inout) :: SMIc       ! SMI indicator
+  integer(i4),                                intent(out)   :: nCluster   !  number of clusters larger than a threshold
+  integer(i4), dimension(nrows,ncols),        intent(out)   :: iC
 
-
+  ! local variables
   integer(i4)                                           :: i, j, k, klu, klu1
   integer(i4)                                           :: iul, idr, jul, jdr
   integer(i4)                                           :: krow, kcol
