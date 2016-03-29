@@ -30,7 +30,7 @@ CONTAINS
   !*********************************************************************
   subroutine ReadDataMain( SMI, do_cluster, cluster_ext_smi, eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons,  &
                            basin_flag, mask, SM_est, tmask_est, SM_eval, tmask_eval, yStart, yEnd, mStart, dStart,  &
-                            Basin_Id, times, SMI_thld, outpath, cellsize, thCellClus, nCellInter, deltaArea  )   
+                           Basin_Id, times, SMI_thld, outpath, cellsize, thCellClus, nCellInter, deltaArea  )   
 
     use mo_kind,          only: i4
     use mo_utils,         only: equal, notequal
@@ -177,9 +177,6 @@ CONTAINS
 
        ! get times in days and mask of months
        call get_time(soilmoist_file, size(SM_est, dim=2), 'i4', yStart, mStart, dStart, yEnd, times, tmask_est)
-
-       if ( any( count( tmask_est, dim = 1 ) .eq. 0_i4 ) ) &
-            stop '***ERROR no data for estimation given for all calendar months, check time axis'
 
        ! read lats and lon from file
        call Get_ncVar( soilmoist_file, 'lat', lats )
