@@ -176,7 +176,9 @@ CONTAINS
        deallocate( dummy_D3_dp )
 
        ! get times in days and mask of months
-       call get_time(soilmoist_file, size(SM_est, dim=2), 'i4', yStart, mStart, dStart, yEnd, times, tmask_est)
+       call get_time(soilmoist_file, size(SM_est, dim=2), trim(type_time_eval), &
+            yStart, mStart, dStart, &
+            yEnd, times, tmask_est)
 
        ! read lats and lon from file
        call Get_ncVar( soilmoist_file, 'lat', lats )
@@ -249,7 +251,9 @@ CONTAINS
        deallocate( dummy_D3_sp )
 
        ! get times in days and mask of months
-       call get_time(smi_file_clustering, size(SMI, dim=2), 'i4', yStart, mStart, dStart, yEnd, times, tmask_est)
+       call get_time(smi_file_clustering, size(SMI, dim=2), trim(type_time_eval), &
+            yStart, mStart, dStart, &
+            yEnd, times, tmask_est)
 
        if ( any( count( tmask_est, dim = 1 ) .eq. 0_i4 ) ) &
             stop '***ERROR no data for estimation given for all calendar months, check time axis'
