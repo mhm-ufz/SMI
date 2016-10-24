@@ -90,7 +90,7 @@ contains
     dims_hopt(3) = 'months'
 
     ! fname
-    fName = trim(outpath)//'mSMI.nc'
+    fName = trim(outpath) //'mSMI.nc'
 
     ! unpack estimated SMIp
     allocate( dummy_d3_sp( size( mask, 1), size( mask, 2), size( SMI, 2) ) )
@@ -108,7 +108,7 @@ contains
     if ( present( hh ) ) then
        allocate( dummy_D3_dp( size( mask, 1 ), size( mask, 2), size( hh, 2 ) ) )
        do mm = 1, YearMonths
-          dummy_D3_dp( :, :, mm ) = unpack( hh(:,mm), mask, real( nodata_sp, dp ) ) 
+          dummy_D3_dp(:, :, mm) = unpack( hh(:,mm), mask, real( nodata_sp, dp ) ) 
        end do
        call var2nc( fname, dummy_D3_dp, dims_hopt, v_name = 'kernel_width', &
             long_name = 'optimised kernel width', units = '-', &

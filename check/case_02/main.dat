@@ -1,0 +1,72 @@
+! Emacs: -*- mode: f90 -*-
+!***DROUGHT-INDEX        *** Main configuration file ***
+&mainconfig
+ ! mask to define the domain for which the SMI calculation or clustering is performed
+ maskfName      = "../input_for_check/mask_5km_edge_float.nc"
+ mask_vname     = "mask"
+ ! file and variable name for monthly soil moisture fields
+ soilmoist_file = "../input_for_check/SM_Lall_1984_1985.nc"
+ SM_vname       = "SM_Lall"
+ ! directory in which output will be written *** (filename is fixed as "ref_smi.nc")
+ outpath        = "output/"
+ ! Determination of the kernel width:
+ ! silverman_h == .TRUE.  - 'Silverman rule' is applied for determination of the kernel width - no optimization
+ ! silverman_h == .FALSE. - optimization of the kernel width 
+ silverman_h    = .TRUE.
+
+ ! *** Analysis options which can be activated or deactivated ****
+ ! if  .TRUE. kernel widths h are read from variable "opt_h_vname" in file "opt_h_file with"
+ ! if .FALSE. kernel widths are optimized or determined by 'Silverman rule', "opt_h_file" and "opt_h_vname" are ignored
+ read_opt_h     = .TRUE.
+ opt_h_file     = "../input_for_check/mSMI.nc"
+ opt_h_vname    = "kernel_width" 
+
+ ! if .TRUE. PDFs are calculated based on soilmoist_file but the SMI is determined for SM_eval_file and varible SM_eval_vname
+ ! if .FALSE. "SM_eval_file" and "SM_eval_vname" are ignored
+ eval_SMI       = .FALSE.  
+ SM_eval_file   = "XXX"
+ SM_eval_vname  = "XXX"
+ type_var_eval  = "dp"
+ type_time_eval = "dp"
+
+  
+
+ !!******** NOT REQUIRED IN THE EDGE PROJECT ***********
+ 
+ 
+ ! if .TRUE. cluster analysis should be performed
+ do_cluster         = .FALSE.
+ ! if you have already SMI data and want to cluster them please please state a .TRUE.
+ ! for clustering external SMI data (cluster_ext_smi). Furthermore give the filename
+ ! for the SMI data in smi_file_clustering
+ ! INFO: if cluster_ext_smi is set to .TRUE. SMI estimation is deactivated!
+ cluster_ext_smi     = .FALSE.
+ smi_file_clustering = '/data/edge/data/processed/mhm_output/edge_domain/5km_eobs_without_routing/with_restart_monthly/mSMI.nc'
+ ! SMI - threshold of for defining drought conditions
+ SMI_thld            = 0.20
+ ! cellsize (edge length) of the grid im [km]
+ cellsize            = 4.0
+ ! threshold for cluster formation in space cellsize**2 * thCellClus ~ 640 km2
+ thCellClus          = 40
+ ! number cells for joining clusters in time ~ 6400
+ nCellInter          = 400
+ ! number of cells per area interval
+ deltaArea           = 20
+
+ ! if .TRUE. SMI is evaluated for subregions (e.g. basins) -
+ ! ****CURRENTLY NOT WORKING
+ basin_flag     = .FALSE.       
+ basinfName     = "./test_smi/basin.nc"
+ basin_vname    = "basins"
+! ****CURRENTLY NOT WORKING
+/ !end
+
+
+!!/data/edge/data/processed/mhm_output/edge_domain/CMIP5/GFDL-ESM2M/rcp8p5/smi/2041_2070/
+!!/data/edge/data/processed/mhm_output/edge_domain/CMIP5/GFDL-ESM2M/rcp8p5/smi/2071_2099/
+!!/data/edge/data/processed/mhm_output/edge_domain/CMIP5/MIROC-ESM-CHEM/rcp2p6/smi/2041_2070/
+!!/data/edge/data/processed/mhm_output/edge_domain/CMIP5/MIROC-ESM-CHEM/rcp8p5/smi/2071_2099/
+!!/data/edge/data/processed/mhm_output/edge_domain/CMIP5/NorESM1-M/rcp8p5/smi/2071_2099/
+
+
+

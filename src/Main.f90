@@ -84,7 +84,7 @@ program SM_Drought_Index
   real(dp),    dimension(:,:), allocatable   :: lats, lons ! latitude and longitude fields of input
   
   ! file handling 
-  character(256)                           :: outpath    ! ouutput path for results
+  character(256)                             :: outpath    ! ouutput path for results
 
 
   call ReadDataMain( SMI, do_cluster, cluster_ext_smi, eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons, do_basin,    &
@@ -92,7 +92,7 @@ program SM_Drought_Index
        SMI_thld, outpath, cellsize, thCellClus, nCellInter, deltaArea)
   
   ! initialize some variables
-  nCells   = count( mask )     ! number of effective cells
+  nCells = count( mask )     ! number of effective cells
   
   print*, 'FINISHED READING'
 
@@ -106,11 +106,11 @@ program SM_Drought_Index
   if (.NOT. cluster_ext_smi) then 
      if ( eval_SMI ) then
         allocate( SMI( size( SM_eval, 1 ), size( SM_eval, 2 ) ) )
-        SMI = nodata_sp
+        SMI(:,:) = nodata_sp
         call calSMI( opt_h, SM_est, tmask_est, SM_eval, tmask_eval, SMI )
      else
-        allocate( SMI( size( SM_est, 1 ), size( SM_est, 2 ) ) )
-        SMI = nodata_sp
+        allocate( SMI(size(SM_est,1),size(SM_est,2)) )
+        SMI(:,:) = nodata_sp
         call calSMI( opt_h, SM_est, tmask_est,  SM_est,  tmask_est, SMI )
      end if
      print *, 'calculating SMI... ok'
@@ -125,6 +125,14 @@ program SM_Drought_Index
      end if
      print *, 'write SMI...ok'
   end if
+
+
+
+
+
+
+
+  
      
   ! calculate drought cluster
   if ( do_cluster ) then
@@ -158,5 +166,8 @@ program SM_Drought_Index
   end if
 
   print *, 'DONE!'
+  !
+  !! print statement for check_cases
+  print *, 'program: finished!'
   !
 end program SM_Drought_Index

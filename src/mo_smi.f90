@@ -18,11 +18,11 @@ contains
 
   ! subroutine for estimating SMI for first array
   subroutine optimize_width( opt_h, silverman_h, SM, tmask )
-
     use mo_kind,          only : i4, sp
     use mo_kernel,        only : kernel_density_h
     use mo_smi_constants, only: YearMonths
-
+    implicit none
+    
     ! input variables
     logical,                  intent(in) :: silverman_h ! optimize kernel width
     logical,  dimension(:,:), intent(in) :: tmask
@@ -35,6 +35,7 @@ contains
     integer(i4)                             :: ii     ! cell index
     integer(i4)                             :: mm     ! month index
     real(dp), dimension(:),     allocatable :: X
+
 
     do ii = 1, size( SM, 1 )
        do mm = 1, YearMonths
@@ -83,14 +84,15 @@ contains
           ! cycle if month not present
           if ( count( tmask_eval(:,mm) ) .eq. 0_i4 ) cycle
 
-          allocate( X_est( count( tmask_est(:,mm) ) ), &
-               X_eval( count( tmask_eval(:,mm) ) ), cdf( count( tmask_eval(:,mm) ) ) )
+          allocate( X_est( count( tmask_est(:,mm)  ) ), &
+                   X_eval( count( tmask_eval(:,mm) ) ), &
+                      cdf( count( tmask_eval(:,mm) ) )   )
 
           X_est(:)  = pack(real(SM_est(ii,:), dp), tmask_est(:,mm))
           X_eval(:) = pack(real(SM_eval(ii,:), dp), tmask_eval(:,mm))
 
-          cdf       = kernel_cumdensity(x_est, hh(ii,mm), xout=x_eval)
-          SMI(ii,:) = unpack(real(cdf, sp), tmask_eval(:,mm), SMI(ii,:))
+          cdf(:)    = kernel_cumdensity(x_est, hh(ii,mm), xout=x_eval)
+          SMI(ii,:) = unpack( real(cdf(:), sp), tmask_eval(:,mm), SMI(ii,:))
           deallocate( X_est, X_eval, cdf )
        end do
     end do

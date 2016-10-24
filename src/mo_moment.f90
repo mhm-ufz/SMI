@@ -17,6 +17,7 @@ MODULE mo_moment
 
   ! Written Nov 2011, Matthias Cuntz
   !         Modified, MC, Dec 2011 - mod. correlation, covariance
+  !         Modified by M. Schroen, Sep 2015, average/mean for single value
 
   ! License
   ! -------
@@ -33,7 +34,7 @@ MODULE mo_moment
   ! GNU Lesser General Public License for more details.
 
   ! You should have received a copy of the GNU Lesser General Public License
-  ! along with the UFZ makefile project (cf. gpl.txt and lgpl.txt).
+  ! along with the UFZ Fortran library (cf. gpl.txt and lgpl.txt).
   ! If not, see <http://www.gnu.org/licenses/>.
 
   ! Copyright 2011-2012 Matthias Cuntz
@@ -927,7 +928,6 @@ CONTAINS
        maske(:) = .true.
        n = real(size(dat),dp)
     endif
-    if (n .le. (1.0_dp+tiny(1.0_dp))) stop 'average_dp: n must be at least 2'
 
     ! Average
     average_dp  = sum(dat(:), mask=maske)/n
@@ -954,7 +954,6 @@ CONTAINS
        maske(:) = .true.
        n = real(size(dat),sp)
     endif
-    if (n .le. (1.0_sp+tiny(1.0_sp))) stop 'average_sp: n must be at least 2'
 
     ! Average
     average_sp  = sum(dat(:), mask=maske)/n
@@ -1358,7 +1357,6 @@ CONTAINS
        maske(:) = .true.
        n = real(size(dat),dp)
     endif
-    if (n .le. (1.0_dp+tiny(1.0_dp))) stop 'mean_dp: n must be at least 2'
 
     ! Mean
     mean_dp  = sum(dat(:), mask=maske)/n
@@ -1386,7 +1384,6 @@ CONTAINS
        maske(:) = .true.
        n = real(size(dat),sp)
     endif
-    if (n .le. (1.0_sp+tiny(1.0_sp))) stop 'mean_sp: n must be at least 2'
 
     ! Mean
     mean_sp  = sum(dat(:), mask=maske)/n

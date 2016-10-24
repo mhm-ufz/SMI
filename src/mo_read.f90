@@ -123,6 +123,7 @@ CONTAINS
     ! read main mask
     call Get_ncVar( maskfName, trim(mask_vname), dummy_D2_sp )
     allocate( mask( size(dummy_D2_sp,1), size(dummy_D2_sp,2) ) )
+
     ! determine no data value
     call Get_NcVarAtt(maskfName, trim(mask_vname), 'missing_value', AttValues, dtype=datatype)
     ! convert to number 
@@ -130,7 +131,6 @@ CONTAINS
     ! create mask
     mask = merge( .true., .false., notequal(dummy_D2_sp, nodata_value ) )
     deallocate( dummy_D2_sp )
-
     ! consistency check
     nCells   = count( mask )
     if ( nCells .eq. 0 ) then
@@ -179,7 +179,7 @@ CONTAINS
        call get_time(soilmoist_file, size(SM_est, dim=2), trim(type_time_eval), &
             yStart, mStart, dStart, &
             yEnd, times, tmask_est)
-
+      
        ! read lats and lon from file
        call Get_ncVar( soilmoist_file, 'lat', lats )
        call Get_ncVar( soilmoist_file, 'lon', lons )
@@ -212,7 +212,7 @@ CONTAINS
        call get_time(SM_eval_file, size(SM_eval, dim=2), trim(type_time_eval), &
             yStart, mStart, dStart, &
             yEnd, times, tmask_eval)
-
+       
        if ( all( count( tmask_eval, dim = 1 ) .eq. 0_i4 ) ) &
             stop '***ERROR no data in eval given, check time axis'
        print*, 'read soil moisture field for evaluation... ok'
@@ -310,6 +310,7 @@ CONTAINS
     !
     integer(i4),   dimension(:), allocatable  :: timesteps              ! time variable of NetCDF in input units
     real(sp),      dimension(:), allocatable  :: timesteps_sp           ! time variable of NetCDF in input units
+    real(dp),      dimension(:), allocatable  :: timesteps_dp           ! time variable of NetCDF in input units
     !
     character(256)                            :: AttValues              ! netcdf attribute values
     character(256), dimension(:), allocatable :: strArr                 ! dummy for netcdf attribute handling
@@ -330,13 +331,21 @@ CONTAINS
     allocate(times    ( sizing ))             ; times     = 0
     allocate(mask     ( sizing , YearMonths)) ; mask      = .FALSE.
 
-    select case ( dtype )
+    !!
+    select case ( trim(dtype) )
     case ( 'i4' ) 
        call Get_NcVar(fName, 'time', timesteps)
     case ( 'sp' )
        call Get_NcVar(fName, 'time', timesteps_sp )
        timesteps = int( timesteps_sp, i4 )
        deallocate( timesteps_sp )
+    case ( 'dp' )
+       call Get_NcVar(fName, 'time', timesteps_dp )
+       timesteps = int( timesteps_dp, i4 )
+       deallocate( timesteps_dp )
+    case default
+       print*, "***ERROR: Not a valid FORMAT for the time variable given in the namelist"
+       stop
     end select
     
     ! strArr(1) is <unit>
