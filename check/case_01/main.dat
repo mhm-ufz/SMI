@@ -9,6 +9,14 @@
  SM_vname       = "SM_Lall"
  ! directory in which output will be written *** (filename is fixed as "ref_smi.nc")
  outpath        = "output/"
+ ! SMI time steps per year
+ ! 12          == SM is monthly
+ ! 365         == SM is daily
+ nCalendarStepsYear = 12
+ ! lag for daily inputs
+ ! 0           ==  for number_time_steps_year = 12
+ ! 1, 7, 31    ==  for daily values (no lag, weekly, monthly)
+ number_lag_days = 0
  ! Determination of the kernel width:
  ! silverman_h == .TRUE.  - 'Silverman rule' is applied for determination of the kernel width - no optimization
  ! silverman_h == .FALSE. - optimization of the kernel width 

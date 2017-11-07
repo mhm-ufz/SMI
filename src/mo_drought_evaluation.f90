@@ -222,10 +222,12 @@ end subroutine ClusterEvolution
 subroutine ClusterStats( SMI, mask, nrows, ncols, nMonths, nCells, SMI_thld )
 
   !  use numerical_libraries, only                       : SVIGN , DSVRGN, DEQTIL
+  use mo_sort,          only : sort_index
+
   use mo_smi_constants, only: nodata_sp
   use InputOutput,      only: aDA, aDD, TDM, DTMagEvol, DAreaEvol,     &
-       nClusters, idCluster, shortCnoList, &
-       dASevol, nBasins
+                              nClusters, idCluster, shortCnoList, &
+                              dASevol, nBasins, nEvents, eIdPerm, eventId
 
   implicit none
 
@@ -242,11 +244,15 @@ subroutine ClusterStats( SMI, mask, nrows, ncols, nMonths, nCells, SMI_thld )
 
   ! local variables
   real(sp), dimension(nrows, ncols)                         :: dummy_2d_sp
-  integer(i4)                                               :: ic
+  integer(i4)                                               :: ic, i
   integer(i4)                                               :: t
   integer(i4) , dimension(:), allocatable                   :: counterA
   integer(i4) , dimension(:,:), allocatable                 :: aDDG
   real(dp) , dimension(:,:), allocatable                    :: mSev
+
+  integer(i4)                                               :: eCounter
+
+  integer(i4), dimension(:), allocatable                    :: vec
 
   allocate ( aDDG     (nrows, ncols) )
   allocate ( DAreaEvol(nMonths,nClusters) )
@@ -272,13 +278,16 @@ subroutine ClusterStats( SMI, mask, nrows, ncols, nMonths, nCells, SMI_thld )
         !
         !  drought area evolution
         DAreaEvol(t,ic) =  real( count(idCluster(:,:,t) == shortCnoList(ic) ), dp) / real(nCells, dp)
-        if (DAreaEvol(t,ic) > 0) counterA(ic) = counterA(ic) + 1
+        if (DAreaEvol(t,ic) > 0.0_dp) counterA(ic) = counterA(ic) + 1
+
         ! total magnitude (NEW  SM_tr -SMI) !!!
         dummy_2d_sp = unpack(SMI(:,t), mask, nodata_sp)
         DTMagEvol(t,ic) = sum( (SMI_thld - dummy_2d_sp), mask = idCluster(:,:,t) == shortCnoList(ic) )
      end do
+
      ! AVERAGE (MEAN) DURATION
      aDD(ic) = real( sum(aDDG, mask = aDDG > 0),dp ) / real( count(aDDG > 0), dp)
+
      ! TOTAL MAGNITUD (sum over space and time of SMI over all
      !                 cells afected by the event ic )
      TDM(ic) = sum( DTMagEvol(:,ic) )
@@ -308,8 +317,37 @@ subroutine ClusterStats( SMI, mask, nrows, ncols, nMonths, nCells, SMI_thld )
   !                     / real(count(Basin_Id(:,:) == i), dp)
   !   end do
   ! end do
- print*, 'Cluster statistics were estimated ... '
-  deallocate ( counterA, aDDG, mSev )
+
+
+     !!! ORIGINALLY in SAD anaylysis
+     nEvents = count (DAreaEvol .gt. 0.0_dp )
+     allocate (  eIdPerm   (nEvents)    )
+     allocate (  eventId   (nEvents, 3) )                !  dim1: running Nr.
+                                                         !  dim2: 1 == cluster Id,
+                                                         !        2 == month of ocurrence,
+                                                         !        3 == number of cells
+  
+     ! keep event identification
+     eCounter = 0
+     do ic = 1,  nClusters
+        do t = 1, nMonths
+           if (DAreaEvol(t,ic) > 0.0_dp ) then
+              eCounter = eCounter + 1
+              eventId(eCounter,1) = shortCnoList(ic)
+              eventId(eCounter,2) = t
+              eventId(eCounter,3) = count( idCluster(:,:,t) == shortCnoList(ic) )
+           end if
+        end do
+     end do
+     ! sort event in order of area magnitude
+     forall(i=1:nEvents) eIdPerm(i) = i
+     allocate (vec(nEvents))
+     ! call SVIGP (nEvents, eventId(:,3), vec, eIdPerm)
+     eIdPerm = sort_index( eventID(:,3) )
+     deallocate (vec)
+
+     print*, 'Cluster statistics were estimated ... '
+     deallocate ( counterA, aDDG, mSev )
 end subroutine ClusterStats
 
 !-------------------------------------------------------
@@ -318,7 +356,7 @@ end subroutine ClusterStats
 subroutine calSAD(SMI, mask, iDur, nrows, ncols, nMonths, nCells, deltaArea, cellsize)
 
   ! use numerical_libraries, only                        : DSVRGN, DEQTIL, SVIGP
-  use mo_sort,          only : sort, sort_index
+  use mo_sort,          only : sort      !, sort_index
   use mo_percentile,    only : percentile
   use mo_smi_constants, only : nodata_dp 
 
@@ -344,18 +382,20 @@ subroutine calSAD(SMI, mask, iDur, nrows, ncols, nMonths, nCells, deltaArea, cel
   ! local variable
   real(dp),    dimension(nrows,ncols, nMonths)        :: SMI_unpack
   integer(i4)                                         :: t, i, k
-  integer(i4)                                         :: ic
+!  integer(i4)                                         :: ic
   integer(i4)                                         :: iDc
   integer(i4)                                         :: d
   integer(i4)                                         :: ms, me
   integer(i4)                                         :: ke
-  integer(i4)                                         :: eCounter, eC
+  integer(i4)                                         :: eC
+  integer(i4)                                         :: eCounter
+
   integer(i4)                                         :: ncic
   integer(i4)                                         :: nIntA
   real(dp), dimension(:), allocatable                 :: sevP
   !
   integer(i4)                                         :: nObs
-  integer(i4), dimension(:), allocatable              :: vec
+!  integer(i4), dimension(:), allocatable              :: vec
   !
   do i = 1, size(SMI,2)
      SMI_unpack(:,:,i) = unpack(real(SMI(:,i), dp), mask, nodata_dp)
@@ -366,34 +406,35 @@ subroutine calSAD(SMI, mask, iDur, nrows, ncols, nMonths, nCells, deltaArea, cel
      nInterArea = int( ceiling( real(nCells,dp) / real(deltaArea, dp) ), i4 )
      !
      ! total number of events to be evaluated
-     nEvents = count (DAreaEvol > 0.0_dp )
+ !    nEvents = count (DAreaEvol > 0.0_dp )
      nLargerEvents = nEvents
-     allocate (  eventId   (nEvents, 3) )                !  dim1: running Nr.
-                                                         !  dim2: 1 == cluster Id,
-                                                         !        2 == month of ocurrence,
-                                                         !        3 == number of cells
-     allocate (  eIdPerm   (nEvents)    )
+ !     allocate (  eventId   (nEvents, 3) )                !  dim1: running Nr.
+ !                                                         !  dim2: 1 == cluster Id,
+ !                                                         !        2 == month of ocurrence,
+ !                                                         !        3 == number of cells
+ ! 
+ !    allocate (  eIdPerm   (nEvents)    )
      allocate (  SAD       (nInterArea, 2, nLargerEvents ) )    !  dim2: 1 == area, 2 == Severity
      allocate (  SADperc   (nInterArea, nQProp ) )
      !
-     ! keep event identification
-     eCounter = 0
-     do ic = 1,  nClusters
-        do t = 1, nMonths
-           if (DAreaEvol(t,ic) > 0.0_dp ) then
-              eCounter = eCounter + 1
-              eventId(eCounter,1) = shortCnoList(ic)
-              eventId(eCounter,2) = t
-              eventId(eCounter,3) = count( idCluster(:,:,t) == shortCnoList(ic) )
-           end if
-        end do
-     end do
-     ! sort event in order of magnitude
-     forall(i=1:nEvents) eIdPerm(i) = i
-     allocate (vec(nEvents))
-     ! call SVIGP (nEvents, eventId(:,3), vec, eIdPerm)
-     eIdPerm = sort_index( eventID(:,3) )
-     deallocate (vec)
+     ! ! keep event identification
+     ! eCounter = 0
+     ! do ic = 1,  nClusters
+     !    do t = 1, nMonths
+     !       if (DAreaEvol(t,ic) > 0.0_dp ) then
+     !          eCounter = eCounter + 1
+     !          eventId(eCounter,1) = shortCnoList(ic)
+     !          eventId(eCounter,2) = t
+     !          eventId(eCounter,3) = count( idCluster(:,:,t) == shortCnoList(ic) )
+     !       end if
+     !    end do
+     ! end do
+     ! ! sort event in order of magnitude
+     ! forall(i=1:nEvents) eIdPerm(i) = i
+     ! allocate (vec(nEvents))
+     ! ! call SVIGP (nEvents, eventId(:,3), vec, eIdPerm)
+     ! eIdPerm = sort_index( eventID(:,3) )
+     ! deallocate (vec)
   end if
   !
   ! SAD
