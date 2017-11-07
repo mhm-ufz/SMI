@@ -2,8 +2,10 @@
 !  SOIL MOISTURE INDEX                                                *
 !  PURPOSE     Estimate SMI based on monthly values of SM_mHM         *
 !  CREATED     Luis Samaniego, 15.02.2011                             *
+!  HISTORY     Stephan Thober, 16.12.2014 - added evalSMI capability  *
+!              Stephan Thober, 07.11.2017 - added inversion of CDFs   *
 !**********************************************************************
-module SMIndex
+module mo_smi
   !
   use mo_kind,          only: dp
   !
@@ -11,9 +13,16 @@ module SMIndex
   ! public routines
   public :: optimize_width
   public :: calSMI
+  public :: invSMI
   !
+  ! global variables for inversion of cdf
+  real(dp), public, dimension(:), allocatable :: xx_est
+  real(dp), public                            :: hh_est
+  real(dp), public                            :: y_val
+
   private
 
+  
 contains
 
   ! subroutine for estimating SMI for first array
@@ -137,49 +146,78 @@ contains
   end subroutine calSMI
 
   
-  ! ! create objective function of kernel_cumdensity and minimize it using
-  ! ! nelmin because function is monotone
-  ! subroutine invSMI(sm_est, hh, SMI_invert, SM_invert)
-  !   use mo_kind, only: i4, sp, dp
-  !   ! input variables
-  !   real(dp), dimension(:,:), intent(in)  :: hh
-  !   real(sp), dimension(:,:), intent(in)  :: sm_est
-  !   real(sp), dimension(:,:), intent(in)  :: SMI_invert
-  !   ! output variables
-  !   real(sp), dimension(:,:), intent(out) :: SM_invert
-
-  !   ! local variables
-  !   integer(i4) :: n_cells, n_time
-  !   integer(i4) :: ii, tt ! loop variables
-
-  !   ! shape of arrays
-  !   n_cells = size(SMI_invert, 1)
-  !   n_time  = size(SMI_invert, 2)
+  ! create objective function of kernel_cumdensity and minimize it using
+  ! nelmin because function is monotone
+  subroutine invSMI(sm_est, hh, SMI_invert, nCalendarStepsYear, yStart, yEnd, &
+       SM_invert)
+    use mo_kind,          only: i4, sp, dp
+    use mo_smi_constants, only: nodata_sp, nodata_dp
+    use mo_nelmin,        only: nelmin
+    use mo_percentile,    only: percentile
+    implicit none
     
-  !   do ii = 1, n_cells
-  !      do tt = 1, n_time
+    interface 
+       function root_cdf(pp)
+         use mo_kind, only: dp
+         implicit none
+         real(dp), intent (in) :: pp(:)
+         real(dp) :: root_cdf
+       end function root_cdf
+    end interface
 
-  !         ! call optimizer for this inversion
+    ! input variables
+    real(dp), dimension(:,:),              intent(in) :: hh
+    real(sp), dimension(:,:),              intent(in) :: sm_est
+    real(sp), dimension(:,:),              intent(in) :: SMI_invert
+    integer(i4),                           intent(in) :: nCalendarStepsYear
+    integer(i4),                           intent(in) :: yStart
+    integer(i4),                           intent(in) :: yEnd
 
-  !         ! X_est(:)  =  nodata_dp
-  !         ! X_eval(:) =  nodata_dp
+    ! output variables
+    real(sp), dimension(:,:), allocatable, intent(out) :: SM_invert
 
-  !         ! X_est(:)  = real(SM_est ( ii, mm:size(SM_est,2):nCalendarStepsYear ),  dp)
-  !         ! X_eval(:) = real(SM_eval( ii, mm:size(SM_est,2):nCalendarStepsYear ),  dp)
-          
-  !         ! !X_est(:)  = pack( real(SM_est(ii,:),  dp), tmask_est(:,mm) )
-  !         ! !X_eval(:) = pack( real(SM_eval(ii,:), dp), tmask_eval(:,mm))
+    ! local variables
+    integer(i4)                         :: n_cells
+    integer(i4)                         :: n_years
+    integer(i4)                         :: ii, yy, mm ! loop variables
+    real(dp)                            :: xx_inv(1)
+    real(dp)                            :: pstart(1)
+    real(dp)                            :: funcbest
+    real(dp), dimension(:), allocatable :: y_inv
 
-  !         ! cdf(:)    = kernel_cumdensity(x_est, hh(ii,mm), xout=x_eval)
-  !         ! SMI(ii, mm:size(SM_est,2):nCalendarStepsYear) =  real(cdf(:), sp)
-  !         ! ! deallocate( X_est, X_eval, cdf )
-  !      end do
-  !   end do
-   
-  ! end subroutine invSMI
+    ! initialize extents
+    n_cells = size(SMI_invert, 1)
+    n_years = yEnd - yStart + 1
 
-  ! ! define the root function for optimizer
-  ! function root_cdf(pp, 
-  !         root_cdf = SMI_invert - kernel_cumdensity(xx_ext, hh, xout=pp)
-  ! end function root_cdf
-end module SMIndex
+    ! initialize output array
+    allocate(y_inv(n_years))
+    allocate(SM_invert(n_cells, size(SMI_invert, 2)))
+    allocate(xx_est(n_years))
+
+    y_inv     = nodata_dp
+    SM_invert = nodata_sp
+    xx_est    = nodata_dp
+    
+    print *, 'start inversion of CDF'
+    do ii = 1, n_cells
+       do mm = 1, nCalendarStepsYear
+          xx_est(:) = real(SM_est    ( ii, mm:size(sm_est, 2):nCalendarStepsYear    ),  dp)
+          hh_est    = hh(ii, mm)
+          y_inv(:)  = real(SMI_invert( ii, mm:size(SMI_invert,2):nCalendarStepsYear ),  dp)
+
+          do yy = 1, n_years
+             y_val     = y_inv(yy)
+             pstart(:) = percentile(xx_est, y_val * 100.)
+             ! use nelmin for optimization because cdf is a monotonic function
+             xx_inv = nelmin(root_cdf, pstart=pstart, funcmin=funcbest)
+             SM_invert(ii, (yy - 1) * nCalendarStepsYear + mm) = xx_inv(1)
+          end do
+       end do
+    end do
+
+    ! free memory
+    deallocate(y_inv, xx_est)
+    
+end subroutine invSMI
+
+end module mo_smi

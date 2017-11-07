@@ -42,7 +42,7 @@ program SM_Drought_Index
                                     writeResultsCluster, WriteResultsBasins, &
                                     WriteSMI
   use mo_read,               only : ReadDataMain
-  use SMIndex,               only : optimize_width, calSMI
+  use mo_smi,                only : optimize_width, calSMI, invSMI
   use mo_drought_evaluation, only : droughtIndicator, ClusterEvolution, ClusterStats, calSAD
   use mo_smi_constants,      only : nodata_sp
 
@@ -54,6 +54,7 @@ program SM_Drought_Index
   logical                                    :: do_sad      ! flag indicating whether SAD analysis should be done
   logical                                    :: cluster_ext_smi  ! flag indicating to read external data for clustering 
   logical                                    :: eval_SMI    ! flag indicating whether SMI should be
+  logical                                    :: invert_SMI  ! flag for inverting SMI
   !                                                         ! calculated or read from file
   logical                                    :: read_opt_h  ! read kernel width from file
   logical                                    :: silverman_h ! flag indicating whether kernel width 
@@ -83,6 +84,7 @@ program SM_Drought_Index
   real(sp)                                   :: cellsize   ! cell edge lenght of input data
   real(sp),    dimension(:,:), allocatable   :: SM_est     ! monthly fields packed for estimation
   real(sp),    dimension(:,:), allocatable   :: SM_eval    ! monthly fields packed for evaluation
+  real(sp),    dimension(:,:), allocatable   :: SM_invert  ! inverted monthly fields packed 
   real(sp),    dimension(:,:), allocatable   :: SMI        ! soil moisture index at evaluation array
   integer(i4), dimension(:,:,:), allocatable :: SMIc       ! Drought indicator 1 - is under drought
   !                                                        !                   0 - no drought
@@ -110,6 +112,7 @@ program SM_Drought_Index
      print *, 'optimizing kernel width...ok'
   end if
 
+
   ! evaluate SMI at second data set SMI_eval
   if (.NOT. cluster_ext_smi) then 
      if ( eval_SMI ) then
@@ -123,7 +126,15 @@ program SM_Drought_Index
      end if
      print *, 'calculating SMI... ok'
   end if
-     
+
+  ! invert SMI according to given cdf
+  invert_smi = .True.
+  if (invert_smi) then
+     ! testing with calculated SMI -> SM_invert == SM_est
+     call invSMI(SM_est, opt_h, SMI, nCalendarStepsYear, yStart, yEnd, SM_invert)
+  end if
+  stop 'Testing inversion of SMI!'
+
   ! write output
   if (.NOT. cluster_ext_smi) then
      if ( read_opt_h ) then
