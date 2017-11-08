@@ -7,7 +7,6 @@
 module InputOutput
 
   use mo_kind,   only                              : i4, sp, dp
-  use mo_ncread, only                              : Get_NcVar, Get_NcDim, Get_NcVarAtt
 
   implicit none
 
@@ -55,9 +54,9 @@ contains
 
     use mo_kind,          only: i4, sp
     use mo_string_utils,  only: num2str
-    use mo_ncwrite,       only: var2nc
-    use mo_smi_constants, only: nodata_sp, YearMonths
+    use mo_smi_constants, only: nodata_sp, nodata_dp, YearMonths
     use mo_julian,        only: NDAYS, NDYIN
+    use mo_netcdf,        only: NcDataset, NcVariable, NcDimension
 
     implicit none
 
@@ -76,6 +75,9 @@ contains
     real(dp),       dimension(:,:), optional,      intent(in) :: hh
 
     ! local Variables
+    type(NcDataset)                                           :: nc_out
+    type(NcVariable)                                          :: nc_var
+    type(NcDimension)                                         :: nc_row, nc_col, nc_tim, nc_cal
     character(256)                                            :: Fname
     integer(i4)                                               :: dd          ! day
     integer(i4)                                               :: mm          ! month
@@ -87,34 +89,35 @@ contains
     character(256), dimension(3)                              :: dnames
     character(256), dimension(3)                              :: dims_hopt
 
+    integer(i4)                                               :: nrows
+    integer(i4)                                               :: ncols
     integer(i4)                                               :: jDayStart
     integer(i4)                                               :: jDayEnd
     integer(i4)                                               :: nTotalTimeSteps     ! number of time steps including leap days 
     integer(i4)                                               :: tt                  ! counter without leap days
     integer(i4)                                               :: jDay                ! jDay counting from jDayStart
     
-    ! initialize dimension names
-    dnames(1) = 'nrows'
-    dnames(2) = 'ncols'
-    dnames(3) = 'time'
-    
-    dims_hopt(1) = 'nrows'
-    dims_hopt(2) = 'ncols'
-    dims_hopt(3) = 'calendar_steps'
+    ! initialize dimension
+    nrows = size(mask, 1)
+    ncols = size(mask, 2)
 
     ! fname
     fName = trim(outpath) //'SMI.nc'
+    nc_out = NcDataset(fName, 'w')
+    nc_row = nc_out%setDimension("nrows", nrows)
+    nc_col = nc_out%setDimension("ncols", ncols)
+    nc_tim = nc_out%setDimension("time", -1)
 
     ! unpack estimated SMIp
     if (nCalendarStepsYear .eq. 12) then
-       allocate( dummy_d3_sp( size( mask, 1), size( mask, 2), size( SMI, 2) ) )
+       allocate( dummy_d3_sp( nrows, ncols, size( SMI, 2) ) )
        nTotalTimeSteps = size( SMI, 2)
     else
        ! store SMI including leap days, assumption => SMI (29.02.yyyy) ~ SMI (28.02.yyyy)
        jDayStart =  NDAYS(dStart, mStart, yStart)
        jDayEnd = NDAYS(31, 12, yEnd)                            
        nTotalTimeSteps = jDayEnd - jDayStart + 1
-       allocate( dummy_d3_sp( size( mask, 1), size( mask, 2), nTotalTimeSteps  ) )
+       allocate( dummy_d3_sp( nrows, ncols, nTotalTimeSteps  ) )
     end if
     
     tt = 0
@@ -129,36 +132,53 @@ contains
        !dummy_d3_sp( :, :, mm) = unpack ( SMI(:,mm), mask, nodata_sp )
     end do
     ! save SMI (same sequence as in 1)
-    call var2nc( fName, dummy_d3_sp, dnames, v_name = 'SMI', &
-         long_name = 'soil moisture index', units = '-', &
-         missing_value = nodata_sp, create = .true. ) ! &
-    ! scale_factor = 1., coordinates = 'lon lat' )
+    nc_var = nc_out%setVariable('SMI', "f32", &
+         (/ nc_row, nc_col, nc_tim /))
+    call nc_var%setData(dummy_d3_sp)
+    call nc_var%setAttribute('long_name', 'soil moisture index')
+    call nc_var%setAttribute('missing_value', nodata_sp)
+    call nc_var%setAttribute('units', '-')
     deallocate( dummy_d3_sp )
 
     ! write out kernel width if it has been optimised
     if ( present( hh ) ) then
-       allocate( dummy_D3_dp( size( mask, 1 ), size( mask, 2), size( hh, 2 ) ) )
+       allocate( dummy_D3_dp( nrows, ncols, size( hh, 2 ) ) )
        do mm = 1, size( hh, 2 )                                                  !YearMonths
           dummy_D3_dp(:, :, mm) = unpack( hh(:,mm), mask, real( nodata_sp, dp ) ) 
        end do
-       call var2nc( fname, dummy_D3_dp, dims_hopt, v_name = 'kernel_width', &
-            long_name = 'optimised kernel width', units = '-', &
-            missing_value = real( nodata_sp, dp ) )
+       nc_cal = nc_out%setDimension("calendar_steps", size(dummy_d3_dp,3))
+       nc_var = nc_out%setVariable('kernel_width', "f64", &
+            (/ nc_row, nc_col, nc_cal /))
+       call nc_var%setData(dummy_d3_dp)
+       call nc_var%setAttribute('long_name', 'optimised kernel width')
+       call nc_var%setAttribute('missing_value', nodata_dp)
+       call nc_var%setAttribute('units', '-')
        deallocate( dummy_D3_dp ) 
     end if
 
     ! add lat and lon
-    call var2nc( fname, lats, dnames(1:2), v_name = 'lat', &
-         long_name = 'longitude', units = 'degrees_east' )
-    call var2nc( fname, lons, dnames(1:2), v_name = 'lon', &
-         long_name = 'latitude', units = 'degrees_north' )
+    nc_var = nc_out%setVariable('lat', "f64", (/ nc_row, nc_col /))
+    call nc_var%setData(lats)
+    call nc_var%setAttribute('long_name', 'latitude')
+    call nc_var%setAttribute('missing_value', nodata_dp)
+    call nc_var%setAttribute('units', 'degrees_north')
+    nc_var = nc_out%setVariable('lon', "f64", (/ nc_row, nc_col /))
+    call nc_var%setData(lons)
+    call nc_var%setAttribute('long_name', 'longitude')
+    call nc_var%setAttribute('missing_value', nodata_dp)
+    call nc_var%setAttribute('units', 'degrees_east')
 
     ! add time
-    call var2nc( fname, timepoints, dnames(3:3), v_name='time', &                          ! (1:size( SMI, 2))
-         long_name = 'time', units = 'days since '                               // &
+    nc_var = nc_out%setVariable('time', "i32", (/ nc_tim /))
+    call nc_var%setData(timepoints)
+    call nc_var%setAttribute('long_name', 'time')
+    call nc_var%setAttribute('units', 'days since '                              // &
                                       trim(num2str(yStart,   '(i4)')) // '-'     // &
                                       trim(num2str(mStart, '(i2.2)')) // '-'     // &
                                       trim(num2str(dStart, '(i2.2)')) // ' 00:00:00' )
+    ! close file
+    call nc_out%close()
+    
   end subroutine WriteSMI
 
   !*************************************************************************
@@ -171,32 +191,38 @@ contains
   !               Created        Sa   16.02.2011   
   !               Last Update    Sa   16.02.2011  
   !**************************************************************************
-  subroutine WriteNetCDF(outpath, SMIc, wFlag, yStart, dStart, mStart, timepoints, lats, lons, duration) 
+  subroutine WriteNetCDF(outpath, wFlag, yStart, dStart, mStart, timepoints, lats, lons, &
+        SMIc, SM_invert, duration) 
     !
     use mo_kind,          only: i4
     use mo_string_utils,  only: num2str
     use mo_ncwrite,       only: var2nc
-    use mo_smi_constants, only: nodata_i4 , nodata_dp 
+    use mo_smi_constants, only: nodata_i4 , nodata_dp, nodata_sp
+    use mo_netcdf,        only: NcDataset, NcVariable, NcDimension
 
     implicit none
     !
     ! input variables
     character(len=*),                            intent(in) :: outpath     ! ouutput path for results
-    integer(i4),    dimension(:,:,:),            intent(in) :: SMIc        ! Drought indicator
     integer(i4),                                 intent(in) :: wFlag
     integer(i4),                                 intent(in) :: yStart
     integer(i4),                                 intent(in) :: mStart
     integer(i4),                                 intent(in) :: dStart
     integer(i4),    dimension(:),   allocatable, intent(in) :: timepoints
     real(dp),       dimension(:,:),              intent(in) :: lats, lons   ! latitude and longitude fields of input
-    integer(i4),                    optional,    intent(in) :: duration     ! optional, duration
+    integer(i4),    dimension(:,:,:), optional,  intent(in) :: SMIc         ! Drought indicator
+    real(sp),       dimension(:,:,:), optional,  intent(in) :: SM_invert
+    integer(i4),                      optional,  intent(in) :: duration     ! optional, duration
 
     ! local Variables
-    character(256)                                :: Fname
-    integer(i4)                                   :: tt
+    type(NcDataset)              :: nc_out
+    type(NcVariable)             :: nc_var
+    type(NcDimension)            :: nc_row, nc_col, nc_tim
+    character(256)               :: Fname
+    integer(i4)                  :: tt
 
-    !               dimension names
-    character(256), dimension(3)                  :: dnames
+    ! dimension names
+    character(256), dimension(3) :: dnames
 
     ! initialize dimension names
     dnames(1) = 'nrows'
@@ -205,93 +231,100 @@ contains
     !
     select case (wFlag)
 
-!!!! TO BE DONE: USE nc_write (DAVID) with time chunks instedad of var2nc !!!!
+    case (2)
+       ! fname
+       fName  = trim(outpath)//'SM_invert.nc'
+       nc_out = NcDataset(fname, 'w')
+
+       nc_row = nc_out%setDimension("nrows", size(SM_invert, 1))
+       nc_col = nc_out%setDimension("ncols", size(SM_invert, 2))
+       nc_tim = nc_out%setDimension("time", -1)
+
+       nc_var = nc_out%setVariable('SM_Lall', "f32", &
+            (/ nc_row, nc_col, nc_tim /))
+       call nc_var%setData(SM_invert)
+       call nc_var%setAttribute('long_name', 'SM according to inverse of SMI')
+       call nc_var%setAttribute('missing_value', nodata_sp)
+       call nc_var%setAttribute('units', 'mm')
+       
        
     case (3)
        ! fname
-       fName = trim(outpath)//'SMIc.nc'
-       ! save drought mSMIc (same sequence as in 1)
+       fName  = trim(outpath)//'SMIc.nc'
+       nc_out = NcDataset(fname, 'w')
 
-      ! Save chucked (time) to avoid errors and ease visulaization
-      !! 
-       do tt = 1, size(SMIc(1,1,:))
-           if (tt .eq. 1) then 
-              call var2nc( fName, SMIc(:,:,tt), dnames(1:3), v_name = 'mSMIc', &
-                   long_name = 'monthly SMI indicator SMI < th', units = '-', &
-                   dim_unlimited = 3, &
-                   missing_value = nodata_i4, create = .true. ) ! &
-             ! scale_factor = 1., coordinates = 'lon lat' )
-           else
-              call var2nc( fName, SMIc(:,:,tt), dnames(1:3), v_name = 'mSMIc', &
-                   long_name = 'monthly SMI indicator SMI < th', units = '-', &
-                   dim_unlimited = 3, &
-                   missing_value = nodata_i4, create = .false. ) ! &
-           end if
-       end do
-    
-       
-       ! add lat and lon
-       call var2nc( fname, lats, dnames(1:2), v_name = 'lat', &
-            long_name = 'longitude', units = 'degrees_east' )
-       call var2nc( fname, lons, dnames(1:2), v_name = 'lon', &
-            long_name = 'latitude', units = 'degrees_north' )
-       
-       ! add time
-       call var2nc( fname, timepoints, dnames(3:3), v_name='time', &
-            long_name = 'time', units = 'days since '     // &
-            trim(num2str(yStart,   '(i4)')) // '-'        // &
-            trim(num2str(mStart, '(i2.2)')) // '-'        // &
-            trim(num2str(dStart, '(i2.2)')) // ' 00:00:00' )
+       nc_row = nc_out%setDimension("nrows", size(SMIc, 1))
+       nc_col = nc_out%setDimension("ncols", size(SMIc, 2))
+       nc_tim = nc_out%setDimension("time", -1)
+
+       nc_var = nc_out%setVariable('mSMIc', "i32", &
+            (/ nc_row, nc_col, nc_tim /))
+       call nc_var%setData(SMIc)
+       call nc_var%setAttribute('long_name', 'monthly SMI indicator SMI < th')
+       call nc_var%setAttribute('missing_value', nodata_i4)
+       call nc_var%setAttribute('units', '-')
+
     case (4)
        ! fname
        fName = trim(outpath)//'DCluster.nc'
-       ! save drought clusters (same sequence as in 1)
+       nc_out = NcDataset(fname, 'w')
 
-       !! 
-       do tt = 1, size(idCluster(1,1,:))
-          if (tt .eq. 1) then 
-            call var2nc( fName, idCluster(:,:,tt), dnames(1:3), v_name = 'mDC', &
-                 long_name = 'consolidated cluster evolution', units = '-', &
-                 dim_unlimited = 3, &
-                 missing_value = nodata_i4, create = .true. ) ! &
-            ! scale_factor = 1., coordinates = 'lon lat' )
-          else
-            call var2nc( fName, idCluster(:,:,tt), dnames(1:3), v_name = 'mDC', &
-                 long_name = 'consolidated cluster evolution', units = '-', &
-                 dim_unlimited = 3, &
-                 missing_value = nodata_i4, create = .false. ) ! &
-          end if
-       end do
-       
+       nc_row = nc_out%setDimension("nrows", size(idCluster, 1))
+       nc_col = nc_out%setDimension("ncols", size(idCluster, 2))
+       nc_tim = nc_out%setDimension("time", -1)
+
+       nc_var = nc_out%setVariable('mDC', "i32", &
+            (/ nc_row, nc_col, nc_tim /))
+       call nc_var%setData(idCluster)
+       call nc_var%setAttribute('long_name', 'consolidated cluster evolution')
+       call nc_var%setAttribute('missing_value', nodata_i4)
+       call nc_var%setAttribute('units', '-')
          
-       ! add lat and lon
-       call var2nc( fname, lats, dnames(1:2), v_name = 'lat', &
-            long_name = 'longitude', units = 'degrees_east' )
-       call var2nc( fname, lons, dnames(1:2), v_name = 'lon', &
-            long_name = 'latitude', units = 'degrees_north' )
-
-       ! add time
-       call var2nc( fname, timepoints, dnames(3:3), v_name='time', &
-            long_name = 'time', units = 'days since '     // &
-            trim(num2str(yStart,   '(i4)')) // '-'        // &
-            trim(num2str(mStart, '(i2.2)')) // '-'        // &
-            trim(num2str(dStart, '(i2.2)')) // ' 00:00:00' )
     case (5)
        ! fname
        write (fName, '(i2.2)') duration
        fName = trim(outpath)//'sev_'//trim(fName)//'.nc'
-       ! save Severity for a given duration d (same sequence as in 1)
-       call var2nc( fName, severity, dnames, v_name = 'Severity', &
-            long_name = 'd-month severity', units = '-', &
-            missing_value = nodata_dp, create = .true. ) ! &
-            ! scale_factor = 1., coordinates = 'lon lat' )
-       ! add lat and lon
-       call var2nc( fname, lats, dnames(1:2), v_name = 'lat', &
-            long_name = 'longitude', units = 'degrees_east' )
-       call var2nc( fname, lons, dnames(1:2), v_name = 'lon', &
-            long_name = 'latitude', units = 'degrees_north' )
+       nc_out = NcDataset(fname, 'w')
+
+       nc_row = nc_out%setDimension("nrows", size(severity, 1))
+       nc_col = nc_out%setDimension("ncols", size(severity, 2))
+       nc_tim = nc_out%setDimension("time", -1)
+
+       nc_var = nc_out%setVariable('Severity', "f64", &
+            (/ nc_row, nc_col, nc_tim /))
+       call nc_var%setData(idCluster)
+       call nc_var%setAttribute('long_name', 'd-month severity')
+       call nc_var%setAttribute('missing_value', nodata_dp)
+       call nc_var%setAttribute('units', '-')
+
     end select
 
+    ! add lat and lon
+    nc_var = nc_out%setVariable('lat', "f64", (/ nc_row, nc_col /))
+    call nc_var%setData(lats)
+    call nc_var%setAttribute('long_name', 'latitude')
+    call nc_var%setAttribute('missing_value', nodata_dp)
+    call nc_var%setAttribute('units', 'degrees_north')
+    nc_var = nc_out%setVariable('lon', "f64", (/ nc_row, nc_col /))
+    call nc_var%setData(lons)
+    call nc_var%setAttribute('long_name', 'longitude')
+    call nc_var%setAttribute('missing_value', nodata_dp)
+    call nc_var%setAttribute('units', 'degrees_east')
+
+    ! add time
+    if ((wflag .eq. 2) .or. &
+        (wflag .eq. 3) .or. &
+        (wflag .eq. 4)) then
+       nc_var = nc_out%setVariable('time', "i32", (/ nc_tim /))
+       call nc_var%setData(timepoints)
+       call nc_var%setAttribute('long_name', 'time')
+       call nc_var%setAttribute('units', 'days since '                              // &
+            trim(num2str(yStart,   '(i4)')) // '-'     // &
+            trim(num2str(mStart, '(i2.2)')) // '-'     // &
+            trim(num2str(dStart, '(i2.2)')) // ' 00:00:00' )
+    end if
+    ! close file
+    call nc_out%close()
   end subroutine WriteNetCDF
 
 !**********************************************************************

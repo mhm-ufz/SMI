@@ -199,7 +199,11 @@ contains
     xx_est    = nodata_dp
     
     print *, 'start inversion of CDF'
+    !$OMP parallel default(shared) &
+    !$OMP private(mm, yy, xx_est, hh_est, y_inv, y_val, pstart, xx_inv)
+    !$OMP do
     do ii = 1, n_cells
+       if (modulo(ii, 1000) .eq. 0) print *, ii, n_cells
        do mm = 1, nCalendarStepsYear
           xx_est(:) = real(SM_est    ( ii, mm:size(sm_est, 2):nCalendarStepsYear    ),  dp)
           hh_est    = hh(ii, mm)
@@ -214,6 +218,8 @@ contains
           end do
        end do
     end do
+    !$OMP end do
+    !$OMP end parallel
 
     ! free memory
     deallocate(y_inv, xx_est)

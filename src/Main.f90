@@ -64,6 +64,7 @@ program SM_Drought_Index
   ! logical,     dimension(:,:), allocatable   :: tmask_eval  ! monthly mask for evaluated SM
   logical,     dimension(:,:), allocatable   :: mask
 
+  integer(i4)                                :: ii
   integer(i4)                                :: yStart
   integer(i4)                                :: yEnd
   integer(i4)                                :: mStart
@@ -86,6 +87,7 @@ program SM_Drought_Index
   real(sp),    dimension(:,:), allocatable   :: SM_eval    ! monthly fields packed for evaluation
   real(sp),    dimension(:,:), allocatable   :: SM_invert  ! inverted monthly fields packed 
   real(sp),    dimension(:,:), allocatable   :: SMI        ! soil moisture index at evaluation array
+  real(sp),    dimension(:,:,:), allocatable :: dummy_d3_sp
   integer(i4), dimension(:,:,:), allocatable :: SMIc       ! Drought indicator 1 - is under drought
   !                                                        !                   0 - no drought
   real(dp),    dimension(:,:), allocatable   :: opt_h      ! optimized kernel width field
@@ -96,10 +98,11 @@ program SM_Drought_Index
   character(256)                             :: outpath    ! output path for results
 
 
-  call ReadDataMain( SMI, do_cluster, cluster_ext_smi, eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons, do_basin,    &
-       mask, SM_est, SM_eval,  yStart, yEnd, mStart, dStart, Basin_Id, timepoints, &
-       SMI_thld, outpath, cellsize, thCellClus, nCellInter, do_sad, deltaArea, &
-       nCalendarStepsYear ) ! tmask_eval,  tmask_est,
+  call ReadDataMain( SMI, do_cluster, cluster_ext_smi, invert_smi, &
+       eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons, do_basin, &
+       mask, SM_est, SM_eval,  yStart, yEnd, mStart, dStart, Basin_Id, &
+       timepoints, SMI_thld, outpath, cellsize, thCellClus, nCellInter, &
+       do_sad, deltaArea, nCalendarStepsYear ) ! tmask_eval,  tmask_est,
   
   ! initialize some variables
   nCells = count( mask )     ! number of effective cells
@@ -128,13 +131,20 @@ program SM_Drought_Index
   end if
 
   ! invert SMI according to given cdf
-  invert_smi = .True.
   if (invert_smi) then
      ! testing with calculated SMI -> SM_invert == SM_est
      call invSMI(SM_est, opt_h, SMI, nCalendarStepsYear, yStart, yEnd, SM_invert)
+     ! write results to file
+     allocate(dummy_D3_sp(size(mask, 1), size(mask, 2), size(SM_invert, 2)))
+     do ii = 1, size(SM_invert, 2)
+        dummy_D3_sp(:, :, ii) = unpack(SM_invert(:, ii), mask, nodata_sp)
+     end do
+     call WriteNetcdf(outpath, 2, yStart, dStart, mStart, timepoints, lats, lons, &
+          SM_invert=dummy_D3_sp)
+     deallocate(dummy_D3_sp)
   end if
-  stop 'Testing inversion of SMI!'
 
+  
   ! write output
   if (.NOT. cluster_ext_smi) then
      if ( read_opt_h ) then
@@ -151,11 +161,11 @@ program SM_Drought_Index
   if ( do_cluster ) then
      ! drought indicator 
      call droughtIndicator( SMI, mask, SMI_thld, cellCoor, SMIc )
-     call WriteNetCDF(outpath, SMIc, 3, yStart, dStart, mStart, timepoints, lats, lons)
+     call WriteNetCDF(outpath, 3, yStart, dStart, mStart, timepoints, lats, lons, SMIc=SMIc)
      
      ! cluster indentification
      call ClusterEvolution( SMIc,  size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells, cellCoor, nCellInter, thCellClus)
-     call WriteNetCDF(outpath, SMIc, 4, yStart, dStart, mStart, timepoints, lats, lons)
+     call WriteNetCDF(outpath, 4, yStart, dStart, mStart, timepoints, lats, lons)
 
      ! statistics  
      call ClusterStats(SMI, mask, size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells, SMI_thld )
@@ -171,7 +181,7 @@ program SM_Drought_Index
         call calSAD(SMI, mask, d, size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells, deltaArea, cellsize)
         ! write SAD for a given duration + percentiles
         call writeResultsCluster(SMIc, outpath, 2, yStart, yEnd, size(SMI, 2), nCells, deltaArea, cellsize, durList(d))
-        call WriteNetCDF(outpath, SMIc, 5, yStart, dStart, mStart, timepoints, lats, lons, durList(d))
+        call WriteNetCDF(outpath, 5, yStart, dStart, mStart, timepoints, lats, lons, duration=durList(d))
      end do
   end if
   

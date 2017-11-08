@@ -9,6 +9,17 @@
  SM_vname       = "SM_Lall"
  ! directory iti which output will be written
  outpath        = "./test_smi/"
+
+ ! SMI time steps per year
+ ! 12          == SM is monthly
+ ! 365         ==  SM is daily
+ nCalendarStepsYear = 12
+ ! lag for daily inputs
+ ! 0           ==  for number_time_steps_year = 12
+ ! 0, 7, 31    ==  for daily values (no lag, weekly, monthly)
+ number_lag_days = 0
+
+
  ! Determination of the kernel width:
  ! silverman_h == .TRUE.  - 'Silverman rule' is applied for determination of the kernel width - no optimization
  ! silverman_h == .FALSE. - optimization of the kernel width 
@@ -26,17 +37,29 @@
  eval_SMI       = .FALSE.  
  SM_eval_file   = "./test_smi/soilmoisture_eval.nc"
  SM_eval_vname  = "SM_Lall"
- type_var_eval  = "dp"
- type_time_eval = "i4"
 
+
+ ! -----------------------------------------------------------------------------
+ !
+ ! Invert SMI cdf
+ !
+ ! If .True., then SMI values are read from ext_smi_file. These are transformed
+ ! to soil moisture saturation using the cdf created by soilmoist_file.
+ invert_SMI = .False.
+
+ ! -----------------------------------------------------------------------------
+ !
+ ! External SMI
+ !
+ ! To invert SMI values and for the clustering, SMI values can be provided
+ ! in an external file. For the clustering, this deactivates the SMI estimation,
+ ! which saves some time.
+ ext_smi      = .FALSE.
+ ext_smi_file = 'XXX'
+
+ ! -----------------------------------------------------------------------------
  ! if .TRUE. cluster analysis should be performed
  do_cluster         = .TRUE.
- ! if you have already SMI data and want to cluster them please please state a .TRUE.
- ! for clustering external SMI data (cluster_ext_smi). Furthermore give the filename
- ! for the SMI data in smi_file_clustering
- ! INFO: if cluster_ext_smi is set to .TRUE. SMI estimation is deactivated!
- cluster_ext_smi     = .FALSE.
- smi_file_clustering = './test_smi/mSMI.nc'
  ! SMI - treshhold of for defining drought conditions
  SMI_thld            = 0.20
  ! cellsize (edge length) of the grid im [km]

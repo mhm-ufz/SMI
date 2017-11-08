@@ -34,8 +34,8 @@
  eval_SMI       = .FALSE.  
  SM_eval_file   = "XXX"
  SM_eval_vname  = "XXX"
- type_var_eval  = "dp"
- type_time_eval = "dp"
+! type_var_eval  = "dp"
+! type_time_eval = "dp"
 
   
 
