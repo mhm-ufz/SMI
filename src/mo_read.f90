@@ -274,9 +274,11 @@ CONTAINS
     ! >>> EVAL SMI
     ! *************************************************************************
     if ( eval_SMI ) then
+       print *, 'reading SM from SM_eval_file: ', trim(SM_eval_file)
        nc_in  = NcDataset(trim(SM_eval_file), 'r')
        nc_var = nc_in%getVariable(trim(SM_eval_vname))
        call nc_var%getData(dummy_D3_sp)
+       allocate(SM_eval(nCells, size(dummy_D3_sp, 3)))
        do ii = 1, size( dummy_D3_sp, 3 )
           SM_eval(:, ii) = pack( dummy_D3_sp(:,:,ii), mask)
        end do
