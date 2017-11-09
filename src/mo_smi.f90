@@ -15,10 +15,6 @@ module mo_smi
   public :: calSMI
   public :: invSMI
   !
-  ! global variables for inversion of cdf
-  real(dp), public, dimension(:), allocatable :: xx_est
-  real(dp), public                            :: hh_est
-  real(dp), public                            :: y_val
 
   private
 
@@ -116,7 +112,7 @@ contains
     allocate ( X_eval(nYears) )
     allocate ( cdf   (nYears) )
     
-    do ii = 1, size(SM_est,1)           ! cell loop
+    do ii = 1, 100 ! size(SM_est,1)           ! cell loop
        do mm = 1,  nCalendarStepsYear   ! calendar time loop                                            !YearMonths
 
           !! cycle if month not present
@@ -130,13 +126,13 @@ contains
           X_eval(:) =  nodata_dp
 
           X_est(:)  = real(SM_est ( ii, mm:size(SM_est,2):nCalendarStepsYear ),  dp)
-          X_eval(:) = real(SM_eval( ii, mm:size(SM_est,2):nCalendarStepsYear ),  dp)
+          X_eval(:) = real(SM_eval( ii, mm:size(SM_eval,2):nCalendarStepsYear ),  dp)
           
           !X_est(:)  = pack( real(SM_est(ii,:),  dp), tmask_est(:,mm) )
           !X_eval(:) = pack( real(SM_eval(ii,:), dp), tmask_eval(:,mm))
 
           cdf(:)    = kernel_cumdensity(x_est, hh(ii,mm), xout=x_eval)
-          SMI(ii, mm:size(SM_est,2):nCalendarStepsYear) =  real(cdf(:), sp)
+          SMI(ii, mm:size(SM_eval,2):nCalendarStepsYear) =  real(cdf(:), sp)
           ! deallocate( X_est, X_eval, cdf )
        end do
     end do
@@ -152,18 +148,21 @@ contains
        SM_invert)
     use mo_kind,          only: i4, sp, dp
     use mo_smi_constants, only: nodata_sp, nodata_dp
-    use mo_nelmin,        only: nelmin
+    use mo_nelmin,        only: nelmin, nelminrange
     use mo_percentile,    only: percentile
+    use mo_kernel,        only: kernel_cumdensity
+    use mo_root_cdf,      only: set_global_root_cdf, root_cdf
+    
     implicit none
     
-    interface 
-       function root_cdf(pp)
-         use mo_kind, only: dp
-         implicit none
-         real(dp), intent (in) :: pp(:)
-         real(dp) :: root_cdf
-       end function root_cdf
-    end interface
+    ! interface 
+    !    function root_cdf(pp)
+    !      use mo_kind, only: dp
+    !      implicit none
+    !      real(dp), intent (in) :: pp(:)
+    !      real(dp) :: root_cdf
+    !    end function root_cdf
+    ! end interface
 
     ! input variables
     real(dp), dimension(:,:),              intent(in) :: hh
@@ -178,16 +177,23 @@ contains
     integer(i4)                         :: n_cells
     integer(i4)                         :: n_years_est, n_years_invert
     integer(i4)                         :: ii, yy, mm ! loop variables
-    real(dp)                            :: xx_inv(1)
-    real(dp)                            :: pstart(1)
+    integer(i4)                         :: xx_n_sample
+    integer(i4), dimension(1)           :: idx_invert
+    real(dp)                            :: hh_est
     real(dp)                            :: funcbest
+    real(dp)                            :: xx_min, xx_max, xx_h
     real(dp), dimension(:), allocatable :: y_inv
-
+    real(dp), dimension(:), allocatable :: xx_cdf, yy_cdf
+    real(dp), dimension(:), allocatable :: xx_est
+   
     ! initialize extents
     n_cells        = size(SMI_invert, 1)
-    n_years_est    = size(sm_est, 2)/nCalendarStepsYear
-    n_years_invert = size(SMI_invert, 2)/nCalendarStepsYear
-    
+    n_years_est    = size(sm_est, 2) / nCalendarStepsYear
+    n_years_invert = size(SMI_invert, 2) / nCalendarStepsYear
+    xx_n_sample    = 1000_i4 ! gives precision of at least 0.0005
+    allocate(xx_cdf(xx_n_sample))
+    allocate(yy_cdf(xx_n_sample))
+
     ! initialize output array
     allocate(xx_est(n_years_est))
     allocate(y_inv(n_years_invert))
@@ -195,14 +201,13 @@ contains
 
     y_inv     = nodata_dp
     SM_invert = nodata_sp
-    xx_est    = nodata_dp
-    
+
     print *, 'start inversion of CDF'
     print *, shape(SM_est)
     print *, shape(SMI_invert)
     print *, shape(hh)
     !$OMP parallel default(shared) &
-    !$OMP private(mm, yy, xx_est, hh_est, y_inv, y_val, pstart, xx_inv)
+    !$OMP private(mm, yy, xx_est, hh_est, y_inv, xx_min, xx_max, xx_h, xx_cdf, yy_cdf, idx_invert)
     !$OMP do
     do ii = 1, n_cells
        if (modulo(ii, 1000) .eq. 0) print *, ii, n_cells
@@ -211,12 +216,22 @@ contains
           hh_est    = hh(ii, mm)
           y_inv(:)  = real(SMI_invert( ii, mm:size(SMI_invert, 2):nCalendarStepsYear),  dp)
 
+          ! sample cdf
+          xx_min    = max(0._dp, minval(xx_est - 5._dp * hh_est))
+          xx_max    = min(1._dp, maxval(xx_est + 5._dp * hh_est))
+          xx_h      = (xx_max - xx_min) / real(xx_n_sample, dp)
+
+          do yy = 1, xx_n_sample
+             xx_cdf(yy) = xx_min + (yy - 1_i4) * xx_h
+          end do
+          xx_cdf = merge(1._dp, xx_cdf, xx_cdf .gt. 1._dp)
+          yy_cdf = kernel_cumdensity(xx_est, hh_est, xout=xx_cdf)
+          
           do yy = 1, n_years_invert
-             y_val     = y_inv(yy)
-             pstart(:) = percentile(xx_est, y_val * 100.)
-             ! use nelmin for optimization because cdf is a monotonic function
-             xx_inv = nelmin(root_cdf, pstart=pstart, funcmin=funcbest)
-             SM_invert(ii, (yy - 1) * nCalendarStepsYear + mm) = xx_inv(1)
+             idx_invert = minloc(abs(y_inv(yy) - yy_cdf))
+             SM_invert(ii, (yy - 1) * nCalendarStepsYear + mm) = xx_cdf(idx_invert(1))
+             ! print *, minval(yy_cdf), yy_cdf(idx_invert), y_inv(yy), kernel_cumdensity(xx_est, hh_est, &
+             !      xout=(/xx_cdf(idx_invert(1))/))
           end do
        end do
     end do
@@ -224,8 +239,8 @@ contains
     !$OMP end parallel
 
     ! free memory
-    deallocate(y_inv, xx_est)
+    deallocate(y_inv, xx_est, xx_cdf, yy_cdf)
     
-end subroutine invSMI
+  end subroutine invSMI
 
 end module mo_smi

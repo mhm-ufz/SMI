@@ -211,6 +211,12 @@ CONTAINS
           stop
        end if
 
+       if ( modulo(size( dummy_D3_sp, 3), nCalendarStepsYear) .ne. 0_i4) then
+          print *, '***ERROR: file: ', trim(soilmoist_file)
+          print *, '***ERROR: timesteps in provided SM field must be multiple of nCalendarStepsYear (', nCalendarStepsYear, ')'
+          stop
+       end if
+
        ! find number of leap years in  SM data set
        ! get timepoints in days and masks for climatologies at calendar day or month 
        call get_time(nc_in,  size( dummy_D3_sp, 3 ),  &
@@ -327,6 +333,13 @@ CONTAINS
           print *, '***ERROR: size mismatch between SMI field and given mask file'
           stop
        end if
+
+       if ( modulo(size( dummy_D3_sp, 3), nCalendarStepsYear) .ne. 0_i4) then
+          print *, '***ERROR: file: ', trim(ext_smi_file)
+          print *, '***ERROR: timesteps in provided SMI field must be multiple of nCalendarStepsYear (', nCalendarStepsYear, ')'
+          stop
+       end if
+
        allocate(SMI_in( nCells, size( dummy_D3_sp, 3 ) ) )
        do ii = 1, size( dummy_D3_sp, 3 )
           SMI_in(:,ii) = pack(dummy_D3_sp(:,:,ii), mask)
@@ -373,7 +386,6 @@ CONTAINS
     !
     use mo_julian,       only: date2dec, dec2date
     use mo_message,      only: message
-    use mo_NcRead,       only: Get_NcVar, Get_NcVarAtt
     use mo_string_utils, only: DIVIDE_STRING
     use mo_netcdf,       only: NcDataset, NcDimension, NcVariable
 
@@ -393,7 +405,6 @@ CONTAINS
     integer(i4)                               :: i                      ! loop variable
     integer(i4)                               :: yRef, dRef, mRef       ! reference time of NetCDF (unit attribute of
     integer(i4)                               :: month, year, d         ! 
-    integer(i4)                               :: datatype               ! datatype of attribute
     !
     integer(i4),   dimension(:), allocatable  :: timesteps              ! time variable of NetCDF in input units
     real(sp),      dimension(:), allocatable  :: timesteps_sp           ! time variable of NetCDF in input units

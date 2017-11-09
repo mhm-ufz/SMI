@@ -52,7 +52,7 @@ program SM_Drought_Index
   ! variables
   logical                                    :: do_cluster  ! flag indicating whether cluster should be calculated
   logical                                    :: do_sad      ! flag indicating whether SAD analysis should be done
-  logical                                    :: cluster_ext_smi  ! flag indicating to read external data for clustering 
+  logical                                    :: ext_smi  ! flag indicating to read external data for clustering 
   logical                                    :: eval_SMI    ! flag indicating whether SMI should be
   logical                                    :: invert_SMI  ! flag for inverting SMI
   !                                                         ! calculated or read from file
@@ -98,7 +98,7 @@ program SM_Drought_Index
   character(256)                             :: outpath    ! output path for results
 
 
-  call ReadDataMain( SMI, do_cluster, cluster_ext_smi, invert_smi, &
+  call ReadDataMain( SMI, do_cluster, ext_smi, invert_smi, &
        eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons, do_basin, &
        mask, SM_est, SM_eval,  yStart, yEnd, mStart, dStart, Basin_Id, &
        timepoints, SMI_thld, outpath, cellsize, thCellClus, nCellInter, &
@@ -110,14 +110,14 @@ program SM_Drought_Index
   print*, 'FINISHED READING'
 
   ! optimize kernel width
-  if ( (.NOT. read_opt_h) .AND. (.NOT. cluster_ext_smi)) then
+  if ( (.NOT. read_opt_h) .AND. (.NOT. ext_smi)) then
      call optimize_width( opt_h, silverman_h, SM_est,  nCalendarStepsYear, yStart, yEnd )  ! tmask_est,
      print *, 'optimizing kernel width...ok'
   end if
 
 
   ! evaluate SMI at second data set SMI_eval
-  if (.NOT. cluster_ext_smi) then 
+  if (.NOT. ext_smi) then 
      if ( eval_SMI ) then
         allocate( SMI( size( SM_eval, 1 ), size( SM_eval, 2 ) ) )
         SMI(:,:) = nodata_sp
@@ -146,7 +146,7 @@ program SM_Drought_Index
 
   
   ! write output
-  if (.NOT. cluster_ext_smi) then
+  if (.NOT. ext_smi) then
      if ( read_opt_h ) then
         call WriteSMI( outpath, SMI, mask, yStart, mStart, dStart,  yEnd, &
              timepoints, nCalendarStepsYear, lats, lons )
