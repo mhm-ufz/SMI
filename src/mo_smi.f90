@@ -148,7 +148,7 @@ contains
   
   ! create objective function of kernel_cumdensity and minimize it using
   ! nelmin because function is monotone
-  subroutine invSMI(sm_est, hh, SMI_invert, nCalendarStepsYear, yStart, yEnd, &
+  subroutine invSMI(sm_est, hh, SMI_invert, nCalendarStepsYear, &
        SM_invert)
     use mo_kind,          only: i4, sp, dp
     use mo_smi_constants, only: nodata_sp, nodata_dp
@@ -170,15 +170,13 @@ contains
     real(sp), dimension(:,:),              intent(in) :: sm_est
     real(sp), dimension(:,:),              intent(in) :: SMI_invert
     integer(i4),                           intent(in) :: nCalendarStepsYear
-    integer(i4),                           intent(in) :: yStart
-    integer(i4),                           intent(in) :: yEnd
 
     ! output variables
     real(sp), dimension(:,:), allocatable, intent(out) :: SM_invert
 
     ! local variables
     integer(i4)                         :: n_cells
-    integer(i4)                         :: n_years
+    integer(i4)                         :: n_years_est, n_years_invert
     integer(i4)                         :: ii, yy, mm ! loop variables
     real(dp)                            :: xx_inv(1)
     real(dp)                            :: pstart(1)
@@ -186,19 +184,23 @@ contains
     real(dp), dimension(:), allocatable :: y_inv
 
     ! initialize extents
-    n_cells = size(SMI_invert, 1)
-    n_years = yEnd - yStart + 1
-
+    n_cells        = size(SMI_invert, 1)
+    n_years_est    = size(sm_est, 2)/nCalendarStepsYear
+    n_years_invert = size(SMI_invert, 2)/nCalendarStepsYear
+    
     ! initialize output array
-    allocate(y_inv(n_years))
+    allocate(xx_est(n_years_est))
+    allocate(y_inv(n_years_invert))
     allocate(SM_invert(n_cells, size(SMI_invert, 2)))
-    allocate(xx_est(n_years))
 
     y_inv     = nodata_dp
     SM_invert = nodata_sp
     xx_est    = nodata_dp
     
     print *, 'start inversion of CDF'
+    print *, shape(SM_est)
+    print *, shape(SMI_invert)
+    print *, shape(hh)
     !$OMP parallel default(shared) &
     !$OMP private(mm, yy, xx_est, hh_est, y_inv, y_val, pstart, xx_inv)
     !$OMP do
@@ -207,9 +209,9 @@ contains
        do mm = 1, nCalendarStepsYear
           xx_est(:) = real(SM_est    ( ii, mm:size(sm_est, 2):nCalendarStepsYear    ),  dp)
           hh_est    = hh(ii, mm)
-          y_inv(:)  = real(SMI_invert( ii, mm:size(SMI_invert,2):nCalendarStepsYear ),  dp)
+          y_inv(:)  = real(SMI_invert( ii, mm:size(SMI_invert, 2):nCalendarStepsYear),  dp)
 
-          do yy = 1, n_years
+          do yy = 1, n_years_invert
              y_val     = y_inv(yy)
              pstart(:) = percentile(xx_est, y_val * 100.)
              ! use nelmin for optimization because cdf is a monotonic function

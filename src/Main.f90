@@ -133,7 +133,7 @@ program SM_Drought_Index
   ! invert SMI according to given cdf
   if (invert_smi) then
      ! testing with calculated SMI -> SM_invert == SM_est
-     call invSMI(SM_est, opt_h, SMI, nCalendarStepsYear, yStart, yEnd, SM_invert)
+     call invSMI(SM_est, opt_h, SMI, nCalendarStepsYear, SM_invert)
      ! write results to file
      allocate(dummy_D3_sp(size(mask, 1), size(mask, 2), size(SM_invert, 2)))
      do ii = 1, size(SM_invert, 2)
