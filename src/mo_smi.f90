@@ -149,21 +149,10 @@ contains
     use mo_kind,          only: i4, sp, dp
     use mo_smi_constants, only: nodata_sp, nodata_dp
     use mo_nelmin,        only: nelmin, nelminrange
-    use mo_percentile,    only: percentile
     use mo_kernel,        only: kernel_cumdensity
-    use mo_root_cdf,      only: set_global_root_cdf, root_cdf
     
     implicit none
     
-    ! interface 
-    !    function root_cdf(pp)
-    !      use mo_kind, only: dp
-    !      implicit none
-    !      real(dp), intent (in) :: pp(:)
-    !      real(dp) :: root_cdf
-    !    end function root_cdf
-    ! end interface
-
     ! input variables
     real(dp), dimension(:,:),              intent(in) :: hh
     real(sp), dimension(:,:),              intent(in) :: sm_est
@@ -190,22 +179,21 @@ contains
     n_cells        = size(SMI_invert, 1)
     n_years_est    = size(sm_est, 2) / nCalendarStepsYear
     n_years_invert = size(SMI_invert, 2) / nCalendarStepsYear
-    xx_n_sample    = 1000_i4 ! gives precision of at least 0.0005
+    xx_n_sample    = 100_i4 ! gives precision of at least 0.0005
     allocate(xx_cdf(xx_n_sample))
     allocate(yy_cdf(xx_n_sample))
+    xx_cdf = nodata_dp
+    yy_cdf = nodata_dp
 
     ! initialize output array
     allocate(xx_est(n_years_est))
     allocate(y_inv(n_years_invert))
     allocate(SM_invert(n_cells, size(SMI_invert, 2)))
-
+    xx_est    = nodata_dp
     y_inv     = nodata_dp
     SM_invert = nodata_sp
 
     print *, 'start inversion of CDF'
-    print *, shape(SM_est)
-    print *, shape(SMI_invert)
-    print *, shape(hh)
     !$OMP parallel default(shared) &
     !$OMP private(mm, yy, xx_est, hh_est, y_inv, xx_min, xx_max, xx_h, xx_cdf, yy_cdf, idx_invert)
     !$OMP do
@@ -220,7 +208,6 @@ contains
           xx_min    = max(0._dp, minval(xx_est - 5._dp * hh_est))
           xx_max    = min(1._dp, maxval(xx_est + 5._dp * hh_est))
           xx_h      = (xx_max - xx_min) / real(xx_n_sample, dp)
-
           do yy = 1, xx_n_sample
              xx_cdf(yy) = xx_min + (yy - 1_i4) * xx_h
           end do
