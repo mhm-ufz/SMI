@@ -112,7 +112,7 @@ contains
     allocate ( X_eval(nYears) )
     allocate ( cdf   (nYears) )
     
-    do ii = 1, 100 ! size(SM_est,1)           ! cell loop
+    do ii = 1, size(SM_est,1)           ! cell loop
        do mm = 1,  nCalendarStepsYear   ! calendar time loop                                            !YearMonths
 
           !! cycle if month not present
@@ -122,7 +122,7 @@ contains
           !          X_eval( count( tmask_eval(:,mm) ) ), &
           !             cdf( count( tmask_eval(:,mm) ) )   )
 
-          X_est(:) =  nodata_dp
+          X_est(:)  =  nodata_dp
           X_eval(:) =  nodata_dp
 
           X_est(:)  = real(SM_est ( ii, mm:size(SM_est,2):nCalendarStepsYear ),  dp)
@@ -179,7 +179,7 @@ contains
     n_cells        = size(SMI_invert, 1)
     n_years_est    = size(sm_est, 2) / nCalendarStepsYear
     n_years_invert = size(SMI_invert, 2) / nCalendarStepsYear
-    xx_n_sample    = 100_i4 ! gives precision of at least 0.0005
+    xx_n_sample    = 2000_i4 ! gives precision of at least 0.0005 in SM
     allocate(xx_cdf(xx_n_sample))
     allocate(yy_cdf(xx_n_sample))
     xx_cdf = nodata_dp
@@ -193,7 +193,8 @@ contains
     y_inv     = nodata_dp
     SM_invert = nodata_sp
 
-    print *, 'start inversion of CDF'
+    print *, ''
+    print *, '  start inversion of CDF'
     !$OMP parallel default(shared) &
     !$OMP private(mm, yy, xx_est, hh_est, y_inv, xx_min, xx_max, xx_h, xx_cdf, yy_cdf, idx_invert)
     !$OMP do
@@ -205,8 +206,8 @@ contains
           y_inv(:)  = real(SMI_invert( ii, mm:size(SMI_invert, 2):nCalendarStepsYear),  dp)
 
           ! sample cdf
-          xx_min    = max(0._dp, minval(xx_est - 5._dp * hh_est))
-          xx_max    = min(1._dp, maxval(xx_est + 5._dp * hh_est))
+          xx_min    = max(0._dp, minval(xx_est - 10._dp * hh_est))
+          xx_max    = min(1._dp, maxval(xx_est + 10._dp * hh_est))
           xx_h      = (xx_max - xx_min) / real(xx_n_sample, dp)
           do yy = 1, xx_n_sample
              xx_cdf(yy) = xx_min + (yy - 1_i4) * xx_h
@@ -217,13 +218,13 @@ contains
           do yy = 1, n_years_invert
              idx_invert = minloc(abs(y_inv(yy) - yy_cdf))
              SM_invert(ii, (yy - 1) * nCalendarStepsYear + mm) = xx_cdf(idx_invert(1))
-             ! print *, minval(yy_cdf), yy_cdf(idx_invert), y_inv(yy), kernel_cumdensity(xx_est, hh_est, &
-             !      xout=(/xx_cdf(idx_invert(1))/))
           end do
        end do
     end do
     !$OMP end do
     !$OMP end parallel
+    print *, '  finish inversion of CDF... ok'
+    print *, ''
 
     ! free memory
     deallocate(y_inv, xx_est, xx_cdf, yy_cdf)
