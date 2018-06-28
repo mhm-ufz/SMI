@@ -39,6 +39,7 @@ MODULE mo_kernel
 
   ! Copyright 2013-2014 Juliane Mai, Stephan Thober, Matthias Cuntz
 
+  USE omp_lib
   USE mo_kind,      ONLY: i4, sp, dp
   USE mo_moment,    ONLY: stddev
 
@@ -586,6 +587,7 @@ MODULE mo_kernel
   real(dp), dimension(:,:), allocatable :: global_x_dp
   real(dp), dimension(:,:), allocatable :: global_xout_dp
   real(dp), dimension(:),   allocatable :: global_y_dp
+  !$OMP threadprivate(global_x_sp,global_xout_sp,global_y_sp,global_x_dp,global_xout_dp,global_y_dp)
 
   
   ! ------------------------------------------------------------------------------------------------
@@ -2295,16 +2297,11 @@ CONTAINS
     else
        thresh = 0.0_dp
     endif
-    !$OMP parallel default(shared) &
-    !$OMP private(zzIntegral)
-    !$OMP do
     do ii=1, mesh_n
        zzIntegral = (global_x_dp(:,1) - xMeshed(ii)) / h
        outIntegral(ii) = nadaraya_watson(zzIntegral)
        if (outIntegral(ii) .gt. thresh) outIntegral(ii) = multiplier * outIntegral(ii)
     end do
-    !$OMP end do
-    !$OMP end parallel
     where (outIntegral .lt. sqrt(tiny(1.0_dp)) )
        outIntegral = 0.0_dp
     end where
@@ -2312,9 +2309,6 @@ CONTAINS
 
     ! leave-one-out estimate
     mask = .true.
-    !$OMP parallel default(shared) &
-    !$OMP private(mask, zz)
-    !$OMP do
     do ii=1, nn
        mask(ii) = .false.
        zz       = (global_x_dp(:,1) - global_x_dp(ii,1)) / h
@@ -2322,8 +2316,6 @@ CONTAINS
        if (out(ii) .gt. thresh) out(ii) = multiplier * out(ii)
        mask(ii) = .true.
     end do
-    !$OMP end do
-    !$OMP end parallel
 
     cross_valid_density_1d_dp = summ - 2.0_dp / (real(nn,dp)) * sum(out)
     write(*,*) 'h = ',h, '   cross_valid = ',cross_valid_density_1d_dp
@@ -2379,16 +2371,11 @@ CONTAINS
     else
        thresh = 0.0_sp
     endif
-    !$OMP parallel default(shared) &
-    !$OMP private(zzIntegral)
-    !$OMP do
     do ii=1, mesh_n
        zzIntegral = (global_x_sp(:,1) - xMeshed(ii)) / h
        outIntegral(ii) = nadaraya_watson(zzIntegral)
        if (outIntegral(ii) .gt. thresh) outIntegral(ii) = multiplier * outIntegral(ii)
     end do
-    !$OMP end do
-    !$OMP end parallel
     where (outIntegral .lt. sqrt(tiny(1.0_sp)) )
        outIntegral = 0.0_sp
     end where
@@ -2396,9 +2383,6 @@ CONTAINS
 
     ! leave-one-out estimate
     mask = .true.
-    !$OMP parallel default(shared) &
-    !$OMP private(mask, zz)
-    !$OMP do
     do ii=1, nn
        mask(ii) = .false.
        zz       = (global_x_sp(:,1) - global_x_sp(ii,1)) / h
@@ -2406,8 +2390,6 @@ CONTAINS
        if (out(ii) .gt. thresh) out(ii) = multiplier * out(ii)
        mask(ii) = .true.
     end do
-    !$OMP end do
-    !$OMP end parallel
 
     cross_valid_density_1d_sp = summ - 2.0_sp / (real(nn,sp)) * sum(out)
 

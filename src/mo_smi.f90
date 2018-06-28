@@ -23,6 +23,7 @@ contains
 
   ! subroutine for estimating SMI for first array
   subroutine optimize_width( opt_h, silverman_h, SM, nCalendarStepsYear, yStart, yEnd) ! tmask,
+    use omp_lib
     use mo_kind,          only : i4, sp
     use mo_kernel,        only : kernel_density_h
     use mo_smi_constants, only : YearMonths
@@ -50,6 +51,9 @@ contains
     nYears = yEnd - yStart + 1
     allocate ( X(nYears) )
 
+    !$OMP parallel default(shared) &
+    !$OMP private(ii,mm,X)
+    !$OMP do COLLAPSE(2) SCHEDULE(STATIC)
     do ii = 1, size( SM, 1 )
        do mm = 1, nCalendarStepsYear                               !YearMonths    
           ! select values for month j (1...12)
@@ -64,6 +68,8 @@ contains
           !deallocate(X)
        end do
     end do
+    !$OMP end do
+    !$OMP end parallel
     deallocate(X)
     !! END
   end subroutine optimize_width
