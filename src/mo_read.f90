@@ -211,12 +211,6 @@ CONTAINS
           stop
        end if
 
-       if ( modulo(size( dummy_D3_sp, 3), nCalendarStepsYear) .ne. 0_i4) then
-          print *, '***ERROR: file: ', trim(soilmoist_file)
-          print *, '***ERROR: timesteps in provided SM field must be multiple of nCalendarStepsYear (', nCalendarStepsYear, ')'
-          stop
-       end if
-
        ! find number of leap years in  SM data set
        ! get timepoints in days and masks for climatologies at calendar day or month 
        call get_time(nc_in,  size( dummy_D3_sp, 3 ),  &
@@ -250,6 +244,7 @@ CONTAINS
           end do
           
           if ( abs( jDayEnd - jDayStart + 1 -  size( dummy_D3_sp, 3 ) ) .gt. 0    ) then
+             print *, jDayEnd - jDayStart + 1, size( dummy_D3_sp, 3 )
              print *, '***ERROR: SM field does not cover complete years'
              stop
           end if
@@ -273,6 +268,12 @@ CONTAINS
        end if
   
        deallocate( dummy_D3_sp )
+
+       if ( modulo(size( SM_est, 2 ), nCalendarStepsYear) .ne. 0_i4) then
+          print *, '***ERROR: file: ', trim(soilmoist_file)
+          print *, '***ERROR: timesteps in provided SM field must be multiple of nCalendarStepsYear (', nCalendarStepsYear, ')'
+          stop
+       end if
 
     end if
 
