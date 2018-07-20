@@ -2203,7 +2203,7 @@ CONTAINS
        cross_valid_regression_dp = huge(1.0_dp)
     end if
 
-    write(*,*) 'cross_valid_regression_dp = ', cross_valid_regression_dp, '  ( h = ', h, ' )'
+    ! write(*,*) 'cross_valid_regression_dp = ', cross_valid_regression_dp, '  ( h = ', h, ' )'
 
   end function cross_valid_regression_dp
 
@@ -2318,7 +2318,7 @@ CONTAINS
     end do
 
     cross_valid_density_1d_dp = summ - 2.0_dp / (real(nn,dp)) * sum(out)
-    write(*,*) 'h = ',h, '   cross_valid = ',cross_valid_density_1d_dp
+    ! write(*,*) 'h = ',h, '   cross_valid = ',cross_valid_density_1d_dp
 
     ! clean up
     deallocate(xMeshed)

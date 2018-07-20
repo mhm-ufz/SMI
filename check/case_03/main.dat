@@ -2,55 +2,65 @@
 !***DROUGHT-INDEX        *** Main configuration file ***
 &mainconfig
  ! mask to define the domain for which the SMI calculation or clustering is performed
- maskfName      = "../input_for_check/mask_5km_edge_float.nc"
+ maskfName      = "../input_for_check/mask.nc"
  mask_vname     = "mask"
- ! file and variable name for monthly soil moisture fields
- soilmoist_file = "../input_for_check/SM_Lall_1984_1985.nc"
+ ! file and variable name for monthly soil moisture fileds
+ soilmoist_file = "../input_for_check/mHM_Fluxes_States.nc"
  SM_vname       = "SM_Lall"
- ! directory in which output will be written *** (filename is fixed as "ref_smi.nc")
+ ! directory iti which output will be written
  outpath        = "output/"
+
  ! SMI time steps per year
  ! 12          == SM is monthly
- ! 365         == SM is daily
+ ! 365         ==  SM is daily
  nCalendarStepsYear = 12
  ! lag for daily inputs
  ! 0           ==  for number_time_steps_year = 12
- ! 1, 7, 31    ==  for daily values (no lag, weekly, monthly)
+ ! 0, 7, 31    ==  for daily values (no lag, weekly, monthly)
  number_lag_days = 0
+
+
  ! Determination of the kernel width:
  ! silverman_h == .TRUE.  - 'Silverman rule' is applied for determination of the kernel width - no optimization
  ! silverman_h == .FALSE. - optimization of the kernel width 
- silverman_h    = .TRUE.
+ silverman_h    = .FALSE.
 
  ! *** Analysis options which can be activated or deactivated ****
  ! if  .TRUE. kernel widths h are read from variable "opt_h_vname" in file "opt_h_file with"
  ! if .FALSE. kernel widths are optimized or determined by 'Silverman rule', "opt_h_file" and "opt_h_vname" are ignored
  read_opt_h     = .TRUE.
- opt_h_file     = "../input_for_check/mSMI.nc"
+ opt_h_file     = "../input_for_check/SMI.nc"
  opt_h_vname    = "kernel_width" 
 
  ! if .TRUE. PDFs are calculated based on soilmoist_file but the SMI is determined for SM_eval_file and varible SM_eval_vname
  ! if .FALSE. "SM_eval_file" and "SM_eval_vname" are ignored
  eval_SMI       = .TRUE.  
- SM_eval_file   = "../input_for_check/SM_Lall_1990_1991.nc"
+ SM_eval_file   = "../input_for_check/mHM_Fluxes_States_2003.nc"
  SM_eval_vname  = "SM_Lall"
- type_var_eval  = "dp"
- type_time_eval = "dp"
 
-  
 
- !!******** NOT REQUIRED IN THE EDGE PROJECT ***********
- 
- 
+ ! -----------------------------------------------------------------------------
+ !
+ ! Invert SMI cdf
+ !
+ ! If .True., then SMI values are read from ext_smi_file. These are transformed
+ ! to soil moisture saturation using the cdf created by soilmoist_file.
+ invert_SMI = .False.
+
+ ! -----------------------------------------------------------------------------
+ !
+ ! External SMI
+ !
+ ! To invert SMI values and for the clustering, SMI values can be provided
+ ! in an external file. For the clustering, this deactivates the SMI estimation,
+ ! which saves some time.
+ ext_smi      = .FALSE.
+ ext_smi_file = 'XXX'
+
+ ! -----------------------------------------------------------------------------
  ! if .TRUE. cluster analysis should be performed
- do_cluster         = .FALSE.
- ! if you have already SMI data and want to cluster them please please state a .TRUE.
- ! for clustering external SMI data (cluster_ext_smi). Furthermore give the filename
- ! for the SMI data in smi_file_clustering
- ! INFO: if cluster_ext_smi is set to .TRUE. SMI estimation is deactivated!
- cluster_ext_smi     = .FALSE.
- smi_file_clustering = '/data/edge/data/processed/mhm_output/edge_domain/5km_eobs_without_routing/with_restart_monthly/mSMI.nc'
- ! SMI - threshold of for defining drought conditions
+ do_cluster         = .False.
+ ! SMI - treshhold of for defining drought conditions
  SMI_thld            = 0.20
  ! cellsize (edge length) of the grid im [km]
  cellsize            = 4.0
@@ -68,13 +78,4 @@
  basin_vname    = "basins"
 ! ****CURRENTLY NOT WORKING
 / !end
-
-
-!!/data/edge/data/processed/mhm_output/edge_domain/CMIP5/GFDL-ESM2M/rcp8p5/smi/2041_2070/
-!!/data/edge/data/processed/mhm_output/edge_domain/CMIP5/GFDL-ESM2M/rcp8p5/smi/2071_2099/
-!!/data/edge/data/processed/mhm_output/edge_domain/CMIP5/MIROC-ESM-CHEM/rcp2p6/smi/2041_2070/
-!!/data/edge/data/processed/mhm_output/edge_domain/CMIP5/MIROC-ESM-CHEM/rcp8p5/smi/2071_2099/
-!!/data/edge/data/processed/mhm_output/edge_domain/CMIP5/NorESM1-M/rcp8p5/smi/2071_2099/
-
-
 

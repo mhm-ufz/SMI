@@ -36,9 +36,10 @@ CONTAINS
 
     use mo_kind,          only: i4
     use mo_utils,         only: equal, notequal
-    use mo_netcdf,        only: NcDataset, NcDimension, NcVariable
+    use mo_netcdf,        only: NcDataset, NcVariable
     use mo_smi_constants, only: nodata_dp, YearMonths
-    USE mo_julian,        only: NDYIN, NDAYS
+    use mo_julian,        only: NDYIN, NDAYS
+    use mo_message,       only: message
     
     implicit none
 
@@ -80,7 +81,6 @@ CONTAINS
     integer(i4)                                     :: ii, iip
     integer(i4)                                     :: dd, mm, yy
     
-    integer(i4)                                     :: datatype       ! datatype of attribute
     integer(i4)                                     :: nCells         ! number of effective cells
     integer(i4)                                     :: number_lag_days! number of lag days for daily files (0,7,31)
     integer(i4)                                     :: jDayStart
@@ -90,7 +90,6 @@ CONTAINS
 
     
     ! directories, filenames, attributes
-    character(256)                                  :: AttValues      ! netcdf attribute values
     character(256)                                  :: maskfName
     character(256)                                  :: opt_h_file
     character(256)                                  :: SM_eval_file
@@ -111,7 +110,6 @@ CONTAINS
     real(dp),       dimension(:,:,:),   allocatable :: dummy_D3_dp
 
     type(NcDataset)                                 :: nc_in
-    type(NcDimension)                               :: nc_dim
     type(NcVariable)                                :: nc_var
 
     ! read main config
@@ -160,6 +158,17 @@ CONTAINS
     nc_var = nc_in%getVariable(trim(mask_vname))
     call nc_var%getData(dummy_D2_sp)
     call nc_var%getAttribute('missing_value', nodata_value)
+
+    if (nc_in%hasVariable('lat')) then
+      call message('Reading variable lat from maskfname: ', trim(maskfName))
+      nc_var = nc_in%getVariable('lat')
+      call nc_var%getData(lats)
+    end if
+    if (nc_in%hasVariable('lon')) then
+      call message('Reading variable lon from maskfname: ', trim(maskfName))
+      nc_var = nc_in%getVariable('lon')
+      call nc_var%getData(lons)
+    end if
     call nc_in%close()
     
     ! create mask
@@ -218,10 +227,30 @@ CONTAINS
             yEnd, timepoints) !, tmask_est)
       
        ! read lats and lon from file
-       nc_var = nc_in%getVariable('lat')
-       call nc_var%getData(lats)
-       nc_var = nc_in%getVariable('lon')
-       call nc_var%getData(lons)
+       if (.not. allocated(lats)) then
+         if (nc_in%hasVariable('lat')) then
+           call message('Reading variable lat from soilmoist_file: ', trim(soilmoist_file))
+           nc_var = nc_in%getVariable('lat')
+           call nc_var%getData(lats)
+         else
+           call message('ERROR***: lat variable not contained in maskfName and soilmoist_file')
+           call message('maskfName: ', trim(maskfName))
+           call message('soilmoist_file: ', trim(soilmoist_file))
+           stop 1
+         end if
+       end if
+       if (.not. allocated(lons)) then
+         if (nc_in%hasVariable('lon')) then
+           call message('Reading variable lon from soilmoist_file: ', trim(soilmoist_file))
+           nc_var = nc_in%getVariable('lon')
+           call nc_var%getData(lons)
+         else
+           call message('ERROR***: lon variable not contained in maskfName and soilmoist_file')
+           call message('maskfName: ', trim(maskfName))
+           call message('soilmoist_file: ', trim(soilmoist_file))
+           stop 1
+         end if
+       end if
        call nc_in%close()
        
        
@@ -388,7 +417,7 @@ CONTAINS
     use mo_julian,       only: date2dec, dec2date
     use mo_message,      only: message
     use mo_string_utils, only: DIVIDE_STRING
-    use mo_netcdf,       only: NcDataset, NcDimension, NcVariable
+    use mo_netcdf,       only: NcDataset, NcVariable
 
     use mo_smi_constants, only: nodata_i4, YearMonths, DayHours
 
@@ -408,8 +437,6 @@ CONTAINS
     integer(i4)                               :: month, year, d         ! 
     !
     integer(i4),   dimension(:), allocatable  :: timesteps              ! time variable of NetCDF in input units
-    real(sp),      dimension(:), allocatable  :: timesteps_sp           ! time variable of NetCDF in input units
-    real(dp),      dimension(:), allocatable  :: timesteps_dp           ! time variable of NetCDF in input units
     !
     character(256)                            :: AttValues              ! netcdf attribute values
     character(256), dimension(:), allocatable :: strArr                 ! dummy for netcdf attribute handling

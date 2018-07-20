@@ -54,7 +54,7 @@ contains
 
     use mo_kind,          only: i4, sp
     use mo_string_utils,  only: num2str
-    use mo_smi_constants, only: nodata_sp, nodata_dp, YearMonths
+    use mo_smi_constants, only: nodata_sp, nodata_dp
     use mo_julian,        only: NDAYS, NDYIN
     use mo_netcdf,        only: NcDataset, NcVariable, NcDimension
 
@@ -85,10 +85,6 @@ contains
 
     real(sp),       dimension(:,:,:), allocatable             :: dummy_D3_sp ! field real unpacked 
     real(dp),       dimension(:,:,:), allocatable             :: dummy_D3_dp ! field real unpacked 
-    ! dimension names
-    character(256), dimension(3)                              :: dnames
-    character(256), dimension(3)                              :: dims_hopt
-
     integer(i4)                                               :: nrows
     integer(i4)                                               :: ncols
     integer(i4)                                               :: jDayStart
@@ -107,30 +103,36 @@ contains
     nc_row = nc_out%setDimension("nrows", nrows)
     nc_col = nc_out%setDimension("ncols", ncols)
     nc_tim = nc_out%setDimension("time", -1)
-
+    
     ! unpack estimated SMIp
     if (nCalendarStepsYear .eq. 12) then
-       allocate( dummy_d3_sp( nrows, ncols, size( SMI, 2) ) )
-       nTotalTimeSteps = size( SMI, 2)
+      allocate( dummy_d3_sp( nrows, ncols, size( SMI, 2) ) )
+      nTotalTimeSteps = size( SMI, 2)
+
+      do mm = 1,  nTotalTimeSteps
+        dummy_d3_sp( :, :, mm) = unpack ( SMI(:,mm), mask, nodata_sp )
+      end do
+
     else
-       ! store SMI including leap days, assumption => SMI (29.02.yyyy) ~ SMI (28.02.yyyy)
-       jDayStart =  NDAYS(dStart, mStart, yStart)
-       jDayEnd = NDAYS(31, 12, yEnd)                            
-       nTotalTimeSteps = jDayEnd - jDayStart + 1
-       allocate( dummy_d3_sp( nrows, ncols, nTotalTimeSteps  ) )
-    end if
-    
-    tt = 0
-    do jDay = 1,  nTotalTimeSteps                                                     ! mm =    , size( SMI, 2)
-       call NDYIN( (jDayStart+jDay-1), dd, mm, yy)
-       if ( ( mm .eq. 2 ) .and. ( dd .eq. 29 ) ) then
+      ! store SMI including leap days, assumption => SMI (29.02.yyyy) ~ SMI (28.02.yyyy)
+      jDayStart =  NDAYS(dStart, mStart, yStart)
+      jDayEnd = NDAYS(31, 12, yEnd)                            
+      nTotalTimeSteps = jDayEnd - jDayStart + 1
+      allocate( dummy_d3_sp( nrows, ncols, nTotalTimeSteps  ) )
+
+      tt = 0
+      do jDay = 1,  nTotalTimeSteps
+        call NDYIN( (jDayStart+jDay-1), dd, mm, yy)
+        if ( ( mm .eq. 2 ) .and. ( dd .eq. 29 ) ) then
           dummy_d3_sp( :, :, jDay) = unpack ( SMI(:,tt), mask, nodata_sp )
-       else
+        else
           tt = tt + 1
           dummy_d3_sp( :, :, jDay) = unpack ( SMI(:,tt), mask, nodata_sp )
-       end if
-       !dummy_d3_sp( :, :, mm) = unpack ( SMI(:,mm), mask, nodata_sp )
-    end do
+        end if
+      end do
+
+    end if
+    
     ! save SMI (same sequence as in 1)
     nc_var = nc_out%setVariable('SMI', "f32", &
          (/ nc_row, nc_col, nc_tim /))
@@ -143,7 +145,7 @@ contains
     ! write out kernel width if it has been optimised
     if ( present( hh ) ) then
        allocate( dummy_D3_dp( nrows, ncols, size( hh, 2 ) ) )
-       do mm = 1, size( hh, 2 )                                                  !YearMonths
+       do mm = 1, size( hh, 2 )
           dummy_D3_dp(:, :, mm) = unpack( hh(:,mm), mask, real( nodata_sp, dp ) ) 
        end do
        nc_cal = nc_out%setDimension("calendar_steps", size(dummy_d3_dp,3))
@@ -196,7 +198,6 @@ contains
     !
     use mo_kind,          only: i4
     use mo_string_utils,  only: num2str
-    use mo_ncwrite,       only: var2nc
     use mo_smi_constants, only: nodata_i4 , nodata_dp, nodata_sp
     use mo_netcdf,        only: NcDataset, NcVariable, NcDimension
 
@@ -219,16 +220,7 @@ contains
     type(NcVariable)             :: nc_var
     type(NcDimension)            :: nc_row, nc_col, nc_tim
     character(256)               :: Fname
-    integer(i4)                  :: tt
 
-    ! dimension names
-    character(256), dimension(3) :: dnames
-
-    ! initialize dimension names
-    dnames(1) = 'nrows'
-    dnames(2) = 'ncols'
-    dnames(3) = 'time'    
-    !
     select case (wFlag)
 
     case (2)

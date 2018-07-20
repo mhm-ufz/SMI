@@ -26,7 +26,6 @@ contains
     use omp_lib
     use mo_kind,          only : i4, sp
     use mo_kernel,        only : kernel_density_h
-    use mo_smi_constants, only : YearMonths
     implicit none
     
     ! input variables
@@ -55,17 +54,18 @@ contains
     !$OMP private(ii,mm,X)
     !$OMP do COLLAPSE(2) SCHEDULE(STATIC)
     do ii = 1, size( SM, 1 )
-       do mm = 1, nCalendarStepsYear                               !YearMonths    
-          ! select values for month j (1...12)
-          !if ( count( tmask(:,mm) ) .eq. 0_i4 ) cycle
-          !allocate(X(count(tmask(:,mm))))
-          !X(:) = pack( SM( ii, :), tmask(:,mm) )
-          !
-          X  = real(SM ( ii, mm:size(SM,2):nCalendarStepsYear ),  dp)
-          ! determine kernel width if these have not been read from file
-          ! call OPTI ! optimize with imsl
-          opt_h(ii,mm) = kernel_density_h( X(:), silverman = silverman_h )
-          !deallocate(X)
+       do mm = 1, nCalendarStepsYear    
+         !if ((mod(ii, 1000) .eq. 0_i4) .and. (mm .eq. nCalendarStepsYear)) print *, ii, mm
+         ! select values for month j (1...12)
+         !if ( count( tmask(:,mm) ) .eq. 0_i4 ) cycle
+         !allocate(X(count(tmask(:,mm))))
+         !X(:) = pack( SM( ii, :), tmask(:,mm) )
+         !
+         X  = real(SM ( ii, mm:size(SM,2):nCalendarStepsYear ),  dp)
+         ! determine kernel width if these have not been read from file
+         ! call OPTI ! optimize with imsl
+         opt_h(ii,mm) = kernel_density_h( X(:), silverman = silverman_h )
+         !deallocate(X)
        end do
     end do
     !$OMP end do
@@ -84,7 +84,7 @@ contains
     
     use mo_kind,          only: i4, sp, dp
     use mo_kernel,        only: kernel_cumdensity
-    use mo_smi_constants, only: YearMonths, nodata_dp
+    use mo_smi_constants, only: nodata_dp
     
     implicit none
 
@@ -114,12 +114,12 @@ contains
 
     nYears = yEnd - yStart + 1
 
-    allocate ( X_est (nYears) )
+    allocate ( X_est (size(SM_est,2) / nCalendarStepsYear) )
     allocate ( X_eval(nYears) )
     allocate ( cdf   (nYears) )
     
     do ii = 1, size(SM_est,1)           ! cell loop
-       do mm = 1,  nCalendarStepsYear   ! calendar time loop                                            !YearMonths
+       do mm = 1,  nCalendarStepsYear   ! calendar time 
 
           !! cycle if month not present
           !if ( count( tmask_eval(:,mm) ) .eq. 0_i4 ) cycle
@@ -147,14 +147,12 @@ contains
 
   end subroutine calSMI
 
-  
   ! create objective function of kernel_cumdensity and minimize it using
   ! nelmin because function is monotone
   subroutine invSMI(sm_est, hh, SMI_invert, nCalendarStepsYear, &
        SM_invert)
     use mo_kind,          only: i4, sp, dp
     use mo_smi_constants, only: nodata_sp, nodata_dp
-    use mo_nelmin,        only: nelmin, nelminrange
     use mo_kernel,        only: kernel_cumdensity
     
     implicit none
@@ -175,7 +173,6 @@ contains
     integer(i4)                         :: xx_n_sample
     integer(i4), dimension(1)           :: idx_invert
     real(dp)                            :: hh_est
-    real(dp)                            :: funcbest
     real(dp)                            :: xx_min, xx_max, xx_h
     real(dp), dimension(:), allocatable :: y_inv
     real(dp), dimension(:), allocatable :: xx_cdf, yy_cdf

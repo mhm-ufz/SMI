@@ -45,7 +45,7 @@ program SM_Drought_Index
   use mo_smi,                only : optimize_width, calSMI, invSMI
   use mo_drought_evaluation, only : droughtIndicator, ClusterEvolution, ClusterStats, calSAD
   use mo_smi_constants,      only : nodata_sp
-
+  !$ use omp_lib, ONLY : OMP_GET_NUM_THREADS           ! OpenMP routines
 
   implicit none
 
@@ -98,6 +98,12 @@ program SM_Drought_Index
   character(256)                             :: outpath    ! output path for results
 
 
+  !$OMP PARALLEL
+  !$ ii = OMP_GET_NUM_THREADS()
+  !$OMP END PARALLEL
+  !$ print *, 'Run with OpenMP with ', ii, ' threads.'
+
+  
   call ReadDataMain( SMI, do_cluster, ext_smi, invert_smi, &
        eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons, do_basin, &
        mask, SM_est, SM_eval,  yStart, yEnd, mStart, dStart, Basin_Id, &
