@@ -1,2 +1,6 @@
 Makefile
 *exe_for_check
+*.out
+*.terminal
+*/.intel*.release/*
+smi
