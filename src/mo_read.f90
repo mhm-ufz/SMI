@@ -178,7 +178,7 @@ CONTAINS
     nCells   = count( mask )
     if ( nCells .eq. 0 ) then
        print *, '***ERROR: no cell selected in mask'
-       stop
+       stop 1
     end if 
     
     print*, 'mask read ...ok'
@@ -195,7 +195,7 @@ CONTAINS
        if ( ( size( Basin_Id, 1) .ne. size( mask, 1 ) ) .or. &
             ( size( Basin_Id, 2) .ne. size( mask, 2 ) ) ) then
           print *, '***ERROR: size mismatch between basin field and given mask file'
-          stop
+          stop 1
        end if
        ! intersect mask and basin_id
        mask     = merge( .true., .false., mask .and. ( Basin_Id .ne. int( nodata_value, i4) ) )
@@ -217,7 +217,7 @@ CONTAINS
             ( size( dummy_D3_sp, 2) .ne. size( mask, 2 ) ) ) then
           print *, '***ERROR: size mismatch between SM field and given mask file'
           call nc_in%close()
-          stop
+          stop 1
        end if
 
        ! find number of leap years in  SM data set
@@ -233,10 +233,11 @@ CONTAINS
            nc_var = nc_in%getVariable('lat')
            call nc_var%getData(lats)
          else
-           call message('ERROR***: lat variable not contained in maskfName and soilmoist_file')
+           call message('WARNING***: lat variable not contained in maskfName and soilmoist_file')
            call message('maskfName: ', trim(maskfName))
            call message('soilmoist_file: ', trim(soilmoist_file))
-           stop 1
+           call message('omitting lat')
+           ! stop 1
          end if
        end if
        if (.not. allocated(lons)) then
@@ -245,10 +246,11 @@ CONTAINS
            nc_var = nc_in%getVariable('lon')
            call nc_var%getData(lons)
          else
-           call message('ERROR***: lon variable not contained in maskfName and soilmoist_file')
+           call message('WARNING***: lon variable not contained in maskfName and soilmoist_file')
            call message('maskfName: ', trim(maskfName))
            call message('soilmoist_file: ', trim(soilmoist_file))
-           stop 1
+           call message('omitting lon')
+           ! stop 1
          end if
        end if
        call nc_in%close()
@@ -385,10 +387,14 @@ CONTAINS
        !      stop '***ERROR no data for estimation given for all calendar months, check time axis'
 
        ! read lats and lon from file
-       nc_var = nc_in%getVariable('lat')
-       call nc_var%getData(lats)
-       nc_var = nc_in%getVariable('lon')
-       call nc_var%getData(lons)
+       if (nc_in%hasVariable('lat')) then
+         nc_var = nc_in%getVariable('lat')
+         call nc_var%getData(lats)
+       end if
+       if (nc_in%hasVariable('lon')) then
+         nc_var = nc_in%getVariable('lon')
+         call nc_var%getData(lons)
+       end if
        call nc_in%close()
     end if
 

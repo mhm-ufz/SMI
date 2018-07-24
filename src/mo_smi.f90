@@ -22,7 +22,7 @@ module mo_smi
 contains
 
   ! subroutine for estimating SMI for first array
-  subroutine optimize_width( opt_h, silverman_h, SM, nCalendarStepsYear, yStart, yEnd) ! tmask,
+  subroutine optimize_width( opt_h, silverman_h, SM, nCalendarStepsYear) ! tmask,
     use omp_lib
     use mo_kind,          only : i4, sp
     use mo_kernel,        only : kernel_density_h
@@ -33,10 +33,6 @@ contains
  !   logical,  dimension(:,:), intent(in) :: tmask
     real(sp), dimension(:,:), intent(in) :: SM
     integer(i4),              intent(in) :: nCalendarStepsYear
-    integer(i4), intent(in)              :: yStart
-    integer(i4), intent(in)              :: yEnd
-
-
 
     ! output variables
     real(dp), dimension(:,:), intent(inout) :: opt_h
@@ -45,17 +41,15 @@ contains
     integer(i4)                             :: ii     ! cell index
     integer(i4)                             :: mm     ! month index
     real(dp), dimension(:),     allocatable :: X
-    integer(i4)                             :: nYears ! 
 
-    nYears = yEnd - yStart + 1
-    allocate ( X(nYears) )
+    allocate( X(size(SM,2) / nCalendarStepsYear) )
 
     !$OMP parallel default(shared) &
     !$OMP private(ii,mm,X)
     !$OMP do COLLAPSE(2) SCHEDULE(STATIC)
     do ii = 1, size( SM, 1 )
        do mm = 1, nCalendarStepsYear    
-         !if ((mod(ii, 1000) .eq. 0_i4) .and. (mm .eq. nCalendarStepsYear)) print *, ii, mm
+         if ((mod(ii, 10) .eq. 0_i4) .and. (mm .eq. nCalendarStepsYear)) print *, ii, mm
          ! select values for month j (1...12)
          !if ( count( tmask(:,mm) ) .eq. 0_i4 ) cycle
          !allocate(X(count(tmask(:,mm))))

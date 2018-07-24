@@ -32,7 +32,8 @@
 !                    Sa  02.04.2012          v4. read COSMO SM
 !                    Sa  22.06.2012          v4. read WRF-NOAH SM
 !                    Zi  07.11.2016          modularized version
-!                    Sa  20.03.2017          daily SMI, SAD flag, restructuring SAD 
+!                    Sa  20.03.2017          daily SMI, SAD flag, restructuring SAD
+!                    ST  24.07.2018          bug fix in optimize width
 !**********************************************************************************
 program SM_Drought_Index
 
@@ -117,10 +118,9 @@ program SM_Drought_Index
 
   ! optimize kernel width
   if ( (.NOT. read_opt_h) .AND. (.NOT. ext_smi)) then
-     call optimize_width( opt_h, silverman_h, SM_est,  nCalendarStepsYear, yStart, yEnd )  ! tmask_est,
+     call optimize_width( opt_h, silverman_h, SM_est, nCalendarStepsYear )  ! tmask_est,
      print *, 'optimizing kernel width...ok'
   end if
-
 
   ! evaluate SMI at second data set SMI_eval
   if (.NOT. ext_smi) then 
