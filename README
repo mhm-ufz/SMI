@@ -1,81 +1,18 @@
-! Emacs: -*- mode: f90 -*-
-!***DROUGHT-INDEX        *** Main configuration file ***
-&mainconfig
- ! mask to define the domain for which the SMI calculation or clustering is performed
- maskfName      = "/data/edge/data/processed/mhm_input/mask_5km_edge_float_lat_lon.nc"
- mask_vname     = "mask"
- ! file and variable name for monthly soil moisture fileds
- soilmoist_file = "/data/edge/hw_sm/8p5/gfdl-esm2m/noahmp/1p0k/noahmp_Fluxes_States.nc"
- SM_vname       = "SM_Lall"
- ! directory iti which output will be written
- outpath        = "/data/edge/hw_sm/8p5/gfdl-esm2m/noahmp/1p0k/adapt/"
+# The Soil Moisture Index -- SMI program
 
- ! SMI time steps per year
- ! 12          == SM is monthly
- ! 365         ==  SM is daily
- nCalendarStepsYear = 365
- ! lag for daily inputs
- ! 0           ==  for number_time_steps_year = 12
- ! 0, 7, 31    ==  for daily values (no lag, weekly, monthly)
- number_lag_days = 7
+This repository contains the soil moisture index (SMI) Fortran program developed at the Dept. Computational Hydrosystems at the Helmholtz Centre for Environmental Research - UFZ.
 
+The SMI comes with a [LICENSE][1] agreement, this includes also the GNU Lesser General Public License.
 
- ! Determination of the kernel width:
- ! silverman_h == .TRUE.  - 'Silverman rule' is applied for determination of the kernel width - no optimization
- ! silverman_h == .FALSE. - optimization of the kernel width 
- silverman_h    = .FALSE.
+**Please note**: The GitLab repository grants read access to the code.
+  If you like to contribute to the code, please contact stephan.thober@ufz.de.
 
- ! *** Analysis options which can be activated or deactivated ****
- ! if  .TRUE. kernel widths h are read from variable "opt_h_vname" in file "opt_h_file with"
- ! if .FALSE. kernel widths are optimized or determined by 'Silverman rule', "opt_h_file" and "opt_h_vname" are ignored
- read_opt_h     = .FALSE.
- opt_h_file     = "/data/edge/hw_sm/8p5/gfdl-esm2m/noahmp/ref/adapt/dSMI.nc"
- opt_h_vname    = "kernel_width" 
+## Cite as
 
- ! if .TRUE. PDFs are calculated based on soilmoist_file but the SMI is determined for SM_eval_file and varible SM_eval_vname
- ! if .FALSE. "SM_eval_file" and "SM_eval_vname" are ignored
- eval_SMI       = .FALSE.  
- SM_eval_file   = "/data/edge/hw_sm/8p5/gfdl-esm2m/noahmp/3p0k/noahmp_Fluxes_States.nc"
- SM_eval_vname  = "SM_Lall"
+Please refer to the main model by citing Samaniego et al. (2013) and Samaniego et al. (2018):
 
+- Samaniego et al. (2013), "Implications of Parameter Uncertainty on Soil Moisture Drought Analysis in Germany", J Hydrometeor, 2013 vol. 14 (1) pp. 47-68. http://journals.ametsoc.org/doi/abs/10.1175/JHM-D-12-075.1
 
- ! -----------------------------------------------------------------------------
- !
- ! Invert SMI cdf
- !
- ! If .True., then SMI values are read from ext_smi_file. These are transformed
- ! to soil moisture saturation using the cdf created by soilmoist_file.
- invert_SMI = .False.
+- Samaniego et al. (2018), "Anthropogenic warming exacerbates European soil moisture droughts", Nature Climate change, 2018 pp. 1-9. http://dx.doi.org/10.1038/s41558-018-0138-5
 
- ! -----------------------------------------------------------------------------
- !
- ! External SMI
- !
- ! To invert SMI values and for the clustering, SMI values can be provided
- ! in an external file. For the clustering, this deactivates the SMI estimation,
- ! which saves some time.
- ext_smi      = .FALSE.
- ext_smi_file = 'XXX'
-
- ! -----------------------------------------------------------------------------
- ! if .TRUE. cluster analysis should be performed
- do_cluster         = .False.
- ! SMI - treshhold of for defining drought conditions
- SMI_thld            = 0.20
- ! cellsize (edge length) of the grid im [km]
- cellsize            = 4.0
- ! threshold for cluster formation in space cellsize**2 * thCellClus ~ 640 km2
- thCellClus          = 40
- ! number cells for joining clusters in time ~ 6400
- nCellInter          = 400
- ! number of cells per area interval
- deltaArea           = 20
-
- ! if .TRUE. SMI is evaluated for subregions (e.g. basins) -
- ! ****CURRENTLY NOT WORKING
- basin_flag     = .FALSE.       
- basinfName     = "./test_smi/basin.nc"
- basin_vname    = "basins"
-! ****CURRENTLY NOT WORKING
-/
-
+[6]: LICENSE

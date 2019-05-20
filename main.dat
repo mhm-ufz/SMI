@@ -2,13 +2,13 @@
 !***DROUGHT-INDEX        *** Main configuration file ***
 &mainconfig
  ! mask to define the domain for which the SMI calculation or clustering is performed
- maskfName      = "./test_smi/mask.nc"
+ maskfName      = "./check/input_for_check/mask.nc"
  mask_vname     = "mask"
  ! file and variable name for monthly soil moisture fileds
- soilmoist_file = "./test_smi/soilmoisture_month.nc"
+ soilmoist_file = "./check/input_for_check/mHM_Fluxes_States.nc"
  SM_vname       = "SM_Lall"
  ! directory iti which output will be written
- outpath        = "./test_smi/"
+ outpath        = "./"
 
  ! SMI time steps per year
  ! 12          == SM is monthly
@@ -23,19 +23,19 @@
  ! Determination of the kernel width:
  ! silverman_h == .TRUE.  - 'Silverman rule' is applied for determination of the kernel width - no optimization
  ! silverman_h == .FALSE. - optimization of the kernel width 
- silverman_h    = .FALSE.
+ silverman_h    = .True.
 
  ! *** Analysis options which can be activated or deactivated ****
  ! if  .TRUE. kernel widths h are read from variable "opt_h_vname" in file "opt_h_file with"
  ! if .FALSE. kernel widths are optimized or determined by 'Silverman rule', "opt_h_file" and "opt_h_vname" are ignored
  read_opt_h     = .FALSE.
- opt_h_file     = "./test_smi/ref_smi.nc"
+ opt_h_file     = "XXX"
  opt_h_vname    = "kernel_width" 
 
  ! if .TRUE. PDFs are calculated based on soilmoist_file but the SMI is determined for SM_eval_file and varible SM_eval_vname
  ! if .FALSE. "SM_eval_file" and "SM_eval_vname" are ignored
  eval_SMI       = .FALSE.  
- SM_eval_file   = "./test_smi/soilmoisture_eval.nc"
+ SM_eval_file   = "XXX"
  SM_eval_vname  = "SM_Lall"
 
 
@@ -59,7 +59,7 @@
 
  ! -----------------------------------------------------------------------------
  ! if .TRUE. cluster analysis should be performed
- do_cluster         = .TRUE.
+ do_cluster         = .False.
  ! SMI - treshhold of for defining drought conditions
  SMI_thld            = 0.20
  ! cellsize (edge length) of the grid im [km]
