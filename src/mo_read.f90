@@ -32,7 +32,7 @@ CONTAINS
   subroutine ReadDataMain( SMI_in, do_cluster, ext_smi, invert_SMI, eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons,  &
                            basin_flag, mask, SM_est,  SM_eval, yStart, yEnd, mStart, dStart,  &
                            Basin_Id, timepoints, SMI_thld, outpath, cellsize, thCellClus, nCellInter, do_sad, deltaArea, &
-                           nCalendarStepsYear )    !  tmask_eval, tmask_est,
+                           nCalendarStepsYear, per )    !  tmask_eval, tmask_est,
 
     use mo_kind,          only: i4
     use mo_utils,         only: equal, notequal
@@ -40,6 +40,7 @@ CONTAINS
     use mo_smi_constants, only: nodata_dp, YearMonths
     use mo_julian,        only: NDYIN, NDAYS
     use mo_message,       only: message
+    use mo_global_variables, only: period, period_init
     
     implicit none
 
@@ -75,11 +76,13 @@ CONTAINS
     real(dp),    dimension(:,:), allocatable, intent(out) :: lats, lons  ! latitude and longitude fields of input
     real(sp),                                 intent(out) :: SMI_thld    ! SMI threshold for clustering
     character(len=256),                       intent(out) :: outpath     ! ouutput path for results
+    type(period),                             intent(out) :: per         ! period contain start and end date information
 
     ! local Variables
     logical                                         :: read_sm
     integer(i4)                                     :: ii, iip
     integer(i4)                                     :: dd, mm, yy
+    integer(i4)                                     :: mEnd, dEnd
     
     integer(i4)                                     :: nCells         ! number of effective cells
     integer(i4)                                     :: number_lag_days! number of lag days for daily files (0,7,31)
@@ -222,9 +225,10 @@ CONTAINS
 
        ! find number of leap years in  SM data set
        ! get timepoints in days and masks for climatologies at calendar day or month 
-       call get_time(nc_in,  size( dummy_D3_sp, 3 ),  &
-            yStart, mStart, dStart, &
-            yEnd, timepoints) !, tmask_est)
+       call get_time(nc_in,  size( dummy_D3_sp, 3 ), per)!  &
+            ! yStart, mStart, dStart, &
+            ! yEnd, mEnd, dEnd, timepoints) !, tmask_est)
+       ! per = period_init(yStart, mStart, dStart, yEnd, mEnd, dEnd)
       
        ! read lats and lon from file
        if (.not. allocated(lats)) then
@@ -324,9 +328,10 @@ CONTAINS
        
        ! get timepoints in days and mask of months
        if ( allocated( timepoints ) ) deallocate( timepoints )
-       call get_time(nc_in, size(SM_eval, dim=2),  &
-            yStart, mStart, dStart, &
-            yEnd, timepoints ) !, tmask_eval)
+       call get_time(nc_in, size(SM_eval, dim=2), per)!  &
+       !      yStart, mStart, dStart, &
+       !      yEnd, mEnd, dEnd, timepoints ) !, tmask_eval)
+       ! per = period_init(yStart, mStart, dStart, yEnd, mEnd, dEnd)
 
        call nc_in%close()
     end if
@@ -379,9 +384,10 @@ CONTAINS
        deallocate( dummy_D3_sp )
 
        ! get timepoints in days and mask of months
-       call get_time( nc_in, size(SMI_in, dim=2),  &
-            yStart, mStart, dStart, &
-            yEnd, timepoints)  !, tmask_est
+       call get_time( nc_in, size(SMI_in, dim=2), per)!  &
+       !      yStart, mStart, dStart, &
+       !      yEnd, mEnd, dEnd, timepoints)  !, tmask_est
+       ! per = period_init(yStart, mStart, dStart, yEnd, mEnd, dEnd)
 
        ! if ( any( count( tmask_est, dim = 1 ) .eq. 0_i4 ) ) &
        !      stop '***ERROR no data for estimation given for all calendar months, check time axis'
@@ -417,25 +423,30 @@ CONTAINS
   !     HISTORY
   !         Written,  Matthias Zink, Oct 2012
   !         Modified, Stephan Thober, Nov 2017 - convert to mo_netcdf
+  !         Modified, Stephan Thober, Aug 2019 - added type period
 
-  subroutine get_time(nc_in, nTimeSteps, yStart, mStart, dStart, yEnd, timepoints) !, mask)
+  subroutine get_time(nc_in, nTimeSteps, per_out) !, mask)
     !
     use mo_julian,       only: date2dec, dec2date
     use mo_message,      only: message
     use mo_string_utils, only: DIVIDE_STRING
     use mo_netcdf,       only: NcDataset, NcVariable
-
     use mo_smi_constants, only: nodata_i4, YearMonths, DayHours
+    use mo_global_variables, only: period, period_init
 
     implicit none
 
-    type(NcDataset),                          intent(in)  :: nc_in      ! NetCDF dataset
-    integer(i4),                              intent(in)  :: nTimeSteps ! size of the time dimension
-    integer(i4),                              intent(out) :: yStart     ! start year  of the dataser
-    integer(i4),                              intent(out) :: mStart     ! start month of the dataser
-    integer(i4),                              intent(out) :: dStart     ! start day   of the dataser
-    integer(i4),                              intent(out) :: yEnd       ! end year of the dataset
-    integer(i4), dimension(:),   allocatable, intent(out) :: timepoints ! timestep in days or months
+    type(NcDataset),              intent(in)  :: nc_in      ! NetCDF dataset
+    integer(i4),                  intent(in)  :: nTimeSteps ! size of the time dimension
+    type(period),                 intent(out) :: per_out
+    integer(i4)                               :: yStart     ! start year  of the dataser
+    integer(i4)                               :: mStart     ! start month of the dataser
+    integer(i4)                               :: dStart     ! start day   of the dataser
+    integer(i4)                               :: yEnd       ! end year of the dataset
+    integer(i4)                               :: mEnd       ! end month of the dataset
+    integer(i4)                               :: dEnd       ! end day of the dataset
+    integer(i4), dimension(:),   allocatable  :: timepoints
+    ! timestep in days or months
 
     type(ncVariable)                          :: nc_var
     integer(i4)                               :: i                      ! loop variable
@@ -483,7 +494,7 @@ CONTAINS
           month   = mod( (timesteps(i) + mRef ), YearMonths )
           year    = yRef + floor(real( timesteps(i) + mRef, dp) / real(YearMonths, dp) )
           ! correct month and year for december
-          if (month == 0 ) then
+          if (month .eq. 0 ) then
              month = 12
              year  = year - 1
           end if
@@ -503,9 +514,14 @@ CONTAINS
           mStart = month
           dStart = d
        end if
-       if (i .EQ. nTimeSteps) yEnd = year  ! save end year
+       if (i .EQ. nTimeSteps) then
+         yEnd = year
+         mEnd = month
+         dEnd = d
+       end if
     end do
 
+    per_out = period_init(yStart, mStart, dStart, yEnd, mEnd, dEnd, timepoints)
   end subroutine get_time
 
 end module mo_read
