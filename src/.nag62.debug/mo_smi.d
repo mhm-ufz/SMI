@@ -1,2 +1,0 @@
-/Users/thober/lib/smi/src/.nag62.debug/mo_smi.d : /Users/thober/lib/smi/src/mo_smi.f90
-/Users/thober/lib/smi/src/.nag62.debug/mo_smi.o : /Users/thober/lib/smi/src/.nag62.debug/mo_smi.d /Users/thober/lib/smi/src/.nag62.debug/mo_global_variables.o /Users/thober/lib/smi/src/.nag62.debug/mo_julian.o /Users/thober/lib/smi/src/.nag62.debug/mo_kernel.o /Users/thober/lib/smi/src/.nag62.debug/mo_kind.o /Users/thober/lib/smi/src/.nag62.debug/mo_smi_constants.o
