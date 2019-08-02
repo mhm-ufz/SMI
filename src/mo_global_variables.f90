@@ -12,6 +12,7 @@ module mo_global_variables
     integer(i4) :: y_end, m_end, d_end
     integer(i4) :: j_start, j_end
     integer(i4) :: n_years, n_months, n_days
+    character(256) :: unit
     integer(i4) , allocatable :: time_points(:)
   end type period
 
@@ -19,7 +20,7 @@ contains
 
   ! initialize object date and calculate derived variables from:
   ! y_start, m_start, d_start, y_end, m_end, d_end
-  type (period) function period_init(y_start, m_start, d_start, y_end, m_end, d_end, time_points)
+  type (period) function period_init(y_start, m_start, d_start, y_end, m_end, d_end, time_points, unit)
 
     use mo_julian, only: date2dec
     
@@ -28,6 +29,7 @@ contains
     integer(i4), intent(in) :: y_start, m_start, d_start
     integer(i4), intent(in) :: y_end, m_end, d_end
     integer(i4), intent(in) :: time_points(:)
+    character(len=*), intent(in) :: unit
 
     period_init%y_start = y_start
     period_init%m_start = m_start
@@ -36,7 +38,9 @@ contains
     period_init%m_end = m_end
     period_init%d_end = d_end
     period_init%time_points = time_points
+    period_init%unit = trim(unit)
 
+    
     period_init%j_start = date2dec(period_init%d_start, period_init%m_start, period_init%y_start)
     period_init%j_end = date2dec(period_init%d_end, period_init%m_end, period_init%y_end)
 

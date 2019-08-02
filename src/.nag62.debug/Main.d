@@ -1,0 +1,2 @@
+/Users/thober/lib/smi/src/.nag62.debug/Main.d : /Users/thober/lib/smi/src/Main.f90
+/Users/thober/lib/smi/src/.nag62.debug/Main.o : /Users/thober/lib/smi/src/.nag62.debug/Main.d /Users/thober/lib/smi/src/.nag62.debug/InputOutput.o /Users/thober/lib/smi/src/.nag62.debug/mo_drought_evaluation.o /Users/thober/lib/smi/src/.nag62.debug/mo_global_variables.o /Users/thober/lib/smi/src/.nag62.debug/mo_kind.o /Users/thober/lib/smi/src/.nag62.debug/mo_read.o /Users/thober/lib/smi/src/.nag62.debug/mo_smi.o /Users/thober/lib/smi/src/.nag62.debug/mo_smi_constants.o

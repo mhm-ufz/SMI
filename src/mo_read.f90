@@ -30,16 +30,15 @@ CONTAINS
   !               packed fields are stored in dim1->dim2 sequence 
   !*********************************************************************
   subroutine ReadDataMain( SMI_in, do_cluster, ext_smi, invert_SMI, eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons,  &
-                           basin_flag, mask, SM_est,  SM_eval, yStart, yEnd, mStart, dStart,  &
+                           basin_flag, mask, SM_est,  SM_eval,  &
                            Basin_Id, timepoints, SMI_thld, outpath, cellsize, thCellClus, nCellInter, do_sad, deltaArea, &
-                           nCalendarStepsYear, per )    !  tmask_eval, tmask_est,
+                           nCalendarStepsYear, per, per_eval, per_smi )    !  tmask_eval, tmask_est,
 
     use mo_kind,          only: i4
     use mo_utils,         only: equal, notequal
     use mo_netcdf,        only: NcDataset, NcVariable
     use mo_smi_constants, only: nodata_dp, YearMonths
     use mo_julian,        only: NDYIN, NDAYS
-    use mo_message,       only: message
     use mo_global_variables, only: period, period_init
     
     implicit none
@@ -55,10 +54,6 @@ CONTAINS
     logical,                                  intent(out) :: silverman_h ! optimize kernel width
     logical,                                  intent(out) :: basin_flag  ! basin flag
     logical,     dimension(:,:), allocatable, intent(out) :: mask        ! grid mask
-    integer(i4),                              intent(out) :: yStart      ! starting year
-    integer(i4),                              intent(out) :: yEnd        ! ending year
-    integer(i4),                              intent(out) :: mStart      ! starting month
-    integer(i4),                              intent(out) :: dStart      ! starting day
     integer(i4),                              intent(out) :: thCellClus  ! treshold  for cluster formation in space ~ 640 km2
     integer(i4),                              intent(out) :: nCellInter  ! number cells for joining clusters in time ~ 6400 km2
     integer(i4),                              intent(out) :: deltaArea   ! number of cells per area interval
@@ -69,28 +64,27 @@ CONTAINS
     integer(i4), dimension(:),   allocatable, intent(out) :: timepoints  ! timestep as from input NetCDF
     real(sp),                                 intent(out) :: cellsize    ! cell edge lenght of input data
     real(sp),    dimension(:,:), allocatable, intent(out) :: SM_est      ! daily / monthly fields packed for estimation
-!    logical,     dimension(:,:), allocatable, intent(out) :: tmask_est   ! temporal mask of estimated arr
     real(sp),    dimension(:,:), allocatable, intent(out) :: SM_eval     ! monthly fields packed for evaluation
-!    logical,     dimension(:,:), allocatable, intent(out) :: tmask_eval  ! temporal mask of evaluated arr
     real(dp),    dimension(:,:), allocatable, intent(out) :: opt_h       ! optimized kernel width
     real(dp),    dimension(:,:), allocatable, intent(out) :: lats, lons  ! latitude and longitude fields of input
     real(sp),                                 intent(out) :: SMI_thld    ! SMI threshold for clustering
     character(len=256),                       intent(out) :: outpath     ! ouutput path for results
     type(period),                             intent(out) :: per         ! period contain start and end date information
+    type(period),                             intent(out) :: per_eval       ! period during evaluation 
+    type(period),                             intent(out) :: per_smi        ! period of smi file
 
     ! local Variables
     logical                                         :: read_sm
     integer(i4)                                     :: ii, iip
     integer(i4)                                     :: dd, mm, yy
-    integer(i4)                                     :: mEnd, dEnd
     
     integer(i4)                                     :: nCells         ! number of effective cells
     integer(i4)                                     :: number_lag_days! number of lag days for daily files (0,7,31)
     integer(i4)                                     :: jDayStart
     integer(i4)                                     :: jDayEnd
     integer(i4)                                     :: jDay
-    integer(i4)                                     :: nTimeSteps     ! number of time steps excluding leap days 
-
+    integer(i4)                                     :: nTimeSteps     ! number of time steps excluding leap days
+    logical                                         :: file_exist
     
     ! directories, filenames, attributes
     character(256)                                  :: maskfName
@@ -135,7 +129,7 @@ CONTAINS
     open (unit=10, file='main.dat', status='old')
       read(10, nml=mainconfig)
     close (10)
-    print*, 'main.dat read ...ok'
+    print *, 'main.dat read ...ok'
 
     ! consistency check
     if ( .not.(( nCalendarStepsYear == 12) .or. ( nCalendarStepsYear == 365) ) ) &
@@ -157,34 +151,27 @@ CONTAINS
     read_sm = ((.not. ext_smi) .or. (invert_SMI))
     
     ! read main mask
-    nc_in  = NcDataset(maskfName, "r")
-    nc_var = nc_in%getVariable(trim(mask_vname))
-    call nc_var%getData(dummy_D2_sp)
-    call nc_var%getAttribute('missing_value', nodata_value)
+    inquire( file=maskfName, exist=file_exist )
+    if (file_exist) then
+      nc_in  = NcDataset(maskfName, "r")
+      nc_var = nc_in%getVariable(trim(mask_vname))
+      call nc_var%getData(dummy_D2_sp)
+      call nc_var%getAttribute('missing_value', nodata_value)
 
-    if (nc_in%hasVariable('lat')) then
-      call message('Reading variable lat from maskfname: ', trim(maskfName))
-      nc_var = nc_in%getVariable('lat')
-      call nc_var%getData(lats)
-    end if
-    if (nc_in%hasVariable('lon')) then
-      call message('Reading variable lon from maskfname: ', trim(maskfName))
-      nc_var = nc_in%getVariable('lon')
-      call nc_var%getData(lons)
-    end if
-    call nc_in%close()
+      call read_latlon(nc_in, lats, lons)
+      call nc_in%close()
     
-    ! create mask
-    mask = merge( .true., .false., notequal(dummy_D2_sp, nodata_value ) )
-    deallocate( dummy_D2_sp )
-    ! consistency check
-    nCells   = count( mask )
-    if ( nCells .eq. 0 ) then
-       print *, '***ERROR: no cell selected in mask'
-       stop 1
-    end if 
+      ! create mask
+      mask = merge( .true., .false., notequal(dummy_D2_sp, nodata_value ) )
+      deallocate( dummy_D2_sp )
+      nCells = n_cells_consistency(mask)
+      print *, 'mask read ...ok'
+    else
+      print *, 'Mask file ', trim(maskfName), ' does not exist!'
+      print *, 'Soil moisture file ', trim(soilmoist_file), ' is used instead!'
+    end if
+      
     
-    print*, 'mask read ...ok'
 
     ! read basin mask
     if ( basin_flag .AND. (.NOT. ext_smi)) then
@@ -204,7 +191,7 @@ CONTAINS
        mask     = merge( .true., .false., mask .and. ( Basin_Id .ne. int( nodata_value, i4) ) )
        Basin_Id = merge( Basin_Id, int( nodata_value, i4), mask )
        !Basin_Id = pack(  Basin_ID, mask)
-       print*, 'basin ID read ...ok'
+       print *, 'basin ID read ...ok'
     end if
 
     ! *************************************************************************
@@ -214,6 +201,12 @@ CONTAINS
        nc_in  = NcDataset(soilmoist_file, "r")
        nc_var = nc_in%getVariable(trim(SM_vname))
        call nc_var%getData(dummy_D3_sp)
+       if (.not. allocated(mask)) then
+         call nc_var%getAttribute('missing_value', nodata_value)
+         mask = (dummy_D3_sp(:, :, 1) .ne. nodata_value)
+         nCells = n_cells_consistency(mask)
+         print *, 'mask read ...ok'
+       end if
 
        ! consistency check
        if ( ( size( dummy_D3_sp, 1) .ne. size( mask, 1 ) ) .or. &
@@ -225,89 +218,61 @@ CONTAINS
 
        ! find number of leap years in  SM data set
        ! get timepoints in days and masks for climatologies at calendar day or month 
-       call get_time(nc_in,  size( dummy_D3_sp, 3 ), per)!  &
-            ! yStart, mStart, dStart, &
-            ! yEnd, mEnd, dEnd, timepoints) !, tmask_est)
-       ! per = period_init(yStart, mStart, dStart, yEnd, mEnd, dEnd)
+       call get_time(nc_in,  size( dummy_D3_sp, 3 ), per)
       
        ! read lats and lon from file
-       if (.not. allocated(lats)) then
-         if (nc_in%hasVariable('lat')) then
-           call message('Reading variable lat from soilmoist_file: ', trim(soilmoist_file))
-           nc_var = nc_in%getVariable('lat')
-           call nc_var%getData(lats)
-         else
-           call message('WARNING***: lat variable not contained in maskfName and soilmoist_file')
-           call message('maskfName: ', trim(maskfName))
-           call message('soilmoist_file: ', trim(soilmoist_file))
-           call message('omitting lat')
-           ! stop 1
-         end if
-       end if
-       if (.not. allocated(lons)) then
-         if (nc_in%hasVariable('lon')) then
-           call message('Reading variable lon from soilmoist_file: ', trim(soilmoist_file))
-           nc_var = nc_in%getVariable('lon')
-           call nc_var%getData(lons)
-         else
-           call message('WARNING***: lon variable not contained in maskfName and soilmoist_file')
-           call message('maskfName: ', trim(maskfName))
-           call message('soilmoist_file: ', trim(soilmoist_file))
-           call message('omitting lon')
-           ! stop 1
-         end if
-       end if
+       call read_latlon( nc_in, lats, lons)
        call nc_in%close()
        
        
        if ( nCalendarStepsYear .eq. YearMonths ) then
-          allocate( SM_est( nCells, size( dummy_D3_sp, 3 ) ) )
-          ! no lag average, use monthly data as read
-          do ii = 1, size( dummy_D3_sp, 3 )
-             SM_est(:,ii) = pack( real(dummy_D3_sp(:,:,ii),sp), mask )
-          end do
+         allocate( SM_est( nCells, size( dummy_D3_sp, 3 ) ) )
+         ! no lag average, use monthly data as read
+         do ii = 1, size( dummy_D3_sp, 3 )
+           SM_est(:,ii) = pack( real(dummy_D3_sp(:,:,ii),sp), mask )
+         end do
        else
-          ! make moving-lag average (365 days)
-          ! count days removing leap days
-          jDayStart =  NDAYS(dStart, mStart, yStart)
-          jDayEnd = NDAYS(31, 12, yEnd)                             ! >>> to be improved
-          nTimeSteps = 0
-          do ii = 1, size( dummy_D3_sp, 3 )
-             call NDYIN( (jDayStart+ii-1), dd, mm, yy)
-             if ( (mm .eq. 2) .and. ( dd .eq. 29) ) cycle
-             nTimeSteps = nTimeSteps + 1
-          end do
-          
-          if ( abs( jDayEnd - jDayStart + 1 -  size( dummy_D3_sp, 3 ) ) .gt. 0    ) then
-             print *, jDayEnd - jDayStart + 1, size( dummy_D3_sp, 3 )
-             print *, '***ERROR: SM field does not cover complete years'
-             stop
-          end if
-          
-          allocate( SM_est( nCells, nTimeSteps ) )
-          ! exclude leap days
-          ! running average from the end to the begin of the vector 
-          jDay = nTimeSteps   
-          do ii = 1, size( dummy_D3_sp, 3 )
-             iip = size( dummy_D3_sp, 3 ) - ii + 1
-             call NDYIN( (jDayEnd-ii+1), dd, mm, yy)
-             if ( ( mm .eq. 2 ) .and. ( dd .eq. 29 ) ) cycle
-             if ( jDay .lt. number_lag_days ) then
-                SM_est(:,jDay) = pack( real(dummy_D3_sp(:,:,iip ),sp), mask )
-             else
-                SM_est(:,jDay) = pack( real( sum(dummy_D3_sp(:,:,iip-number_lag_days+1:iip), DIM=3) &
-                     / real(number_lag_days,dp) ,sp), mask )
-             end if
-             jDay = jDay - 1
-          end do
+         ! make moving-lag average (365 days)
+         ! count days removing leap days
+         jDayStart =  NDAYS(per%d_start, per%m_start, per%y_start)
+         jDayEnd = NDAYS(per%d_end, per%m_end, per%y_end)                             ! >>> to be improved
+         nTimeSteps = 0
+         do ii = 1, size( dummy_D3_sp, 3 )
+           call NDYIN( (jDayStart+ii-1), dd, mm, yy)
+           if ( (mm .eq. 2) .and. ( dd .eq. 29) ) cycle
+           nTimeSteps = nTimeSteps + 1
+         end do
+         
+         if ( abs( jDayEnd - jDayStart + 1 -  size( dummy_D3_sp, 3 ) ) .gt. 0    ) then
+           print *, jDayEnd - jDayStart + 1, size( dummy_D3_sp, 3 )
+           print *, '***ERROR: SM field does not cover complete years'
+           stop
+         end if
+         
+         allocate( SM_est( nCells, nTimeSteps ) )
+         ! exclude leap days
+         ! running average from the end to the begin of the vector 
+         jDay = nTimeSteps   
+         do ii = 1, size( dummy_D3_sp, 3 )
+           iip = size( dummy_D3_sp, 3 ) - ii + 1
+           call NDYIN( (jDayEnd-ii+1), dd, mm, yy)
+           if ( ( mm .eq. 2 ) .and. ( dd .eq. 29 ) ) cycle
+           if ( jDay .lt. number_lag_days ) then
+             SM_est(:,jDay) = pack( real(dummy_D3_sp(:,:,iip ),sp), mask )
+           else
+             SM_est(:,jDay) = pack( real( sum(dummy_D3_sp(:,:,iip-number_lag_days+1:iip), DIM=3) &
+                 / real(number_lag_days,dp) ,sp), mask )
+           end if
+           jDay = jDay - 1
+         end do
        end if
   
        deallocate( dummy_D3_sp )
-
+       
        if ( modulo(size( SM_est, 2 ), nCalendarStepsYear) .ne. 0_i4) then
-          print *, '***ERROR: file: ', trim(soilmoist_file)
-          print *, '***ERROR: timesteps in provided SM field must be multiple of nCalendarStepsYear (', nCalendarStepsYear, ')'
-          stop
+         print *, '***ERROR: file: ' // trim(soilmoist_file)
+         print *, '***ERROR: timesteps in provided SM field must be multiple of nCalendarStepsYear (', nCalendarStepsYear, ')'
+         stop
        end if
 
     end if
@@ -328,10 +293,7 @@ CONTAINS
        
        ! get timepoints in days and mask of months
        if ( allocated( timepoints ) ) deallocate( timepoints )
-       call get_time(nc_in, size(SM_eval, dim=2), per)!  &
-       !      yStart, mStart, dStart, &
-       !      yEnd, mEnd, dEnd, timepoints ) !, tmask_eval)
-       ! per = period_init(yStart, mStart, dStart, yEnd, mEnd, dEnd)
+       call get_time(nc_in, size(SM_eval, dim=2), per_eval)
 
        call nc_in%close()
     end if
@@ -349,11 +311,15 @@ CONTAINS
        call nc_var%getData(dummy_D3_dp)
        call nc_in%close()
        do ii = 1, size( dummy_D3_dp, 3 )
-          opt_h( :, ii ) = pack( real( dummy_D3_dp(:,:,ii),sp ), mask )
+         opt_h( :, ii ) = pack( real( dummy_D3_dp(:,:,ii),sp ), mask )
        end do
        deallocate( dummy_D3_dp )
-       if ( any( equal( opt_h, nodata_dp ) ) ) &
-            stop '***ERROR kernel width contains nodata values'
+       ! if ( any( equal( opt_h, nodata_dp ) ) ) &
+       if ( any( opt_h .eq. nodata_dp ) ) &
+           stop '***ERROR kernel width contains nodata values'
+       ! if ( size(opt_h, dim=2) .ne. size(per%time_points) ) then
+       !   stop '***ERROR size mismatch kernel widths and soilmoisture values'
+       ! end if
        print *, 'read kernel width from file... ok'
     end if    
 
@@ -372,7 +338,7 @@ CONTAINS
        end if
 
        if ( modulo(size( dummy_D3_sp, 3), nCalendarStepsYear) .ne. 0_i4) then
-          print *, '***ERROR: file: ', trim(ext_smi_file)
+          print *, '***ERROR: file: ' // trim(ext_smi_file)
           print *, '***ERROR: timesteps in provided SMI field must be multiple of nCalendarStepsYear (', nCalendarStepsYear, ')'
           stop
        end if
@@ -384,23 +350,9 @@ CONTAINS
        deallocate( dummy_D3_sp )
 
        ! get timepoints in days and mask of months
-       call get_time( nc_in, size(SMI_in, dim=2), per)!  &
-       !      yStart, mStart, dStart, &
-       !      yEnd, mEnd, dEnd, timepoints)  !, tmask_est
-       ! per = period_init(yStart, mStart, dStart, yEnd, mEnd, dEnd)
+       call get_time( nc_in, size(SMI_in, dim=2), per_smi)
 
-       ! if ( any( count( tmask_est, dim = 1 ) .eq. 0_i4 ) ) &
-       !      stop '***ERROR no data for estimation given for all calendar months, check time axis'
-
-       ! read lats and lon from file
-       if (nc_in%hasVariable('lat')) then
-         nc_var = nc_in%getVariable('lat')
-         call nc_var%getData(lats)
-       end if
-       if (nc_in%hasVariable('lon')) then
-         nc_var = nc_in%getVariable('lon')
-         call nc_var%getData(lons)
-       end if
+       call read_latlon( nc_in, lats, lons)
        call nc_in%close()
     end if
 
@@ -509,8 +461,9 @@ CONTAINS
           stop
        end select
 
+       ! save start year and month output timestamp
        if (i .EQ. 1) then
-          yStart = year  ! save start year and month output timestamp
+          yStart = year  
           mStart = month
           dStart = d
        end if
@@ -521,7 +474,46 @@ CONTAINS
        end if
     end do
 
-    per_out = period_init(yStart, mStart, dStart, yEnd, mEnd, dEnd, timepoints)
+    per_out = period_init(yStart, mStart, dStart, yEnd, mEnd, dEnd, timepoints, strArr(1))
   end subroutine get_time
 
+  integer(i4) function n_cells_consistency(mask)
+
+    use mo_message, only: message
+    
+    implicit none
+    
+    logical, intent(in) :: mask(:, :)
+    
+    n_cells_consistency = count( mask )
+    if ( n_cells_consistency .eq. 0 ) then
+      call message('***ERROR: no cell selected in mask')
+      stop 1
+    end if
+  end function n_cells_consistency
+
+  subroutine read_latlon(nc_in, lats, lons)
+
+    use mo_kind, only: dp
+    use mo_netcdf, only: NcDataset, NcVariable
+
+    implicit none
+
+    type(NcDataset), intent(in) :: nc_in ! NetCDF dataset
+    real(dp), dimension(:,:), allocatable, intent(out) :: lats, lons ! latitude and longitude fields of input
+    
+    type(NcVariable) :: nc_var
+
+    ! read lats and lon from file
+    if (nc_in%hasVariable('lat')) then
+      nc_var = nc_in%getVariable('lat')
+      call nc_var%getData(lats)
+    end if
+    if (nc_in%hasVariable('lon')) then
+      nc_var = nc_in%getVariable('lon')
+      call nc_var%getData(lons)
+    end if
+    
+  end subroutine read_latlon
+  
 end module mo_read

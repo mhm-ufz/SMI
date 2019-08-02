@@ -6,7 +6,8 @@
 !**********************************************************************
 module InputOutput
 
-  use mo_kind,   only                              : i4, sp, dp
+  use mo_kind, only: i4, sp, dp
+  use mo_global_variables, only: period
 
   implicit none
 
@@ -49,13 +50,12 @@ contains
   ! author: Stephan Thober
   ! created: 5.7.2014
   ! ##################################################################
-  subroutine WriteSMI( outpath, SMI, mask, yStart, mStart, dStart,  yEnd, &
-    timepoints, nCalendarStepsYear, lats, lons, hh ) 
+  subroutine WriteSMI( outpath, SMI, mask, per, nCalendarStepsYear, lats, lons, hh ) 
 
     use mo_kind,          only: i4, sp
     use mo_string_utils,  only: num2str
     use mo_smi_constants, only: nodata_sp, nodata_dp
-    use mo_julian,        only: NDAYS, NDYIN
+    use mo_julian,        only: NDAYS, NDYIN, dec2date
     use mo_netcdf,        only: NcDataset, NcVariable, NcDimension
 
     implicit none
@@ -64,12 +64,8 @@ contains
     character(len=*),                              intent(in) :: outpath     ! ouutput path for results
  
     logical,        dimension(:,:),                intent(in) :: mask
-    integer(i4),                                   intent(in) :: yStart
-    integer(i4),                                   intent(in) :: mStart
-    integer(i4),                                   intent(in) :: dStart
-    integer(i4),                                   intent(in) :: yEnd
+    type(period),                                  intent(in) :: per
     real(sp),       dimension(:,:),                intent(in) :: SMI 
-    integer(i4),    dimension(:),   allocatable,   intent(in) :: timepoints
     integer(i4),                                   intent(in) :: nCalendarStepsYear
     real(dp),       dimension(:,:), allocatable,   intent(in) :: lats, lons   ! latitude and longitude fields of input
     real(dp),       dimension(:,:), optional,      intent(in) :: hh
@@ -87,9 +83,7 @@ contains
     real(dp),       dimension(:,:,:), allocatable             :: dummy_D3_dp ! field real unpacked 
     integer(i4)                                               :: nrows
     integer(i4)                                               :: ncols
-    integer(i4)                                               :: jDayStart
-    integer(i4)                                               :: jDayEnd
-    integer(i4)                                               :: nTotalTimeSteps     ! number of time steps including leap days 
+ ! number of time steps including leap days 
     integer(i4)                                               :: tt                  ! counter without leap days
     integer(i4)                                               :: jDay                ! jDay counting from jDayStart
     
@@ -107,28 +101,23 @@ contains
     ! unpack estimated SMIp
     if (nCalendarStepsYear .eq. 12) then
       allocate( dummy_d3_sp( nrows, ncols, size( SMI, 2) ) )
-      nTotalTimeSteps = size( SMI, 2)
 
-      do mm = 1,  nTotalTimeSteps
+      do mm = 1,  size( SMI, 2)
         dummy_d3_sp( :, :, mm) = unpack ( SMI(:,mm), mask, nodata_sp )
       end do
 
     else
       ! store SMI including leap days, assumption => SMI (29.02.yyyy) ~ SMI (28.02.yyyy)
-      jDayStart =  NDAYS(dStart, mStart, yStart)
-      jDayEnd = NDAYS(31, 12, yEnd)                            
-      nTotalTimeSteps = jDayEnd - jDayStart + 1
-      allocate( dummy_d3_sp( nrows, ncols, nTotalTimeSteps  ) )
-
-      tt = 0
-      do jDay = 1,  nTotalTimeSteps
-        call NDYIN( (jDayStart+jDay-1), dd, mm, yy)
-        if ( ( mm .eq. 2 ) .and. ( dd .eq. 29 ) ) then
-          dummy_d3_sp( :, :, jDay) = unpack ( SMI(:,tt), mask, nodata_sp )
-        else
-          tt = tt + 1
-          dummy_d3_sp( :, :, jDay) = unpack ( SMI(:,tt), mask, nodata_sp )
-        end if
+      allocate( dummy_d3_sp( nrows, ncols, per%n_days  ) )
+      print *, 'number of days: ', per%n_days
+      
+      tt = 1
+      do jDay = 1, per%n_days
+        ! call NDYIN( (per%j_start+jDay-1), dd, mm, yy)
+        call dec2date( real(per%j_start+jDay-1, dp), dd, mm, yy)
+        dummy_d3_sp( :, :, jDay) = unpack ( SMI(:,tt), mask, nodata_sp )
+        if ( ( mm .eq. 2 ) .and. ( dd .eq. 29 ) ) cycle
+        tt = tt + 1
       end do
 
     end if
@@ -176,12 +165,12 @@ contains
 
     ! add time
     nc_var = nc_out%setVariable('time', "i32", (/ nc_tim /))
-    call nc_var%setData(timepoints)
+    call nc_var%setData(per%time_points)
     call nc_var%setAttribute('long_name', 'time')
     call nc_var%setAttribute('units', 'days since '                              // &
-                                      trim(num2str(yStart,   '(i4)')) // '-'     // &
-                                      trim(num2str(mStart, '(i2.2)')) // '-'     // &
-                                      trim(num2str(dStart, '(i2.2)')) // ' 00:00:00' )
+                                      trim(num2str(per%y_start,   '(i4)')) // '-'     // &
+                                      trim(num2str(per%m_start, '(i2.2)')) // '-'     // &
+                                      trim(num2str(per%d_start, '(i2.2)')) // ' 00:00:00' )
     ! close file
     call nc_out%close()
     
@@ -197,7 +186,7 @@ contains
   !               Created        Sa   16.02.2011   
   !               Last Update    Sa   16.02.2011  
   !**************************************************************************
-  subroutine WriteNetCDF(outpath, wFlag, yStart, dStart, mStart, timepoints, lats, lons, &
+  subroutine WriteNetCDF(outpath, wFlag, per, lats, lons, &
         SMIc, SM_invert, duration) 
     !
     use mo_kind,          only: i4
@@ -209,11 +198,8 @@ contains
     !
     ! input variables
     character(len=*),                            intent(in) :: outpath     ! ouutput path for results
+    type(period),                                intent(in) :: per
     integer(i4),                                 intent(in) :: wFlag
-    integer(i4),                                 intent(in) :: yStart
-    integer(i4),                                 intent(in) :: mStart
-    integer(i4),                                 intent(in) :: dStart
-    integer(i4),    dimension(:),   allocatable, intent(in) :: timepoints
     real(dp),       dimension(:,:), allocatable, intent(in) :: lats, lons   ! latitude and longitude fields of input
     integer(i4),    dimension(:,:,:), optional,  intent(in) :: SMIc         ! Drought indicator
     real(sp),       dimension(:,:,:), optional,  intent(in) :: SM_invert
@@ -316,12 +302,12 @@ contains
         (wflag .eq. 3) .or. &
         (wflag .eq. 4)) then
        nc_var = nc_out%setVariable('time', "i32", (/ nc_tim /))
-       call nc_var%setData(timepoints)
+       call nc_var%setData(per%time_points)
        call nc_var%setAttribute('long_name', 'time')
        call nc_var%setAttribute('units', 'days since '                              // &
-            trim(num2str(yStart,   '(i4)')) // '-'     // &
-            trim(num2str(mStart, '(i2.2)')) // '-'     // &
-            trim(num2str(dStart, '(i2.2)')) // ' 00:00:00' )
+            trim(num2str(per%y_start,   '(i4)')) // '-'     // &
+            trim(num2str(per%m_start, '(i2.2)')) // '-'     // &
+            trim(num2str(per%d_start, '(i2.2)')) // ' 00:00:00' )
     end if
     ! close file
     call nc_out%close()

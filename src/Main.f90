@@ -67,11 +67,7 @@ program SM_Drought_Index
   logical,     dimension(:,:), allocatable   :: mask
 
   integer(i4)                                :: ii
-  integer(i4)                                :: yStart
-  integer(i4)                                :: yEnd
-  integer(i4)                                :: mStart
-  integer(i4)                                :: dStart
-  type(period)                               :: per
+  type(period)                               :: per, per_eval, per_smi
   integer(i4)                                :: nCells     ! number of effective cells
   integer(i4)                                :: d
 
@@ -109,9 +105,9 @@ program SM_Drought_Index
   
   call ReadDataMain( SMI, do_cluster, ext_smi, invert_smi, &
        eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons, do_basin, &
-       mask, SM_est, SM_eval,  yStart, yEnd, mStart, dStart, Basin_Id, &
+       mask, SM_est, SM_eval, Basin_Id, &
        timepoints, SMI_thld, outpath, cellsize, thCellClus, nCellInter, &
-       do_sad, deltaArea, nCalendarStepsYear, per ) ! tmask_eval,  tmask_est,
+       do_sad, deltaArea, nCalendarStepsYear, per, per_eval, per_smi ) ! tmask_eval,  tmask_est,
   
   ! initialize some variables
   nCells = count( mask )     ! number of effective cells
@@ -129,11 +125,11 @@ program SM_Drought_Index
      if ( eval_SMI ) then
         allocate( SMI( size( SM_eval, 1 ), size( SM_eval, 2 ) ) )
         SMI(:,:) = nodata_sp
-        call calSMI( opt_h, SM_est, SM_eval, nCalendarStepsYear, SMI, per%y_start, per%y_end ) ! tmask_est
+        call calSMI( opt_h, SM_est, SM_eval, nCalendarStepsYear, SMI, per, per_eval ) ! tmask_est
      else
         allocate( SMI(size(SM_est,1),size(SM_est,2)) )
         SMI(:,:) = nodata_sp
-        call calSMI( opt_h, SM_est, SM_est, nCalendarStepsYear, SMI, per%y_start, per%y_end ) ! tmask_est
+        call calSMI( opt_h, SM_est, SM_est, nCalendarStepsYear, SMI, per, per ) ! tmask_est
      end if
      print *, 'calculating SMI... ok'
   end if
@@ -147,8 +143,7 @@ program SM_Drought_Index
      do ii = 1, size(SM_invert, 2)
         dummy_D3_sp(:, :, ii) = unpack(SM_invert(:, ii), mask, nodata_sp)
      end do
-     call WriteNetcdf(outpath, 2, per%y_start, per%d_start, per%m_start, per%time_points, lats, lons, &
-          SM_invert=dummy_D3_sp)
+     call WriteNetcdf(outpath, 2, per, lats, lons, SM_invert=dummy_D3_sp)
      deallocate(dummy_D3_sp)
   end if
 
@@ -156,11 +151,9 @@ program SM_Drought_Index
   ! write output
   if (.NOT. ext_smi) then
      if ( read_opt_h ) then
-        call WriteSMI( outpath, SMI, mask, per%y_start, per%d_start, per%m_start, per%y_end, &
-             per%time_points, nCalendarStepsYear, lats, lons )
+        call WriteSMI( outpath, SMI, mask, per_eval, nCalendarStepsYear, lats, lons )
      else
-        call WriteSMI( outpath, SMI, mask, per%y_start, per%d_start, per%m_start, per%y_end, &
-             per%time_points, nCalendarStepsYear, lats, lons, hh = opt_h )
+        call WriteSMI( outpath, SMI, mask, per, nCalendarStepsYear, lats, lons, hh = opt_h )
      end if
      print *, 'write SMI...ok'
   end if
@@ -169,11 +162,11 @@ program SM_Drought_Index
   if ( do_cluster ) then
      ! drought indicator 
      call droughtIndicator( SMI, mask, SMI_thld, cellCoor, SMIc )
-     call WriteNetCDF(outpath, 3, per%y_start, per%d_start, per%m_start, per%time_points, lats, lons, SMIc=SMIc)
+     call WriteNetCDF(outpath, 3, per, lats, lons, SMIc=SMIc)
      
      ! cluster indentification
      call ClusterEvolution( SMIc,  size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells, cellCoor, nCellInter, thCellClus)
-     call WriteNetCDF(outpath, 4, per%y_start, per%d_start, per%m_start, per%time_points, lats, lons)
+     call WriteNetCDF(outpath, 4, per, lats, lons)
 
      ! statistics  
      call ClusterStats(SMI, mask, size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells, SMI_thld )
@@ -189,7 +182,7 @@ program SM_Drought_Index
         call calSAD(SMI, mask, d, size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells, deltaArea, cellsize)
         ! write SAD for a given duration + percentiles
         call writeResultsCluster(SMIc, outpath, 2, per%y_start, per%y_end, size(SMI, 2), nCells, deltaArea, cellsize, durList(d))
-        call WriteNetCDF(outpath, 5, per%y_start, per%d_start, per%m_start, per%time_points, lats, lons, duration=durList(d))
+        call WriteNetCDF(outpath, 5, per, lats, lons, duration=durList(d))
      end do
   end if
   

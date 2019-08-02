@@ -4,9 +4,11 @@
 !  CREATED     Luis Samaniego, 15.02.2011                             *
 !  HISTORY     Stephan Thober, 16.12.2014 - added evalSMI capability  *
 !              Stephan Thober, 07.11.2017 - added inversion of CDFs   *
+!              Stephan Thober, 02.08.2019 - added non-full year       *
 !**********************************************************************
 module mo_smi
   !
+  use mo_global_variables, only: period
   use mo_kind,          only: dp
   !
   implicit none
@@ -74,7 +76,7 @@ contains
   !! ESTIMATE SMI 
   !!======================================================
   !! subroutine for calculating SMI for second array with pdf of first one
-  subroutine calSMI( hh, sm_est, sm_eval,  nCalendarStepsYear, SMI, yStart, yEnd)  ! tmask_est,
+  subroutine calSMI( hh, sm_est, sm_eval,  nCalendarStepsYear, SMI, per, per_eval)  ! tmask_est,
     
     use mo_kind,          only: i4, sp, dp
     use mo_kernel,        only: kernel_cumdensity
@@ -85,59 +87,57 @@ contains
     ! input variables
     real(dp), dimension(:,:), intent(in)  :: hh
     real(sp), dimension(:,:), intent(in)  :: sm_est
-!    logical,  dimension(:,:), intent(in)  :: tmask_est
     real(sp), dimension(:,:), intent(in)  :: sm_eval
-!    logical,  dimension(:,:), intent(in)  :: tmask_eval
     integer(i4),              intent(in)  :: nCalendarStepsYear
+    type(period),             intent(in)  :: per
+    type(period),             intent(in)  :: per_eval
 
-    integer(i4), intent(in)               :: yStart
-    integer(i4), intent(in)               :: yEnd
-
-  
     ! output variables
     real(sp), dimension(:,:), intent(out) :: SMI
 
     ! local variables
-    integer(i4)                                        :: mm  ! loop index
-    integer(i4)                                        :: ii  ! cell index
-    real(dp), dimension(:), allocatable                :: cdf
-    real(dp), dimension(:), allocatable                :: X_est
-    real(dp), dimension(:), allocatable                :: X_eval
-    integer(i4)                             :: nYears ! 
+    integer(i4)                           :: mm  ! loop index
+    integer(i4)                           :: ii  ! cell index
+    real(dp), dimension(:), allocatable   :: cdf
+    real(dp), dimension(:), allocatable   :: X_est
+    real(dp), dimension(:), allocatable   :: X_eval
+    integer(i4)                           :: n_time
+    logical,                allocatable   :: t_mask(:)
+    integer(i4),            allocatable   :: time(:)
 
-
-    nYears = yEnd - yStart + 1
-
-    allocate ( X_est (size(SM_est,2) / nCalendarStepsYear) )
-    allocate ( X_eval(nYears) )
-    allocate ( cdf   (nYears) )
+    if (nCalendarStepsYear .eq. 12) then
+      call get_time_indizes(time, per%j_start, per_eval%m_start, per_eval%n_months, nCalendarStepsYear)
+    else
+      call get_time_indizes(time, per%j_start, per_eval%d_start, per_eval%n_days, nCalendarStepsYear)
+    end if
+    n_time = size(time, 1)
     
-    do ii = 1, size(SM_est,1)           ! cell loop
-       do mm = 1,  nCalendarStepsYear   ! calendar time 
+    allocate ( X_est (size(SM_est,2) / nCalendarStepsYear) )
+    X_est(:) = nodata_dp
+    
+    do ii = 1, size(SM_est,1)          ! cell loop
+      do mm = 1,  nCalendarStepsYear   ! calendar time 
 
-          !! cycle if month not present
-          !if ( count( tmask_eval(:,mm) ) .eq. 0_i4 ) cycle
-
-          ! allocate( X_est( count( tmask_est(:,mm)  ) ), &
-          !          X_eval( count( tmask_eval(:,mm) ) ), &
-          !             cdf( count( tmask_eval(:,mm) ) )   )
-
-          X_est(:)  =  nodata_dp
-          X_eval(:) =  nodata_dp
-
-          X_est(:)  = real(SM_est ( ii, mm:size(SM_est,2):nCalendarStepsYear ),  dp)
-          X_eval(:) = real(SM_eval( ii, mm:size(SM_eval,2):nCalendarStepsYear ),  dp)
-          
-          !X_est(:)  = pack( real(SM_est(ii,:),  dp), tmask_est(:,mm) )
-          !X_eval(:) = pack( real(SM_eval(ii,:), dp), tmask_eval(:,mm))
-
-          cdf(:)    = kernel_cumdensity(x_est, hh(ii,mm), xout=x_eval)
-          SMI(ii, mm:size(SM_eval,2):nCalendarStepsYear) =  real(cdf(:), sp)
-          ! deallocate( X_est, X_eval, cdf )
-       end do
+        t_mask = (time .eq. mm)
+        n_time = count(t_mask)
+        
+        allocate ( X_eval(n_time) )
+        allocate ( cdf   (n_time) )
+        
+        X_est(:)  = real(SM_est ( ii, mm:size(SM_est,2):nCalendarStepsYear ),  dp)
+        ! X_eval(:) = real(SM_eval( ii, mm:size(SM_eval,2):nCalendarStepsYear ),  dp)
+        
+        !X_est(:)  = pack( real(SM_est(ii,:),  dp), tmask_est(:,mm) )
+        X_eval(:) = pack(real(SM_eval(ii,:), dp), t_mask)
+        
+        cdf(:) = kernel_cumdensity(x_est, hh(ii,mm), xout=x_eval)
+        SMI(ii, mm:size(SM_eval,2):nCalendarStepsYear) = real(cdf(:), sp)
+        
+        deallocate( X_eval, cdf )
+      end do
     end do
 
-    deallocate( X_est, X_eval, cdf )
+    deallocate( X_est )
 
   end subroutine calSMI
 
@@ -228,4 +228,34 @@ contains
     
   end subroutine invSMI
 
+  subroutine get_time_indizes(time, j_start, start, n_time, nCalendarStepsYear)
+
+    use mo_kind, only : i4, dp
+    use mo_julian, only : dec2date
+    
+    implicit none
+
+    integer(i4), intent(in) :: j_start, start, n_time, nCalendarStepsYear
+    integer(i4), allocatable, intent(out) :: time(:)
+    integer(i4) :: ii, jj, cc, dd, mm, yy
+
+    ! remove leap days
+    cc = 0
+    do ii = 1, n_time
+      call dec2date(real(j_start + ii - 1, dp), dd=dd, mm=mm, yy=yy)
+      if ((dd .eq. 29) .and. (mm .eq. 2)) cc = cc + 1_i4
+    end do
+    
+    allocate(time(n_time - cc))
+    time(:) = 0_i4
+
+    jj = 1
+    do ii = 1, size(time)
+      time(ii) = jj
+      jj = jj + 1_i4
+      if (jj .gt. nCalendarStepsYear) jj = 1_i4
+    end do
+    
+  end subroutine get_time_indizes
+  
 end module mo_smi
