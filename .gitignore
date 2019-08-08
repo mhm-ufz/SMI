@@ -1,6 +1,8 @@
 Makefile
 *exe_for_check
 *.out
+*.g90
+*debug
 *.terminal
 */.intel*.release/*
 smi

@@ -38,7 +38,7 @@ CONTAINS
     use mo_utils,         only: equal, notequal
     use mo_netcdf,        only: NcDataset, NcVariable
     use mo_smi_constants, only: nodata_dp, YearMonths
-    use mo_julian,        only: NDYIN, NDAYS
+    use mo_julian,        only: NDAYS, dec2date
     use mo_global_variables, only: period, period_init
     
     implicit none
@@ -75,8 +75,8 @@ CONTAINS
 
     ! local Variables
     logical                                         :: read_sm
-    integer(i4)                                     :: ii, iip
-    integer(i4)                                     :: dd, mm, yy
+    integer(i4)                                     :: ii
+    integer(i4)                                     :: dd, mm
     
     integer(i4)                                     :: nCells         ! number of effective cells
     integer(i4)                                     :: number_lag_days! number of lag days for daily files (0,7,31)
@@ -100,6 +100,7 @@ CONTAINS
     character(256)                                  :: ext_smi_file
     character(256)                                  :: basin_vname
     character(256)                                  :: opt_h_vname
+    character(256)                                  :: sm_opt_vname
     real(sp)                                        :: nodata_value ! local data nodata value in nc for mask creation
 
     real(sp),       dimension(:,:),     allocatable :: dummy_D2_sp
@@ -232,44 +233,38 @@ CONTAINS
            SM_est(:,ii) = pack( real(dummy_D3_sp(:,:,ii),sp), mask )
          end do
        else
-         ! make moving-lag average (365 days)
          ! count days removing leap days
-         jDayStart =  NDAYS(per%d_start, per%m_start, per%y_start)
-         jDayEnd = NDAYS(per%d_end, per%m_end, per%y_end)                             ! >>> to be improved
-         nTimeSteps = 0
-         do ii = 1, size( dummy_D3_sp, 3 )
-           call NDYIN( (jDayStart+ii-1), dd, mm, yy)
-           if ( (mm .eq. 2) .and. ( dd .eq. 29) ) cycle
-           nTimeSteps = nTimeSteps + 1
-         end do
-         
-         if ( abs( jDayEnd - jDayStart + 1 -  size( dummy_D3_sp, 3 ) ) .gt. 0    ) then
-           print *, jDayEnd - jDayStart + 1, size( dummy_D3_sp, 3 )
-           print *, '***ERROR: SM field does not cover complete years'
-           stop
-         end if
+         nTimeSteps = size(per%time_points) - per%n_leap_days
          
          allocate( SM_est( nCells, nTimeSteps ) )
          ! exclude leap days
-         ! running average from the end to the begin of the vector 
-         jDay = nTimeSteps   
+         jday = 1
          do ii = 1, size( dummy_D3_sp, 3 )
-           iip = size( dummy_D3_sp, 3 ) - ii + 1
-           call NDYIN( (jDayEnd-ii+1), dd, mm, yy)
-           if ( ( mm .eq. 2 ) .and. ( dd .eq. 29 ) ) cycle
-           if ( jDay .lt. number_lag_days ) then
-             SM_est(:,jDay) = pack( real(dummy_D3_sp(:,:,iip ),sp), mask )
-           else
-             SM_est(:,jDay) = pack( real( sum(dummy_D3_sp(:,:,iip-number_lag_days+1:iip), DIM=3) &
-                 / real(number_lag_days,dp) ,sp), mask )
-           end if
-           jDay = jDay - 1
+           call dec2date( real(per%j_start+ii-1, dp), dd=dd, mm=mm)
+           if ( ( mm .eq. 2 ) .and. (dd .eq. 29) ) cycle
+           SM_est(:,jDay) = pack(dummy_D3_sp(:,:,ii), mask)
+           jDay = jDay + 1
          end do
        end if
   
        deallocate( dummy_D3_sp )
+
+       ! calculate moving-lag average
+       if (number_lag_days .gt. 0) then
+         nTimeSteps = size(SM_est, dim=2)
+         allocate(dummy_d2_sp(size(SM_est, dim=1), size(SM_est, dim=2)))
+         dummy_d2_sp = SM_est
+         do ii = 1, nTimeSteps
+           if ( ii .lt. number_lag_days ) then
+             SM_est(:,ii) = dummy_d2_sp(:,ii)
+           else
+             SM_est(:,ii) = sum(dummy_D2_sp(:,ii-number_lag_days+1:ii), DIM=2) / real(number_lag_days,sp)
+           end if
+         end do
+         deallocate(dummy_d2_sp)
+       end if
        
-       if ( modulo(size( SM_est, 2 ), nCalendarStepsYear) .ne. 0_i4) then
+       if ((modulo(size( SM_est, 2 ), nCalendarStepsYear) .ne. 0_i4) .and. (.not. read_opt_h)) then
          print *, '***ERROR: file: ' // trim(soilmoist_file)
          print *, '***ERROR: timesteps in provided SM field must be multiple of nCalendarStepsYear (', nCalendarStepsYear, ')'
          stop
@@ -277,26 +272,26 @@ CONTAINS
 
     end if
 
-    ! *************************************************************************
-    ! >>> EVAL SMI
-    ! *************************************************************************
-    if ( eval_SMI ) then
-       print *, 'reading SM from SM_eval_file: ', trim(SM_eval_file)
-       nc_in  = NcDataset(trim(SM_eval_file), 'r')
-       nc_var = nc_in%getVariable(trim(SM_eval_vname))
-       call nc_var%getData(dummy_D3_sp)
-       allocate(SM_eval(nCells, size(dummy_D3_sp, 3)))
-       do ii = 1, size( dummy_D3_sp, 3 )
-          SM_eval(:, ii) = pack( dummy_D3_sp(:,:,ii), mask)
-       end do
-       deallocate( dummy_D3_sp )
+    ! ! *************************************************************************
+    ! ! >>> EVAL SMI
+    ! ! *************************************************************************
+    ! if ( eval_SMI ) then
+    !    print *, 'reading SM from SM_eval_file: ', trim(SM_eval_file)
+    !    nc_in  = NcDataset(trim(SM_eval_file), 'r')
+    !    nc_var = nc_in%getVariable(trim(SM_eval_vname))
+    !    call nc_var%getData(dummy_D3_sp)
+    !    allocate(SM_eval(nCells, size(dummy_D3_sp, 3)))
+    !    do ii = 1, size( dummy_D3_sp, 3 )
+    !       SM_eval(:, ii) = pack( dummy_D3_sp(:,:,ii), mask)
+    !    end do
+    !    deallocate( dummy_D3_sp )
        
-       ! get timepoints in days and mask of months
-       if ( allocated( timepoints ) ) deallocate( timepoints )
-       call get_time(nc_in, size(SM_eval, dim=2), per_eval)
+    !    ! get timepoints in days and mask of months
+    !    if ( allocated( timepoints ) ) deallocate( timepoints )
+    !    call get_time(nc_in, size(SM_eval, dim=2), per_eval)
 
-       call nc_in%close()
-    end if
+    !    call nc_in%close()
+    ! end if
     
     ! *************************************************************************
     ! >>> read_opt_h
@@ -305,23 +300,42 @@ CONTAINS
     opt_h = nodata_dp
     !
     if ( read_opt_h ) then
-       ! read optimized kernel width from file
-       nc_in  = NcDataset(trim( opt_h_file ), 'r')
-       nc_var = nc_in%getVariable(trim(opt_h_vname))
-       call nc_var%getData(dummy_D3_dp)
-       call nc_in%close()
-       do ii = 1, size( dummy_D3_dp, 3 )
-         opt_h( :, ii ) = pack( real( dummy_D3_dp(:,:,ii),sp ), mask )
-       end do
-       deallocate( dummy_D3_dp )
-       ! if ( any( equal( opt_h, nodata_dp ) ) ) &
-       if ( any( opt_h .eq. nodata_dp ) ) &
-           stop '***ERROR kernel width contains nodata values'
-       ! if ( size(opt_h, dim=2) .ne. size(per%time_points) ) then
-       !   stop '***ERROR size mismatch kernel widths and soilmoisture values'
-       ! end if
-       print *, 'read kernel width from file... ok'
-    end if    
+      ! values read before become SM_eval
+      SM_eval = SM_est
+      deallocate(SM_est)
+      per_eval = per
+
+      
+      ! read optimized kernel width from file
+      nc_in  = NcDataset(trim( opt_h_file ), 'r')
+      nc_var = nc_in%getVariable(trim(opt_h_vname))
+      call nc_var%getData(dummy_D3_dp)
+      call nc_in%close()
+      do ii = 1, size( dummy_D3_dp, 3 )
+        opt_h( :, ii ) = pack( real( dummy_D3_dp(:,:,ii),sp ), mask )
+      end do
+      deallocate( dummy_D3_dp )
+      ! if ( any( equal( opt_h, nodata_dp ) ) ) &
+      if ( any( opt_h .eq. nodata_dp ) ) &
+          stop '***ERROR kernel width contains nodata values'
+      ! if ( size(opt_h, dim=2) .ne. size(per%time_points) ) then
+      !   stop '***ERROR size mismatch kernel widths and soilmoisture values'
+      ! end if
+      print *, 'read kernel width from file... ok'
+
+      nc_var = nc_in%getVariable(trim(SM_opt_vname))
+      call nc_var%getData(dummy_D3_sp)
+      allocate(SM_est(nCells, size(dummy_D3_sp, 3)))
+      do ii = 1, size( dummy_D3_sp, 3 )
+        SM_est(:, ii) = pack( dummy_D3_sp(:,:,ii), mask)
+      end do
+      deallocate( dummy_D3_sp )
+       
+      ! get timepoints in days and mask of months
+      if ( allocated( timepoints ) ) deallocate( timepoints )
+      call get_time(nc_in, , per)
+
+    end if
 
     ! *************************************************************************
     ! >>> read external SMI field
@@ -377,7 +391,7 @@ CONTAINS
   !         Modified, Stephan Thober, Nov 2017 - convert to mo_netcdf
   !         Modified, Stephan Thober, Aug 2019 - added type period
 
-  subroutine get_time(nc_in, nTimeSteps, per_out) !, mask)
+  subroutine get_time(nc_in, in_time_steps, per_out) !, mask)
     !
     use mo_julian,       only: date2dec, dec2date
     use mo_message,      only: message
@@ -389,7 +403,7 @@ CONTAINS
     implicit none
 
     type(NcDataset),              intent(in)  :: nc_in      ! NetCDF dataset
-    integer(i4),                  intent(in)  :: nTimeSteps ! size of the time dimension
+    integer(i4),                  intent(in)  :: in_time_steps
     type(period),                 intent(out) :: per_out
     integer(i4)                               :: yStart     ! start year  of the dataser
     integer(i4)                               :: mStart     ! start month of the dataser
@@ -397,6 +411,7 @@ CONTAINS
     integer(i4)                               :: yEnd       ! end year of the dataset
     integer(i4)                               :: mEnd       ! end month of the dataset
     integer(i4)                               :: dEnd       ! end day of the dataset
+    integer(i4)                               :: nTimeSteps ! size of the time dimension
     integer(i4), dimension(:),   allocatable  :: timepoints
     ! timestep in days or months
 
@@ -424,12 +439,11 @@ CONTAINS
     read(date(3),*) dRef
 
     ! allocate and initialize
-    allocate(timesteps  ( nTimeSteps ))
-    allocate(timepoints ( nTimeSteps ))
-    timesteps  = nodata_i4
+    call nc_var%getData(timesteps)
+    nTimeSteps = size(timesteps, dim=1)
+    ! allocate(timepoints ( nTimeSteps ))
     timepoints = 0
 
-    call nc_var%getData(timesteps)
     
     ! strArr(1) is <unit>
     ref_jday = date2dec(dd=dRef, mm=mRef, yy=yRef)
@@ -475,6 +489,14 @@ CONTAINS
     end do
 
     per_out = period_init(yStart, mStart, dStart, yEnd, mEnd, dEnd, timepoints, strArr(1))
+
+    ! consistency check
+    if ((in_time_steps .ne. size(per_out%time_points, dim=1)) .and. &
+        (in_time_steps + per_out .ne. size(per_out%time_points, dim=1))) then
+      call message('***ERROR: time steps of array and time axis are different by more than leap days')
+      stop 1
+    end if
+    
   end subroutine get_time
 
   integer(i4) function n_cells_consistency(mask)

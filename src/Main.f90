@@ -38,10 +38,11 @@
 program SM_Drought_Index
 
   use mo_kind,               only : i4, sp, dp
+  use mo_message,            only : message
   use InputOutput,           only : WriteNetCDF, &
                                     nDurations, durList, nClusters, &
                                     writeResultsCluster, WriteResultsBasins, &
-                                    WriteSMI
+                                    WriteSMI, WriteCDF
   use mo_read,               only : ReadDataMain
   use mo_smi,                only : optimize_width, calSMI, invSMI
   use mo_drought_evaluation, only : droughtIndicator, ClusterEvolution, ClusterStats, calSAD
@@ -110,7 +111,7 @@ program SM_Drought_Index
        do_sad, deltaArea, nCalendarStepsYear, per, per_eval, per_smi ) ! tmask_eval,  tmask_est,
   
   ! initialize some variables
-  nCells = count( mask )     ! number of effective cells
+  nCells = count( mask ) ! number of effective cells
   
   print*, 'FINISHED READING'
 
@@ -150,12 +151,13 @@ program SM_Drought_Index
   
   ! write output
   if (.NOT. ext_smi) then
-     if ( read_opt_h ) then
-        call WriteSMI( outpath, SMI, mask, per_eval, nCalendarStepsYear, lats, lons )
-     else
-        call WriteSMI( outpath, SMI, mask, per, nCalendarStepsYear, lats, lons, hh = opt_h )
-     end if
-     print *, 'write SMI...ok'
+    call WriteSMI( outpath, SMI, mask, per, nCalendarStepsYear, lats, lons )
+    call message('write SMI...ok')
+  end if
+
+  if (.not. read_opt_h) then
+    call WriteCDF( outpath, SM_est, opt_h, mask, per, nCalendarStepsYear, lats, lons )
+    call message('write cdf_info file...ok')
   end if
      
   ! calculate drought cluster
