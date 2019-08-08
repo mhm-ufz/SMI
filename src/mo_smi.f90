@@ -76,11 +76,11 @@ contains
   !! ESTIMATE SMI 
   !!======================================================
   !! subroutine for calculating SMI for second array with pdf of first one
-  subroutine calSMI( hh, sm_est, sm_eval,  nCalendarStepsYear, SMI, per, per_eval)  ! tmask_est,
+  subroutine calSMI( hh, sm_est, sm_eval,  nCalendarStepsYear, SMI, per_est, per_eval)
     
     use mo_kind,          only: i4, sp, dp
     use mo_kernel,        only: kernel_cumdensity
-    use mo_smi_constants, only: nodata_dp
+    use mo_smi_constants, only: nodata_dp, nodata_sp
     
     implicit none
 
@@ -89,7 +89,7 @@ contains
     real(sp), dimension(:,:), intent(in)  :: sm_est
     real(sp), dimension(:,:), intent(in)  :: sm_eval
     integer(i4),              intent(in)  :: nCalendarStepsYear
-    type(period),             intent(in)  :: per
+    type(period),             intent(in)  :: per_est
     type(period),             intent(in)  :: per_eval
 
     ! output variables
@@ -102,44 +102,110 @@ contains
     real(dp), dimension(:), allocatable   :: X_est
     real(dp), dimension(:), allocatable   :: X_eval
     integer(i4)                           :: n_time
-    logical,                allocatable   :: t_mask(:)
-    integer(i4),            allocatable   :: time(:)
+    logical,                allocatable   :: t_mask_est(:)
+    integer(i4),            allocatable   :: time_est(:)
+    logical,                allocatable   :: t_mask_eval(:)
+    integer(i4),            allocatable   :: time_eval(:)
+    real(sp), dimension(:), allocatable   :: dummy_1d_sp
 
-    if (nCalendarStepsYear .eq. 12) then
-      call get_time_indizes(time, per%j_start, per_eval%m_start, per_eval%n_months, nCalendarStepsYear)
-    else
-      call get_time_indizes(time, per%j_start, per_eval%d_start, per_eval%n_days, nCalendarStepsYear)
-    end if
-    n_time = size(time, 1)
+    call get_time_indizes(time_est, per_est, nCalendarStepsYear)
+    call get_time_indizes(time_eval, per_eval, nCalendarStepsYear)
     
-    allocate ( X_est (size(SM_est,2) / nCalendarStepsYear) )
-    X_est(:) = nodata_dp
-    
-    do ii = 1, size(SM_est,1)          ! cell loop
-      do mm = 1,  nCalendarStepsYear   ! calendar time 
+    do mm = 1,  nCalendarStepsYear   ! calendar time 
 
-        t_mask = (time .eq. mm)
-        n_time = count(t_mask)
+      t_mask_est = (time_est .eq. mm)
+      t_mask_eval = (time_eval .eq. mm)
+      n_time = count(t_mask_eval)
+      
+      ! check whether there is data for that day to be calculated
+      if (n_time .eq. 0_i4) cycle
+
+      do ii = 1, size(SM_est,1)          ! cell loop
         
+        allocate ( X_est (count(t_mask_est)))
         allocate ( X_eval(n_time) )
         allocate ( cdf   (n_time) )
-        
-        X_est(:)  = real(SM_est ( ii, mm:size(SM_est,2):nCalendarStepsYear ),  dp)
+
+        ! X_est(:)  = real(SM_est ( ii, mm:size(SM_est,2):nCalendarStepsYear ),  dp)
         ! X_eval(:) = real(SM_eval( ii, mm:size(SM_eval,2):nCalendarStepsYear ),  dp)
-        
-        !X_est(:)  = pack( real(SM_est(ii,:),  dp), tmask_est(:,mm) )
-        X_eval(:) = pack(real(SM_eval(ii,:), dp), t_mask)
+
+        X_est(:)  = pack(real( SM_est(ii,:), dp), t_mask_est)
+        X_eval(:) = pack(real(SM_eval(ii,:), dp), t_mask_eval)
         
         cdf(:) = kernel_cumdensity(x_est, hh(ii,mm), xout=x_eval)
-        SMI(ii, mm:size(SM_eval,2):nCalendarStepsYear) = real(cdf(:), sp)
         
-        deallocate( X_eval, cdf )
+        dummy_1d_sp = unpack(real(cdf(:), sp), t_mask_eval, nodata_sp)
+        SMI(ii, :) = merge(dummy_1d_sp, SMI(ii, :), t_mask_eval)
+        
+        deallocate( x_est, X_eval, cdf, dummy_1d_sp )
       end do
     end do
 
-    deallocate( X_est )
+    ! do leap days
+    if (per_eval%n_leap_days .gt. 0) then
+
+      mm = 60 ! take cdf of March first
+      t_mask_est = (time_est .eq. mm) 
+      t_mask_eval = (time_eval .eq. -1_i4)
+      n_time = count(t_mask_eval)
+
+      ! call cellSMI(SM_est, t_mask_est, SM_eval, t_mask_eval, hh(:, mm), SMI)
+      do ii = 1, size(SM_est,1)          ! cell loop
+        allocate ( X_est (count(t_mask_est)))
+        allocate ( X_eval(n_time) )
+        allocate ( cdf   (n_time) )
+        
+        X_est(:)  = pack(real( SM_est(ii,:), dp), t_mask_est)
+        X_eval(:) = pack(real(SM_eval(ii,:), dp), t_mask_eval)
+        
+        cdf(:) = kernel_cumdensity(x_est, hh(ii,mm), xout=x_eval)
+        
+        dummy_1d_sp = unpack(real(cdf(:), sp), t_mask_eval, nodata_sp)
+        SMI(ii, :) = merge(dummy_1d_sp, SMI(ii, :), t_mask_eval)
+      
+        deallocate( x_est, X_eval, cdf, dummy_1d_sp )
+      end do
+      
+    end if
 
   end subroutine calSMI
+
+  subroutine cellSMI(SM_est, t_mask_est, SM_eval, t_mask_eval, hh, SMI)
+
+    use mo_kind, only: i4, sp
+    use mo_kernel, only: kernel_cumdensity
+    use mo_smi_constants, only: nodata_sp
+    
+    implicit none
+
+    real(sp), intent(in) :: SM_est(:, :), SM_eval(:, :)
+    logical,  intent(in) :: t_mask_est(:), t_mask_eval(:)
+    real(dp), intent(in) :: hh(:)
+    real(sp), intent(inout) :: SMI(:, :)
+
+    integer(i4)                           :: ii  ! cell index
+    real(dp), dimension(:), allocatable   :: cdf
+    real(dp), dimension(:), allocatable   :: X_est
+    real(dp), dimension(:), allocatable   :: X_eval
+    real(sp), dimension(:), allocatable   :: dummy_1d_sp
+    
+    do ii = 1, size(SM_est,1)          ! cell loop
+      allocate ( X_est (count(t_mask_est)))
+      allocate ( X_eval(count(t_mask_eval)))
+      allocate ( cdf   (count(t_mask_eval)))
+        
+      X_est(:)  = pack(real( SM_est(ii,:), dp), t_mask_est)
+      X_eval(:) = pack(real(SM_eval(ii,:), dp), t_mask_eval)
+        
+      cdf(:) = kernel_cumdensity(x_est, hh(ii), xout=x_eval)
+        
+      dummy_1d_sp = unpack(real(cdf(:), sp), t_mask_eval, nodata_sp)
+      SMI(ii, :) = merge(dummy_1d_sp, SMI(ii, :), t_mask_eval)
+      
+      deallocate( x_est, X_eval, cdf, dummy_1d_sp )
+    end do
+
+  end subroutine cellSMI
 
   ! create objective function of kernel_cumdensity and minimize it using
   ! nelmin because function is monotone
@@ -228,30 +294,40 @@ contains
     
   end subroutine invSMI
 
-  subroutine get_time_indizes(time, j_start, start, n_time, nCalendarStepsYear)
+  subroutine get_time_indizes(time, per, nCalendarStepsYear)
 
-    use mo_kind, only : i4, dp
-    use mo_julian, only : dec2date
+    use mo_kind,             only: i4, dp
+    use mo_global_variables, only: period
+    use mo_julian,           only: dec2date, date2dec
     
     implicit none
 
-    integer(i4), intent(in) :: j_start, start, n_time, nCalendarStepsYear
+    integer(i4),              intent(in)  :: nCalendarStepsYear
+    type(period),             intent(in)  :: per
     integer(i4), allocatable, intent(out) :: time(:)
-    integer(i4) :: ii, jj, cc, dd, mm, yy
+    integer(i4) :: ii, jj, dd, mm
 
     ! remove leap days
-    cc = 0
-    do ii = 1, n_time
-      call dec2date(real(j_start + ii - 1, dp), dd=dd, mm=mm, yy=yy)
-      if ((dd .eq. 29) .and. (mm .eq. 2)) cc = cc + 1_i4
-    end do
-    
-    allocate(time(n_time - cc))
+    allocate(time(size(per%time_points, dim=1)))
     time(:) = 0_i4
-
-    jj = 1
+    
+    if (nCalendarStepsYear .eq. 12_i4) then
+      jj = per%m_start
+    else
+      jj = per%j_start - date2dec(31, 12, per%y_start - 1)
+      ! account for removed leap days
+      if (((date2dec(31, 12, per%y_start) - date2dec(1, 1, per%y_start) + 1) .eq. 366) .and. per%m_start .gt. 2) then
+        jj = jj - 1
+      end if
+    end if
+    
     do ii = 1, size(time)
       time(ii) = jj
+      call dec2date(real(per%j_start + per%time_points(ii) - 1, dp), dd=dd, mm=mm)
+      if ((dd .eq. 29) .and. (mm .eq. 2)) then
+        time(ii) = -1
+        cycle
+      end if
       jj = jj + 1_i4
       if (jj .gt. nCalendarStepsYear) jj = 1_i4
     end do
