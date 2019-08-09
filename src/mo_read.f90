@@ -75,7 +75,7 @@ CONTAINS
     logical                                         :: read_sm
     integer(i4)                                     :: ii
     integer(i4)                                     :: nCells         ! number of effective cells
-    integer(i4)                                     :: number_lag_days! number of lag days for daily files (0,7,31)
+    integer(i4)                                     :: lag! number of lag days for daily files (0,7,31)
     integer(i4)                                     :: nTimeSteps     ! number of time steps excluding leap days
     logical                                         :: file_exist
     
@@ -103,7 +103,7 @@ CONTAINS
 
     ! read main config
     namelist/mainconfig/basin_flag, basinfName, basin_vname, maskfName, mask_vname, &
-         soilmoist_file, SM_vname, outpath, nCalendarStepsYear, number_lag_days, &
+         soilmoist_file, SM_vname, outpath, nCalendarStepsYear, lag, &
          silverman_h, read_opt_h, opt_h_vname, opt_h_sm_vname, opt_h_file,     &
          SMI_thld, do_cluster, ext_smi, ext_smi_file, cellsize, thCellClus, nCellInter, &
          do_sad, deltaArea, invert_SMI
@@ -136,8 +136,8 @@ CONTAINS
     if ( .not.(( nCalendarStepsYear == 12) .or. ( nCalendarStepsYear == 365) ) ) &
          stop '***ERROR: number of time steps per year different from 12 or 365'
 
-    if ( ( number_lag_days .gt. 0 ) .and. ( nCalendarStepsYear == 12)  ) &
-         stop '***ERROR: number_lag_days = 0 for montly SM values'
+    if ( ( lag .gt. 0 ) .and. ( nCalendarStepsYear == 12)  ) &
+         stop '***ERROR: lag = 0 for montly SM values'
 
     if ( do_sad .and. (.not. do_cluster) ) &
          stop '***ERROR: flag do_cluster must be set to .TRUE. to perform SAD analisys'
@@ -165,7 +165,6 @@ CONTAINS
       call message('mask read ...ok')
     else
       call message('Mask file ' // trim(maskfName) // ' does not exist!')
-      call message('Soil moisture file ' // trim(soilmoist_file) // ' is used instead!')
     end if
       
     ! read basin mask
@@ -229,16 +228,16 @@ CONTAINS
        deallocate( dummy_D3_sp )
 
        ! calculate moving-lag average
-       if (number_lag_days .gt. 0) then
+       if (lag .gt. 0) then
          call message('calculate moving average')
          nTimeSteps = size(SM_eval, dim=2)
          allocate(dummy_d2_sp(size(SM_eval, dim=1), size(SM_eval, dim=2)))
          dummy_d2_sp = SM_eval
          do ii = 1, nTimeSteps
-           if ( ii .lt. number_lag_days ) then
+           if ( ii .lt. lag ) then
              SM_eval(:,ii) = dummy_d2_sp(:,ii)
            else
-             SM_eval(:,ii) = sum(dummy_D2_sp(:,ii-number_lag_days+1:ii), DIM=2) / real(number_lag_days,sp)
+             SM_eval(:,ii) = sum(dummy_D2_sp(:,ii-lag+1:ii), DIM=2) / real(lag,sp)
            end if
          end do
          deallocate(dummy_d2_sp)
@@ -261,6 +260,7 @@ CONTAINS
       nc_var = nc_in%getVariable(trim(opt_h_sm_vname))
       call nc_var%getData(dummy_D3_sp)
       ! read mask if not done already
+      print *, 'hu...'
       if (.not. allocated(mask)) then
         call nc_var%getAttribute('missing_value', nodata_value)
         mask = (dummy_D3_sp(:, :, 1) .ne. nodata_value)
@@ -297,17 +297,21 @@ CONTAINS
 
     else
       ! SM_eval is SM_kde too
-      SM_kde = SM_eval
-      per_kde = per_eval      
+      if (allocated(SM_eval)) then
+        SM_kde = SM_eval
+        per_kde = per_eval
+      end if
     end if
 
-    if ((modulo(size( SM_kde, 2 ), nCalendarStepsYear) .ne. per_kde%n_leap_days)) then
+    if (allocated(SM_kde)) then
+      if ((modulo(size( SM_kde, 2 ), nCalendarStepsYear) .ne. per_kde%n_leap_days)) then
 #ifdef SMIDEBUG
-      print *, modulo(size( SM_kde, 2 ), nCalendarStepsYear),  per_kde%n_leap_days
+        print *, modulo(size( SM_kde, 2 ), nCalendarStepsYear),  per_kde%n_leap_days
 #endif      
-      print *, '***ERROR: timesteps in provided SM_kde field must be multiple of nCalendarStepsYear (', &
-          nCalendarStepsYear, '; leap days are accounted for)'
-      stop
+        print *, '***ERROR: timesteps in provided SM_kde field must be multiple of nCalendarStepsYear (', &
+            nCalendarStepsYear, '; leap days are accounted for)'
+        stop
+      end if
     end if
 
 
@@ -315,33 +319,35 @@ CONTAINS
     ! >>> read external SMI field
     ! *************************************************************************
     if (ext_smi) then
-       nc_in  = NcDataset(trim(ext_smi_file), 'r')
-       nc_var = nc_in%getVariable('SMI')
-       call nc_var%getData(dummy_D3_sp)
-       if (.not. allocated(mask)) then
-         call nc_var%getAttribute('missing_value', nodata_value)
-         mask = (dummy_D3_sp(:, :, 1) .ne. nodata_value)
-         nCells = n_cells_consistency(mask)
-         call message('mask read ...ok')
-       end if
-       ! consistency check
-       if ( ( size( dummy_D3_sp, 1) .ne. size( mask, 1 ) ) .or. &
-            ( size( dummy_D3_sp, 2) .ne. size( mask, 2 ) ) ) then
-          call message('***ERROR: size mismatch between SMI field and given mask file')
-          stop
-       end if
+      nc_in  = NcDataset(trim(ext_smi_file), 'r')
+      nc_var = nc_in%getVariable('SMI')
+      call nc_var%getData(dummy_D3_sp)
+      if (.not. allocated(mask)) then
+        call nc_var%getAttribute('missing_value', nodata_value)
+        mask = (dummy_D3_sp(:, :, 1) .ne. nodata_value)
+        nCells = n_cells_consistency(mask)
+        call message('mask read ...ok')
+      end if
+      ! consistency check
+      if ( ( size( dummy_D3_sp, 1) .ne. size( mask, 1 ) ) .or. &
+           ( size( dummy_D3_sp, 2) .ne. size( mask, 2 ) ) ) then
+         call message('***ERROR: size mismatch between SMI field and given mask file')
+         stop
+      end if
 
-       allocate(SMI_in( nCells, size( dummy_D3_sp, 3 ) ) )
-       do ii = 1, size( dummy_D3_sp, 3 )
-          SMI_in(:,ii) = pack(dummy_D3_sp(:,:,ii), mask)
-       end do
-       deallocate( dummy_D3_sp )
+      allocate(SMI_in( nCells, size( dummy_D3_sp, 3 ) ) )
+      do ii = 1, size( dummy_D3_sp, 3 )
+         SMI_in(:,ii) = pack(dummy_D3_sp(:,:,ii), mask)
+      end do
+      deallocate( dummy_D3_sp )
 
-       ! get timepoints in days and mask of months
-       call get_time( nc_in, size(SMI_in, dim=2), per_smi)
+      ! get timepoints in days and mask of months
+      call get_time( nc_in, size(SMI_in, dim=2), per_smi)
 
-       call read_latlon( nc_in, lats, lons)
-       call nc_in%close()
+      call read_latlon( nc_in, lats, lons)
+      call nc_in%close()
+    else
+      per_smi = per_kde
     end if
 
   end subroutine ReadDataMain

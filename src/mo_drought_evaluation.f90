@@ -54,7 +54,7 @@ subroutine droughtIndicator( SMI, mask, SMI_thld, cellCoor , SMIc)
   !
   print *, 'Threshold for drought identification: ', SMI_thld
   allocate ( SMIc( nrows, ncols, nMonths) )
-
+  
   do m = 1, nMonths
      dummy_2d_sp = unpack(SMI(:,m), mask, nodata_sp)
      ! filter for possible error within domain

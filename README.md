@@ -1,4 +1,4 @@
-# The Soil Moisture Index -- SMI program
+# The Soil Moisture Index -- SMI program v2.0
 
 This repository contains the soil moisture index (SMI) Fortran program developed at the Dept. Computational Hydrosystems at the Helmholtz Centre for Environmental Research - UFZ.
 
@@ -10,6 +10,25 @@ If you like to contribute to the code, please contact stephan.thober@ufz.de.
 ## Installation
 
 Installation instructions can be found in [INSTALL][2] for Windows, MacOS, and GNU/Linux distributions.
+
+## Release Notes
+
+This is the release for version 2.0.
+
+**Features**:
+
+- consistent handling of leap days, no kde estimated for leap days,
+  instead data of March 1st is used.
+- soil moisture and kernel widths for kde are stored in one netcdf
+  file called cdf_info.nc.
+- added period object in mo_global_variables.
+- mask file is now optional
+
+## Usage
+
+The SMI code uses a kernel density estimator for transforming soil
+moisture values to the soil moisture index (SMI). It has several
+features that are described in the namelist file main.dat.
 
 ## Cite as
 

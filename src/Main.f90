@@ -150,19 +150,19 @@ program SM_Drought_Index
   if ( do_cluster ) then
      ! drought indicator 
      call droughtIndicator( SMI, mask, SMI_thld, cellCoor, SMIc )
-     call WriteNetCDF(outpath, 3, per_kde, lats, lons, SMIc=SMIc)
+     call WriteNetCDF(outpath, 3, per_smi, lats, lons, SMIc=SMIc)
      
      ! cluster indentification
      call ClusterEvolution( SMIc,  size( mask, 1), size( mask, 2 ), size(SMI, 2), &
          nCells, cellCoor, nCellInter, thCellClus)
-     call WriteNetCDF(outpath, 4, per_kde, lats, lons)
+     call WriteNetCDF(outpath, 4, per_smi, lats, lons)
 
      ! statistics  
      call ClusterStats(SMI, mask, size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells, SMI_thld )
 
      ! write results
      if (nClusters > 0) call writeResultsCluster(SMIc, outpath, 1, &
-         per_kde%y_start, per_kde%y_end, size(SMI, 2), nCells, deltaArea, cellsize)
+         per_smi%y_start, per_smi%y_end, size(SMI, 2), nCells, deltaArea, cellsize)
      call message('Cluster evolution ...ok')
   end if
 
@@ -171,7 +171,7 @@ program SM_Drought_Index
      do d = 1, nDurations
         call calSAD(SMI, mask, d, size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells, deltaArea, cellsize)
         ! write SAD for a given duration + percentiles
-        call writeResultsCluster(SMIc, outpath, 2, per_kde%y_start, per_kde%y_end, size(SMI, 2), &
+        call writeResultsCluster(SMIc, outpath, 2, per_smi%y_start, per_smi%y_end, size(SMI, 2), &
             nCells, deltaArea, cellsize, durList(d))
         call WriteNetCDF(outpath, 5, per_kde, lats, lons, duration=durList(d))
      end do

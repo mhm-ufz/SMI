@@ -18,7 +18,7 @@
  ! lag for daily inputs
  ! 0           ==  for number_time_steps_year = 12
  ! 0, 7, 31    ==  for daily values (no lag, weekly, monthly)
- number_lag_days = 180
+ lag = 180
 
 
  ! Determination of the kernel width:

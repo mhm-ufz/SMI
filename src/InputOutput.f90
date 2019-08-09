@@ -373,13 +373,13 @@ contains
     if ((wflag .eq. 2) .or. &
         (wflag .eq. 3) .or. &
         (wflag .eq. 4)) then
-       nc_var = nc_out%setVariable('time', "i32", (/ nc_tim /))
-       call nc_var%setData(per%time_points)
-       call nc_var%setAttribute('long_name', 'time')
-       call nc_var%setAttribute('units', 'days since '                              // &
-            trim(num2str(per%y_start,   '(i4)')) // '-'     // &
-            trim(num2str(per%m_start, '(i2.2)')) // '-'     // &
-            trim(num2str(per%d_start, '(i2.2)')) // ' 00:00:00' )
+      nc_var = nc_out%setVariable('time', "i32", (/ nc_tim /))
+      call nc_var%setData(per%time_points)
+      call nc_var%setAttribute('long_name', 'time')
+      call nc_var%setAttribute('units', 'days since '                              // &
+          trim(num2str(per%y_start,   '(i4)')) // '-'     // &
+          trim(num2str(per%m_start, '(i2.2)')) // '-'     // &
+          trim(num2str(per%d_start, '(i2.2)')) // ' 00:00:00' )
     end if
     ! close file
     call nc_out%close()
