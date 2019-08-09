@@ -31,6 +31,7 @@
  read_opt_h     = .TRUE.
  opt_h_file     = "../input_for_check/SMI.nc"
  opt_h_vname    = "kernel_width" 
+ opt_h_sm_vname = "SM_Lall"
 
  ! if .TRUE. PDFs are calculated based on soilmoist_file but the SMI is determined for SM_eval_file and varible SM_eval_vname
  ! if .FALSE. "SM_eval_file" and "SM_eval_vname" are ignored

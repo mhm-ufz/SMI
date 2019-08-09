@@ -49,13 +49,13 @@ contains
   ! subroutine for writting the SMI to nc file
   ! author: Stephan Thober
   ! created: 5.7.2014
+  ! updated: refactored to new period structure and leap day handling - 9.8.2019
   ! ##################################################################
-  subroutine WriteSMI( outpath, SMI, mask, per, nCalendarStepsYear, lats, lons, hh ) 
+  subroutine WriteSMI( outpath, SMI, mask, per, lats, lons) 
 
     use mo_kind,          only: i4, sp
     use mo_string_utils,  only: num2str
     use mo_smi_constants, only: nodata_sp, nodata_dp
-    use mo_julian,        only: NDAYS, NDYIN, dec2date
     use mo_netcdf,        only: NcDataset, NcVariable, NcDimension
 
     implicit none
@@ -66,26 +66,18 @@ contains
     logical,        dimension(:,:),                intent(in) :: mask
     type(period),                                  intent(in) :: per
     real(sp),       dimension(:,:),                intent(in) :: SMI 
-    integer(i4),                                   intent(in) :: nCalendarStepsYear
     real(dp),       dimension(:,:), allocatable,   intent(in) :: lats, lons   ! latitude and longitude fields of input
-    real(dp),       dimension(:,:), optional,      intent(in) :: hh
 
     ! local Variables
     type(NcDataset)                                           :: nc_out
     type(NcVariable)                                          :: nc_var
-    type(NcDimension)                                         :: nc_row, nc_col, nc_tim, nc_cal
+    type(NcDimension)                                         :: nc_row, nc_col, nc_tim
     character(256)                                            :: Fname
-    integer(i4)                                               :: dd          ! day
-    integer(i4)                                               :: mm          ! month
-    integer(i4)                                               :: yy          ! year
+    integer(i4)                                               :: ii          ! month
 
     real(sp),       dimension(:,:,:), allocatable             :: dummy_D3_sp ! field real unpacked 
-    real(dp),       dimension(:,:,:), allocatable             :: dummy_D3_dp ! field real unpacked 
     integer(i4)                                               :: nrows
     integer(i4)                                               :: ncols
- ! number of time steps including leap days 
-    integer(i4)                                               :: tt                  ! counter without leap days
-    integer(i4)                                               :: jDay                ! jDay counting from jDayStart
     
     ! initialize dimension
     nrows = size(mask, 1)
@@ -99,28 +91,10 @@ contains
     nc_tim = nc_out%setDimension("time", -1)
     
     ! unpack estimated SMIp
-    if (nCalendarStepsYear .eq. 12) then
-      allocate( dummy_d3_sp( nrows, ncols, size( SMI, 2) ) )
-
-      do mm = 1,  size( SMI, 2)
-        dummy_d3_sp( :, :, mm) = unpack ( SMI(:,mm), mask, nodata_sp )
-      end do
-
-    else
-      ! store SMI including leap days, assumption => SMI (29.02.yyyy) ~ SMI (28.02.yyyy)
-      allocate( dummy_d3_sp( nrows, ncols, per%n_days  ) )
-      print *, 'number of days: ', per%n_days
-      
-      tt = 1
-      do jDay = 1, per%n_days
-        ! call NDYIN( (per%j_start+jDay-1), dd, mm, yy)
-        call dec2date( real(per%j_start+jDay-1, dp), dd, mm, yy)
-        dummy_d3_sp( :, :, jDay) = unpack ( SMI(:,tt), mask, nodata_sp )
-        if ( ( mm .eq. 2 ) .and. ( dd .eq. 29 ) ) cycle
-        tt = tt + 1
-      end do
-
-    end if
+    allocate( dummy_d3_sp( nrows, ncols, size( SMI, 2) ) )
+    do ii = 1,  size( SMI, 2)
+      dummy_d3_sp( :, :, ii) = unpack ( SMI(:,ii), mask, nodata_sp )
+    end do
     
     ! save SMI (same sequence as in 1)
     nc_var = nc_out%setVariable('SMI', "f32", &
@@ -130,22 +104,6 @@ contains
     call nc_var%setAttribute('missing_value', nodata_sp)
     call nc_var%setAttribute('units', '-')
     deallocate( dummy_d3_sp )
-
-    ! write out kernel width if it has been optimised
-    if ( present( hh ) ) then
-       allocate( dummy_D3_dp( nrows, ncols, size( hh, 2 ) ) )
-       do mm = 1, size( hh, 2 )
-          dummy_D3_dp(:, :, mm) = unpack( hh(:,mm), mask, real( nodata_sp, dp ) ) 
-       end do
-       nc_cal = nc_out%setDimension("calendar_steps", size(dummy_d3_dp,3))
-       nc_var = nc_out%setVariable('kernel_width', "f64", &
-            (/ nc_row, nc_col, nc_cal /))
-       call nc_var%setData(dummy_d3_dp)
-       call nc_var%setAttribute('long_name', 'optimised kernel width')
-       call nc_var%setAttribute('missing_value', nodata_dp)
-       call nc_var%setAttribute('units', '-')
-       deallocate( dummy_D3_dp ) 
-    end if
 
     ! add lat and lon
     if (allocated(lats)) then
@@ -187,7 +145,6 @@ contains
     use mo_message,       only: message
     use mo_string_utils,  only: num2str
     use mo_smi_constants, only: nodata_sp, nodata_dp
-    use mo_julian,        only: NDAYS, NDYIN, dec2date
     use mo_netcdf,        only: NcDataset, NcVariable, NcDimension
 
     implicit none
@@ -207,17 +164,12 @@ contains
     type(NcVariable)                                          :: nc_var
     type(NcDimension)                                         :: nc_row, nc_col, nc_tim, nc_cal
     character(256)                                            :: Fname
-    integer(i4)                                               :: dd          ! day
     integer(i4)                                               :: mm          ! month
-    integer(i4)                                               :: yy          ! year
 
     real(sp),       dimension(:,:,:), allocatable             :: dummy_D3_sp ! field real unpacked 
     real(dp),       dimension(:,:,:), allocatable             :: dummy_D3_dp ! field real unpacked 
     integer(i4)                                               :: nrows
     integer(i4)                                               :: ncols
- ! number of time steps including leap days 
-    integer(i4)                                               :: tt                  ! counter without leap days
-    integer(i4)                                               :: jDay                ! jDay counting from jDayStart
     
     ! initialize dimension
     nrows = size(mask, 1)
@@ -231,27 +183,10 @@ contains
     nc_tim = nc_out%setDimension("time", -1)
     
     ! unpack soil moisture estimated
-    if (nCalendarStepsYear .eq. 12) then
-      allocate( dummy_d3_sp( nrows, ncols, size( SM, 2) ) )
-
-      do mm = 1,  size( SM, 2)
-        dummy_d3_sp( :, :, mm) = unpack ( SM(:,mm), mask, nodata_sp )
-      end do
-
-    else
-      ! store SM including leap days, assumption => SM (29.02.yyyy) ~ SM (28.02.yyyy)
-      allocate( dummy_d3_sp( nrows, ncols, per%n_days  ) )
-      
-      tt = 1
-      do jDay = 1, per%n_days
-        ! call NDYIN( (per%j_start+jDay-1), dd, mm, yy)
-        call dec2date( real(per%j_start+jDay-1, dp), dd, mm, yy)
-        dummy_d3_sp( :, :, jDay) = unpack ( SM(:,tt), mask, nodata_sp )
-        if ( ( mm .eq. 2 ) .and. ( dd .eq. 29 ) ) cycle
-        tt = tt + 1
-      end do
-
-    end if
+    allocate( dummy_d3_sp( nrows, ncols, size( SM, 2) ) )
+    do mm = 1,  size( SM, 2)
+      dummy_d3_sp( :, :, mm) = unpack ( SM(:,mm), mask, nodata_sp )
+    end do
     
     ! save SM (same sequence as in 1)
     nc_var = nc_out%setVariable('SM', "f32", &

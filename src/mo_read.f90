@@ -29,18 +29,17 @@ CONTAINS
   !    NOTES:
   !               packed fields are stored in dim1->dim2 sequence 
   !*********************************************************************
-  subroutine ReadDataMain( SMI_in, do_cluster, ext_smi, invert_SMI, eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons,  &
+  subroutine ReadDataMain( SMI_in, do_cluster, ext_smi, invert_SMI, read_opt_h, silverman_h, opt_h, lats, lons,  &
                            basin_flag, mask, SM_est,  SM_eval,  &
-                           Basin_Id, timepoints, SMI_thld, outpath, cellsize, thCellClus, nCellInter, do_sad, deltaArea, &
-                           nCalendarStepsYear, per, per_eval, per_smi )    !  tmask_eval, tmask_est,
+                           Basin_Id, SMI_thld, outpath, cellsize, thCellClus, nCellInter, do_sad, deltaArea, &
+                           nCalendarStepsYear, per_est, per_eval, per_smi )    !  tmask_eval, tmask_est,
 
-    use mo_kind,          only: i4
-    use mo_message,       only: message
-    use mo_utils,         only: equal, notequal
-    use mo_netcdf,        only: NcDataset, NcVariable
-    use mo_smi_constants, only: nodata_dp, YearMonths
-    use mo_julian,        only: NDAYS, dec2date
-    use mo_global_variables, only: period, period_init
+    use mo_kind,             only: i4
+    use mo_message,          only: message
+    use mo_utils,            only: notequal
+    use mo_netcdf,           only: NcDataset, NcVariable
+    use mo_smi_constants,    only: nodata_dp
+    use mo_global_variables, only: period
     
     implicit none
 
@@ -50,7 +49,6 @@ CONTAINS
     logical,                                  intent(out) :: do_cluster  ! do cluster calculation
     logical,                                  intent(out) :: ext_smi ! clsutering external data
     logical,                                  intent(out) :: invert_SMI  ! do inversion of SMI
-    logical,                                  intent(out) :: eval_SMI    ! should SMI be calculated
     logical,                                  intent(out) :: read_opt_h  ! read kernel width
     logical,                                  intent(out) :: silverman_h ! optimize kernel width
     logical,                                  intent(out) :: basin_flag  ! basin flag
@@ -62,7 +60,6 @@ CONTAINS
                                                                                  ! year (month=12, day=365)
     
     integer(i4), dimension(:,:), allocatable, intent(out) :: Basin_Id    ! IDs for basinwise drought analysis
-    integer(i4), dimension(:),   allocatable, intent(out) :: timepoints  ! timestep as from input NetCDF
     real(sp),                                 intent(out) :: cellsize    ! cell edge lenght of input data
     real(sp),    dimension(:,:), allocatable, intent(out) :: SM_est      ! daily / monthly fields packed for estimation
     real(sp),    dimension(:,:), allocatable, intent(out) :: SM_eval     ! monthly fields packed for evaluation
@@ -70,34 +67,27 @@ CONTAINS
     real(dp),    dimension(:,:), allocatable, intent(out) :: lats, lons  ! latitude and longitude fields of input
     real(sp),                                 intent(out) :: SMI_thld    ! SMI threshold for clustering
     character(len=256),                       intent(out) :: outpath     ! ouutput path for results
-    type(period),                             intent(out) :: per         ! period contain start and end date information
-    type(period),                             intent(out) :: per_eval       ! period during evaluation 
-    type(period),                             intent(out) :: per_smi        ! period of smi file
+    type(period),                             intent(out) :: per_est     ! period contain start and end date information during estimation
+    type(period),                             intent(out) :: per_eval    ! period during evaluation 
+    type(period),                             intent(out) :: per_smi     ! period of smi file
 
     ! local Variables
     logical                                         :: read_sm
     integer(i4)                                     :: ii
-    integer(i4)                                     :: dd, mm
-    
     integer(i4)                                     :: nCells         ! number of effective cells
     integer(i4)                                     :: number_lag_days! number of lag days for daily files (0,7,31)
-    integer(i4)                                     :: jDayStart
-    integer(i4)                                     :: jDayEnd
-    integer(i4)                                     :: jDay
     integer(i4)                                     :: nTimeSteps     ! number of time steps excluding leap days
     logical                                         :: file_exist
     
     ! directories, filenames, attributes
     character(256)                                  :: maskfName
     character(256)                                  :: opt_h_file
-    character(256)                                  :: SM_eval_file
     character(256)                                  :: basinfName
     
     ! variable names in netcdf input files
     character(256)                                  :: soilmoist_file
     character(256)                                  :: mask_vname
     character(256)                                  :: SM_vname
-    character(256)                                  :: SM_eval_vname
     character(256)                                  :: ext_smi_file
     character(256)                                  :: basin_vname
     character(256)                                  :: opt_h_vname
@@ -114,14 +104,23 @@ CONTAINS
     ! read main config
     namelist/mainconfig/basin_flag, basinfName, basin_vname, maskfName, mask_vname, &
          soilmoist_file, SM_vname, outpath, nCalendarStepsYear, number_lag_days, &
-         eval_SMI, silverman_h, read_opt_h, opt_h_vname, opt_h_sm_vname, opt_h_file,     &
-         SM_eval_file, SM_eval_vname, SMI_thld,    &
-         do_cluster, ext_smi, ext_smi_file, cellsize, thCellClus, nCellInter, &
+         silverman_h, read_opt_h, opt_h_vname, opt_h_sm_vname, opt_h_file,     &
+         SMI_thld, do_cluster, ext_smi, ext_smi_file, cellsize, thCellClus, nCellInter, &
          do_sad, deltaArea, invert_SMI
+
+
+    call message("====================================================")
+    call message("||                                                ||")
+    call message("||              SOIL MOISTURE INDEX               ||")
+    call message("||                  VERSION 1.9                   ||")
+    call message("||                                                ||")
+    call message("====================================================")
+    
+
     
     ! dummy init to avoid gnu compiler complaint
     outpath    = '-999'; cellsize=-999.0_sp; thCellClus=-999; nCellInter=-999; deltaArea=-999
-    
+
     do_cluster = .FALSE.
     do_sad = .FALSE.
     SMI_thld   = 0.0_dp
@@ -145,9 +144,6 @@ CONTAINS
 
     if (invert_SMI .and. (.not. ext_smi)) &
          stop '***ERROR: if invert_SMI is .TRUE., then ext_smi must be .TRUE. and ext_smi_file must be given.'
-    
-    if ( eval_SMI  .AND. ext_smi) &
-         stop '***ERROR: eval_SMI = .TRUE. and ext_smi = .TRUE. BOTH not possible, only one of these can be .TRUE.'
     
     ! read sm if not external smi or invert is given
     read_sm = ((.not. ext_smi) .or. (invert_SMI))
@@ -173,8 +169,6 @@ CONTAINS
       print *, 'Soil moisture file ', trim(soilmoist_file), ' is used instead!'
     end if
       
-    
-
     ! read basin mask
     if ( basin_flag .AND. (.NOT. ext_smi)) then
        nc_in  = NcDataset(basinfName, "r")
@@ -220,7 +214,7 @@ CONTAINS
 
        ! find number of leap years in  SM data set
        ! get timepoints in days and masks for climatologies at calendar day or month 
-       call get_time(nc_in,  size( dummy_D3_sp, 3 ), per)
+       call get_time(nc_in,  size( dummy_D3_sp, 3 ), per_eval)
       
        ! read lats and lon from file
        call read_latlon( nc_in, lats, lons)
@@ -228,73 +222,32 @@ CONTAINS
        
        
        ! if ( nCalendarStepsYear .eq. YearMonths ) then
-       allocate( SM_est( nCells, size( dummy_D3_sp, 3 ) ) )
+       allocate( SM_eval( nCells, size( dummy_D3_sp, 3 ) ) )
        ! no lag average, use monthly data as read
        do ii = 1, size( dummy_D3_sp, 3 )
-         SM_est(:,ii) = pack( real(dummy_D3_sp(:,:,ii),sp), mask )
+         SM_eval(:,ii) = pack( real(dummy_D3_sp(:,:,ii),sp), mask )
        end do
-       ! else
-       !   ! count days removing leap days
-       !   nTimeSteps = size(per%time_points) - per%n_leap_days
-         
-       !   allocate( SM_est( nCells, nTimeSteps ) )
-       !   ! exclude leap days
-       !   jday = 1
-       !   do ii = 1, size( dummy_D3_sp, 3 )
-       !     ! call dec2date( real(per%j_start+ii-1, dp), dd=dd, mm=mm)
-       !     ! if ( ( mm .eq. 2 ) .and. (dd .eq. 29) ) cycle
-       !     SM_est(:,jDay) = pack(dummy_D3_sp(:,:,ii), mask)
-       !     jDay = jDay + 1
-       !   end do
-       ! end if
   
        deallocate( dummy_D3_sp )
 
        ! calculate moving-lag average
        if (number_lag_days .gt. 0) then
          call message('calculate moving average')
-         nTimeSteps = size(SM_est, dim=2)
-         allocate(dummy_d2_sp(size(SM_est, dim=1), size(SM_est, dim=2)))
-         dummy_d2_sp = SM_est
+         nTimeSteps = size(SM_eval, dim=2)
+         allocate(dummy_d2_sp(size(SM_eval, dim=1), size(SM_eval, dim=2)))
+         dummy_d2_sp = SM_eval
          do ii = 1, nTimeSteps
            if ( ii .lt. number_lag_days ) then
-             SM_est(:,ii) = dummy_d2_sp(:,ii)
+             SM_eval(:,ii) = dummy_d2_sp(:,ii)
            else
-             SM_est(:,ii) = sum(dummy_D2_sp(:,ii-number_lag_days+1:ii), DIM=2) / real(number_lag_days,sp)
+             SM_eval(:,ii) = sum(dummy_D2_sp(:,ii-number_lag_days+1:ii), DIM=2) / real(number_lag_days,sp)
            end if
          end do
          deallocate(dummy_d2_sp)
        end if
        
-       if ((modulo(size( SM_est, 2 ), nCalendarStepsYear) .ne. per%n_leap_days) .and. (.not. read_opt_h)) then
-         print *, '***ERROR: file: ' // trim(soilmoist_file)
-         print *, '***ERROR: timesteps in provided SM field must be multiple of nCalendarStepsYear (', nCalendarStepsYear, '; leap days are accounted for)'
-         stop
-       end if
-
     end if
 
-    ! ! *************************************************************************
-    ! ! >>> EVAL SMI
-    ! ! *************************************************************************
-    ! if ( eval_SMI ) then
-    !    print *, 'reading SM from SM_eval_file: ', trim(SM_eval_file)
-    !    nc_in  = NcDataset(trim(SM_eval_file), 'r')
-    !    nc_var = nc_in%getVariable(trim(SM_eval_vname))
-    !    call nc_var%getData(dummy_D3_sp)
-    !    allocate(SM_eval(nCells, size(dummy_D3_sp, 3)))
-    !    do ii = 1, size( dummy_D3_sp, 3 )
-    !       SM_eval(:, ii) = pack( dummy_D3_sp(:,:,ii), mask)
-    !    end do
-    !    deallocate( dummy_D3_sp )
-       
-    !    ! get timepoints in days and mask of months
-    !    if ( allocated( timepoints ) ) deallocate( timepoints )
-    !    call get_time(nc_in, size(SM_eval, dim=2), per_eval)
-
-    !    call nc_in%close()
-    ! end if
-    
     ! *************************************************************************
     ! >>> read_opt_h
     ! *************************************************************************
@@ -302,10 +255,6 @@ CONTAINS
     opt_h = nodata_dp
     !
     if ( read_opt_h ) then
-      ! values read before become SM_eval
-      SM_eval = SM_est
-      deallocate(SM_est)
-      per_eval = per
 
       ! read optimized kernel width from file
       nc_in  = NcDataset(trim( opt_h_file ), 'r')
@@ -318,10 +267,7 @@ CONTAINS
       ! if ( any( equal( opt_h, nodata_dp ) ) ) &
       if ( any( opt_h .eq. nodata_dp ) ) &
           stop '***ERROR kernel width contains nodata values'
-      ! if ( size(opt_h, dim=2) .ne. size(per%time_points) ) then
-      !   stop '***ERROR size mismatch kernel widths and soilmoisture values'
-      ! end if
-      print *, 'read kernel width from file... ok'
+      call message('read kde kernel width from file... ok')
 
       nc_var = nc_in%getVariable(trim(opt_h_sm_vname))
       call nc_var%getData(dummy_D3_sp)
@@ -330,15 +276,25 @@ CONTAINS
         SM_est(:, ii) = pack( dummy_D3_sp(:,:,ii), mask)
       end do
       deallocate( dummy_D3_sp )
-
+      call message('read kde soil moisture values from file... ok')
 
       ! get timepoints in days and mask of months
-      if ( allocated( timepoints ) ) deallocate( timepoints )
-      call get_time(nc_in, size(SM_est, 2), per)
+      call get_time(nc_in, size(SM_est, 2), per_est)
       ! close file
       call nc_in%close()
 
+    else
+      ! SM_eval is SM_est too
+      SM_est = SM_eval
+      per_est = per_eval      
     end if
+
+    if ((modulo(size( SM_est, 2 ), nCalendarStepsYear) .ne. per_est%n_leap_days)) then
+      print *, modulo(size( SM_est, 2 ), nCalendarStepsYear),  per_est%n_leap_days
+      print *, '***ERROR: timesteps in provided SM_est field must be multiple of nCalendarStepsYear (', nCalendarStepsYear, '; leap days are accounted for)'
+      stop
+    end if
+
 
     ! *************************************************************************
     ! >>> read external SMI field
@@ -351,12 +307,6 @@ CONTAINS
        if ( ( size( dummy_D3_sp, 1) .ne. size( mask, 1 ) ) .or. &
             ( size( dummy_D3_sp, 2) .ne. size( mask, 2 ) ) ) then
           print *, '***ERROR: size mismatch between SMI field and given mask file'
-          stop
-       end if
-
-       if ( modulo(size( dummy_D3_sp, 3), nCalendarStepsYear) .ne. 0_i4) then
-          print *, '***ERROR: file: ' // trim(ext_smi_file)
-          print *, '***ERROR: timesteps in provided SMI field must be multiple of nCalendarStepsYear (', nCalendarStepsYear, ')'
           stop
        end if
 
@@ -396,11 +346,11 @@ CONTAINS
 
   subroutine get_time(nc_in, in_time_steps, per_out) !, mask)
     !
-    use mo_julian,       only: date2dec, dec2date
-    use mo_message,      only: message
-    use mo_string_utils, only: DIVIDE_STRING
-    use mo_netcdf,       only: NcDataset, NcVariable
-    use mo_smi_constants, only: nodata_i4, YearMonths, DayHours
+    use mo_julian,           only: date2dec, dec2date
+    use mo_message,          only: message
+    use mo_string_utils,     only: DIVIDE_STRING
+    use mo_netcdf,           only: NcDataset, NcVariable
+    use mo_smi_constants,    only: YearMonths, DayHours
     use mo_global_variables, only: period, period_init
 
     implicit none

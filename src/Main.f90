@@ -56,7 +56,6 @@ program SM_Drought_Index
   logical                                    :: do_cluster  ! flag indicating whether cluster should be calculated
   logical                                    :: do_sad      ! flag indicating whether SAD analysis should be done
   logical                                    :: ext_smi  ! flag indicating to read external data for clustering 
-  logical                                    :: eval_SMI    ! flag indicating whether SMI should be
   logical                                    :: invert_SMI  ! flag for inverting SMI
   !                                                         ! calculated or read from file
   logical                                    :: read_opt_h  ! read kernel width from file
@@ -78,7 +77,6 @@ program SM_Drought_Index
   integer(i4)                                :: nCellInter ! number cells for joining clusters in time ~ 6400 km2
   integer(i4)                                :: deltaArea  ! number of cells per area interval
   integer(i4), dimension(:,:), allocatable   :: Basin_Id   ! IDs for basinwise drought analysis
-  integer(i4), dimension(:),   allocatable   :: timepoints ! vector containing timesteps for output writing
   integer(i4), dimension(:,:), allocatable   :: cellCoor   ! 
 
   real(sp)                                   :: SMI_thld   ! SMI threshold for clustering
@@ -97,42 +95,33 @@ program SM_Drought_Index
   ! file handling 
   character(256)                             :: outpath    ! output path for results
 
-
   !$OMP PARALLEL
   !$ ii = OMP_GET_NUM_THREADS()
   !$OMP END PARALLEL
   !$ print *, 'Run with OpenMP with ', ii, ' threads.'
-
-  
   call ReadDataMain( SMI, do_cluster, ext_smi, invert_smi, &
-       eval_SMI, read_opt_h, silverman_h, opt_h, lats, lons, do_basin, &
+       read_opt_h, silverman_h, opt_h, lats, lons, do_basin, &
        mask, SM_est, SM_eval, Basin_Id, &
-       timepoints, SMI_thld, outpath, cellsize, thCellClus, nCellInter, &
-       do_sad, deltaArea, nCalendarStepsYear, per, per_eval, per_smi ) ! tmask_eval,  tmask_est,
+       SMI_thld, outpath, cellsize, thCellClus, nCellInter, &
+       do_sad, deltaArea, nCalendarStepsYear, per, per_eval, per_smi )
   
   ! initialize some variables
   nCells = count( mask ) ! number of effective cells
   
-  print*, 'FINISHED READING'
+  call message('FINISHED READING')
 
   ! optimize kernel width
   if ( (.NOT. read_opt_h) .AND. (.NOT. ext_smi)) then
-     call optimize_width( opt_h, silverman_h, SM_est, nCalendarStepsYear )  ! tmask_est,
-     print *, 'optimizing kernel width...ok'
+     call optimize_width( opt_h, silverman_h, SM_est, nCalendarStepsYear )
+     call message('optimizing kernel width...ok')
   end if
 
-  ! evaluate SMI at second data set SMI_eval
+  ! calculate SMI values for SM_eval
   if (.NOT. ext_smi) then 
-     if ( eval_SMI ) then
-        allocate( SMI( size( SM_eval, 1 ), size( SM_eval, 2 ) ) )
-        SMI(:,:) = nodata_sp
-        call calSMI( opt_h, SM_est, SM_eval, nCalendarStepsYear, SMI, per, per_eval ) ! tmask_est
-     else
-        allocate( SMI(size(SM_est,1),size(SM_est,2)) )
-        SMI(:,:) = nodata_sp
-        call calSMI( opt_h, SM_est, SM_est, nCalendarStepsYear, SMI, per, per ) ! tmask_est
-     end if
-     print *, 'calculating SMI... ok'
+    allocate( SMI( size( SM_eval, 1 ), size( SM_eval, 2 ) ) )
+    SMI(:,:) = nodata_sp
+    call calSMI( opt_h, SM_est, SM_eval, nCalendarStepsYear, SMI, per, per_eval )
+    call message('calculating SMI... ok')
   end if
 
   ! invert SMI according to given cdf
@@ -148,10 +137,9 @@ program SM_Drought_Index
      deallocate(dummy_D3_sp)
   end if
 
-  
   ! write output
   if (.NOT. ext_smi) then
-    call WriteSMI( outpath, SMI, mask, per, nCalendarStepsYear, lats, lons )
+    call WriteSMI( outpath, SMI, mask, per_eval, lats, lons )
     call message('write SMI...ok')
   end if
 
@@ -175,7 +163,7 @@ program SM_Drought_Index
 
      ! write results
      if (nClusters > 0) call writeResultsCluster(SMIc, outpath, 1, per%y_start, per%y_end, size(SMI, 2), nCells, deltaArea, cellsize)
-     print *, 'Cluster evolution ...ok'
+     call message('Cluster evolution ...ok')
   end if
 
   ! SAD analysis
@@ -188,17 +176,14 @@ program SM_Drought_Index
      end do
   end if
   
-     
   ! make basin averages
   if ( do_basin ) then
      ! write SMI average over major basins
-     print *, 'calculate Basin Results ...'
+     call message('calculate Basin Results ...')
      call WriteResultsBasins( outpath, SMI, mask, per%y_start, per%y_end, size( SM_est, 2 ), Basin_Id )
   end if
 
-  print *, 'DONE!'
-  !
-  !! print statement for check_cases
-  print *, 'program: finished!'
+  ! print statement for check_cases
+  call message('SMI: finished!')
   !
 end program SM_Drought_Index

@@ -5,7 +5,7 @@
  maskfName      = "../input_for_check/mask.nc"
  mask_vname     = "mask"
  ! file and variable name for monthly soil moisture fileds
- soilmoist_file = "../input_for_check/mHM_Fluxes_States.nc"
+ soilmoist_file = "../input_for_check/mHM_Fluxes_States_200304_200308.nc"
  SM_vname       = "SM_Lall"
  ! directory iti which output will be written
  outpath        = "output/"
@@ -31,13 +31,7 @@
  read_opt_h     = .TRUE.
  opt_h_file     = "../input_for_check/SMI.nc"
  opt_h_vname    = "kernel_width" 
-
- ! if .TRUE. PDFs are calculated based on soilmoist_file but the SMI is determined for SM_eval_file and varible SM_eval_vname
- ! if .FALSE. "SM_eval_file" and "SM_eval_vname" are ignored
- eval_SMI       = .TRUE.  
- SM_eval_file   = "../input_for_check/mHM_Fluxes_States_2003.nc"
- SM_eval_vname  = "SM_Lall"
-
+ opt_h_sm_vname = "SM_Lall"
 
  ! -----------------------------------------------------------------------------
  !

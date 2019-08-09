@@ -10,7 +10,7 @@ module mo_global_variables
   type period
     integer(i4) :: y_start, m_start, d_start
     integer(i4) :: y_end, m_end, d_end
-    integer(i4) :: j_start, j_end
+    real(dp)    :: j_start, j_end
     integer(i4) :: n_years, n_months, n_days
     integer(i4) :: n_leap_days
     character(256) :: unit
