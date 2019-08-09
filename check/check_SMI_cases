@@ -317,7 +317,7 @@ for irelease in ${release} ; do
                     cd output_save
                     set +e
                     nc_files=$(\ls *.nc 2> /dev/null)                        # causes failure if no such file exists
-                    set -e
+
                     if [[ -z ${nc_files} ]] ; then
                         echo '   No NetCDF     files written!'
                     fi
@@ -344,6 +344,15 @@ for irelease in ${release} ; do
                             echo '            --------------------------------------'
                         fi
                         echo ''
+                    done
+
+                    txt_files="DArea_evol.txt DArea_evol_total.txt DcArea_sev_evol.txt TDM_evol.txt event_ids.txt results_ADM.txt"
+                    for ff in ${txt_files}; do
+                        if [[ -f output_save/${ff} ]]; then
+                            iRecordsDiffer=$(diff output_save/${ff} output/${ff} | wc -l)
+                            nRecordsDiffer=$((nRecordsDiffer+iRecordsDiffer))
+                            nRecordsDiffer_allCases=$((nRecordsDiffer_allCases+iRecordsDiffer))
+                        fi
                     done
                     
                     echo '   Total Number of records that differ: '${nRecordsDiffer}
@@ -378,6 +387,7 @@ for irelease in ${release} ; do
                     # echo '         Compiler: '${compiler}
                     # echo '         Release:  '${irelease}
                     echo ''
+                    cd ..
                 fi
 
             done # case loop

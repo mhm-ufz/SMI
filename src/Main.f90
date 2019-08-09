@@ -62,12 +62,10 @@ program SM_Drought_Index
   logical                                    :: silverman_h ! flag indicating whether kernel width 
   !                                                         ! should be optimized
   logical                                    :: do_basin    ! do_basin flag
-  ! logical,     dimension(:,:), allocatable   :: tmask_est   ! monthly mask for estimated SM
-  ! logical,     dimension(:,:), allocatable   :: tmask_eval  ! monthly mask for evaluated SM
   logical,     dimension(:,:), allocatable   :: mask
 
   integer(i4)                                :: ii
-  type(period)                               :: per, per_eval, per_smi
+  type(period)                               :: per_kde, per_eval, per_smi
   integer(i4)                                :: nCells     ! number of effective cells
   integer(i4)                                :: d
 
@@ -81,7 +79,7 @@ program SM_Drought_Index
 
   real(sp)                                   :: SMI_thld   ! SMI threshold for clustering
   real(sp)                                   :: cellsize   ! cell edge lenght of input data
-  real(sp),    dimension(:,:), allocatable   :: SM_est     ! monthly fields packed for estimation
+  real(sp),    dimension(:,:), allocatable   :: SM_kde     ! monthly fields packed for estimation
   real(sp),    dimension(:,:), allocatable   :: SM_eval    ! monthly fields packed for evaluation
   real(sp),    dimension(:,:), allocatable   :: SM_invert  ! inverted monthly fields packed 
   real(sp),    dimension(:,:), allocatable   :: SMI        ! soil moisture index at evaluation array
@@ -101,9 +99,9 @@ program SM_Drought_Index
   !$ print *, 'Run with OpenMP with ', ii, ' threads.'
   call ReadDataMain( SMI, do_cluster, ext_smi, invert_smi, &
        read_opt_h, silverman_h, opt_h, lats, lons, do_basin, &
-       mask, SM_est, SM_eval, Basin_Id, &
+       mask, SM_kde, SM_eval, Basin_Id, &
        SMI_thld, outpath, cellsize, thCellClus, nCellInter, &
-       do_sad, deltaArea, nCalendarStepsYear, per, per_eval, per_smi )
+       do_sad, deltaArea, nCalendarStepsYear, per_kde, per_eval, per_smi )
   
   ! initialize some variables
   nCells = count( mask ) ! number of effective cells
@@ -112,7 +110,7 @@ program SM_Drought_Index
 
   ! optimize kernel width
   if ( (.NOT. read_opt_h) .AND. (.NOT. ext_smi)) then
-     call optimize_width( opt_h, silverman_h, SM_est, nCalendarStepsYear )
+     call optimize_width( opt_h, silverman_h, SM_kde, nCalendarStepsYear, per_kde)
      call message('optimizing kernel width...ok')
   end if
 
@@ -120,20 +118,20 @@ program SM_Drought_Index
   if (.NOT. ext_smi) then 
     allocate( SMI( size( SM_eval, 1 ), size( SM_eval, 2 ) ) )
     SMI(:,:) = nodata_sp
-    call calSMI( opt_h, SM_est, SM_eval, nCalendarStepsYear, SMI, per, per_eval )
+    call calSMI( opt_h, SM_kde, SM_eval, nCalendarStepsYear, SMI, per_kde, per_eval )
     call message('calculating SMI... ok')
   end if
 
   ! invert SMI according to given cdf
   if (invert_smi) then
-     ! testing with calculated SMI -> SM_invert == SM_est
-     call invSMI(SM_est, opt_h, SMI, nCalendarStepsYear, SM_invert)
+     ! testing with calculated SMI -> SM_invert == SM_kde
+     call invSMI(SM_kde, opt_h, SMI, nCalendarStepsYear, per_kde, per_smi, SM_invert)
      ! write results to file
      allocate(dummy_D3_sp(size(mask, 1), size(mask, 2), size(SM_invert, 2)))
      do ii = 1, size(SM_invert, 2)
-        dummy_D3_sp(:, :, ii) = unpack(SM_invert(:, ii), mask, nodata_sp)
+       dummy_D3_sp(:, :, ii) = unpack(SM_invert(:, ii), mask, nodata_sp)
      end do
-     call WriteNetcdf(outpath, 2, per, lats, lons, SM_invert=dummy_D3_sp)
+     call WriteNetcdf(outpath, 2, per_smi, lats, lons, SM_invert=dummy_D3_sp)
      deallocate(dummy_D3_sp)
   end if
 
@@ -143,8 +141,8 @@ program SM_Drought_Index
     call message('write SMI...ok')
   end if
 
-  if (.not. read_opt_h) then
-    call WriteCDF( outpath, SM_est, opt_h, mask, per, nCalendarStepsYear, lats, lons )
+  if ((.not. read_opt_h) .and. (.not. ext_smi)) then
+    call WriteCDF( outpath, SM_kde, opt_h, mask, per_kde, nCalendarStepsYear, lats, lons )
     call message('write cdf_info file...ok')
   end if
      
@@ -152,18 +150,19 @@ program SM_Drought_Index
   if ( do_cluster ) then
      ! drought indicator 
      call droughtIndicator( SMI, mask, SMI_thld, cellCoor, SMIc )
-     call WriteNetCDF(outpath, 3, per, lats, lons, SMIc=SMIc)
+     call WriteNetCDF(outpath, 3, per_kde, lats, lons, SMIc=SMIc)
      
      ! cluster indentification
-     call ClusterEvolution( SMIc,  size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells, cellCoor, nCellInter, thCellClus)
-     call WriteNetCDF(outpath, 4, per, lats, lons)
+     call ClusterEvolution( SMIc,  size( mask, 1), size( mask, 2 ), size(SMI, 2), &
+         nCells, cellCoor, nCellInter, thCellClus)
+     call WriteNetCDF(outpath, 4, per_kde, lats, lons)
 
      ! statistics  
      call ClusterStats(SMI, mask, size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells, SMI_thld )
 
      ! write results
      if (nClusters > 0) call writeResultsCluster(SMIc, outpath, 1, &
-         per%y_start, per%y_end, size(SMI, 2), nCells, deltaArea, cellsize)
+         per_kde%y_start, per_kde%y_end, size(SMI, 2), nCells, deltaArea, cellsize)
      call message('Cluster evolution ...ok')
   end if
 
@@ -172,8 +171,9 @@ program SM_Drought_Index
      do d = 1, nDurations
         call calSAD(SMI, mask, d, size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells, deltaArea, cellsize)
         ! write SAD for a given duration + percentiles
-        call writeResultsCluster(SMIc, outpath, 2, per%y_start, per%y_end, size(SMI, 2), nCells, deltaArea, cellsize, durList(d))
-        call WriteNetCDF(outpath, 5, per, lats, lons, duration=durList(d))
+        call writeResultsCluster(SMIc, outpath, 2, per_kde%y_start, per_kde%y_end, size(SMI, 2), &
+            nCells, deltaArea, cellsize, durList(d))
+        call WriteNetCDF(outpath, 5, per_kde, lats, lons, duration=durList(d))
      end do
   end if
   
@@ -181,7 +181,7 @@ program SM_Drought_Index
   if ( do_basin ) then
      ! write SMI average over major basins
      call message('calculate Basin Results ...')
-     call WriteResultsBasins( outpath, SMI, mask, per%y_start, per%y_end, size( SM_est, 2 ), Basin_Id )
+     call WriteResultsBasins( outpath, SMI, mask, per_kde%y_start, per_kde%y_end, size( SM_kde, 2 ), Basin_Id )
   end if
 
   ! print statement for check_cases

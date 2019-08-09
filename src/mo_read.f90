@@ -30,13 +30,13 @@ CONTAINS
   !               packed fields are stored in dim1->dim2 sequence 
   !*********************************************************************
   subroutine ReadDataMain( SMI_in, do_cluster, ext_smi, invert_SMI, read_opt_h, silverman_h, opt_h, lats, lons,  &
-                           basin_flag, mask, SM_est,  SM_eval,  &
+                           basin_flag, mask, SM_kde,  SM_eval,  &
                            Basin_Id, SMI_thld, outpath, cellsize, thCellClus, nCellInter, do_sad, deltaArea, &
-                           nCalendarStepsYear, per_est, per_eval, per_smi )    !  tmask_eval, tmask_est,
+                           nCalendarStepsYear, per_kde, per_eval, per_smi )
 
     use mo_kind,             only: i4
     use mo_message,          only: message
-    use mo_utils,            only: notequal
+    use mo_utils,            only: notequal, equal
     use mo_netcdf,           only: NcDataset, NcVariable
     use mo_smi_constants,    only: nodata_dp
     use mo_global_variables, only: period
@@ -61,13 +61,13 @@ CONTAINS
     
     integer(i4), dimension(:,:), allocatable, intent(out) :: Basin_Id    ! IDs for basinwise drought analysis
     real(sp),                                 intent(out) :: cellsize    ! cell edge lenght of input data
-    real(sp),    dimension(:,:), allocatable, intent(out) :: SM_est      ! daily / monthly fields packed for estimation
+    real(sp),    dimension(:,:), allocatable, intent(out) :: SM_kde      ! daily / monthly fields packed for estimation
     real(sp),    dimension(:,:), allocatable, intent(out) :: SM_eval     ! monthly fields packed for evaluation
     real(dp),    dimension(:,:), allocatable, intent(out) :: opt_h       ! optimized kernel width
     real(dp),    dimension(:,:), allocatable, intent(out) :: lats, lons  ! latitude and longitude fields of input
     real(sp),                                 intent(out) :: SMI_thld    ! SMI threshold for clustering
     character(len=256),                       intent(out) :: outpath     ! ouutput path for results
-    type(period),                             intent(out) :: per_est     ! period contain start and end date information during estimation
+    type(period),                             intent(out) :: per_kde     ! period contain start and end date information during estimation
     type(period),                             intent(out) :: per_eval    ! period during evaluation 
     type(period),                             intent(out) :: per_smi     ! period of smi file
 
@@ -109,12 +109,14 @@ CONTAINS
          do_sad, deltaArea, invert_SMI
 
 
+    call message("")
     call message("====================================================")
     call message("||                                                ||")
     call message("||              SOIL MOISTURE INDEX               ||")
-    call message("||                  VERSION 1.9                   ||")
+    call message("||                  VERSION 2.0                   ||")
     call message("||                                                ||")
     call message("====================================================")
+    call message("")
     
     ! dummy init to avoid gnu compiler complaint
     outpath    = '-999'; cellsize=-999.0_sp; thCellClus=-999; nCellInter=-999; deltaArea=-999
@@ -144,16 +146,15 @@ CONTAINS
          stop '***ERROR: if invert_SMI is .TRUE., then ext_smi must be .TRUE. and ext_smi_file must be given.'
     
     ! read sm if not external smi or invert is given
-    read_sm = ((.not. ext_smi) .or. (invert_SMI))
+    read_sm = (.not. ext_smi)
     
     ! read main mask
-    inquire( file=maskfName, exist=file_exist )
+    inquire(file=maskfName, exist=file_exist )
     if (file_exist) then
       nc_in  = NcDataset(maskfName, "r")
       nc_var = nc_in%getVariable(trim(mask_vname))
       call nc_var%getData(dummy_D2_sp)
       call nc_var%getAttribute('missing_value', nodata_value)
-
       call read_latlon(nc_in, lats, lons)
       call nc_in%close()
     
@@ -248,49 +249,63 @@ CONTAINS
     ! *************************************************************************
     ! >>> read_opt_h
     ! *************************************************************************
-    allocate( opt_h(ncells, nCalendarStepsYear))
-    opt_h = nodata_dp
+    if (allocated(mask)) then
+      allocate( opt_h(ncells, nCalendarStepsYear))
+      opt_h = nodata_dp
+    end if
     !
     if ( read_opt_h ) then
 
-      ! read optimized kernel width from file
       nc_in  = NcDataset(trim( opt_h_file ), 'r')
+
+      nc_var = nc_in%getVariable(trim(opt_h_sm_vname))
+      call nc_var%getData(dummy_D3_sp)
+      ! read mask if not done already
+      if (.not. allocated(mask)) then
+        call nc_var%getAttribute('missing_value', nodata_value)
+        mask = (dummy_D3_sp(:, :, 1) .ne. nodata_value)
+        nCells = n_cells_consistency(mask)
+        allocate( opt_h(ncells, nCalendarStepsYear))
+        opt_h = nodata_dp
+        call message('mask read ...ok')
+      end if
+      ! unpack values
+      allocate(SM_kde(nCells, size(dummy_D3_sp, 3)))
+      do ii = 1, size( dummy_D3_sp, 3 )
+        SM_kde(:, ii) = pack( dummy_D3_sp(:,:,ii), mask)
+      end do
+      deallocate( dummy_D3_sp )
+      call message('read kde soil moisture values from file... ok')
+
+      ! read optimized kernel width from file
       nc_var = nc_in%getVariable(trim(opt_h_vname))
       call nc_var%getData(dummy_D3_dp)
       do ii = 1, size( dummy_D3_dp, 3 )
         opt_h( :, ii ) = pack( real( dummy_D3_dp(:,:,ii),sp ), mask )
       end do
       deallocate( dummy_D3_dp )
-      ! if ( any( equal( opt_h, nodata_dp ) ) ) &
-      if ( any( opt_h .eq. nodata_dp ) ) &
+      if ( any( equal( opt_h, nodata_dp ) ) ) &
+      ! if ( any( opt_h .eq. nodata_dp ) ) &
           stop '***ERROR kernel width contains nodata values'
       call message('read kde kernel width from file... ok')
 
-      nc_var = nc_in%getVariable(trim(opt_h_sm_vname))
-      call nc_var%getData(dummy_D3_sp)
-      allocate(SM_est(nCells, size(dummy_D3_sp, 3)))
-      do ii = 1, size( dummy_D3_sp, 3 )
-        SM_est(:, ii) = pack( dummy_D3_sp(:,:,ii), mask)
-      end do
-      deallocate( dummy_D3_sp )
-      call message('read kde soil moisture values from file... ok')
 
       ! get timepoints in days and mask of months
-      call get_time(nc_in, size(SM_est, 2), per_est)
+      call get_time(nc_in, size(SM_kde, 2), per_kde)
       ! close file
       call nc_in%close()
 
     else
-      ! SM_eval is SM_est too
-      SM_est = SM_eval
-      per_est = per_eval      
+      ! SM_eval is SM_kde too
+      SM_kde = SM_eval
+      per_kde = per_eval      
     end if
 
-    if ((modulo(size( SM_est, 2 ), nCalendarStepsYear) .ne. per_est%n_leap_days)) then
+    if ((modulo(size( SM_kde, 2 ), nCalendarStepsYear) .ne. per_kde%n_leap_days)) then
 #ifdef SMIDEBUG
-      print *, modulo(size( SM_est, 2 ), nCalendarStepsYear),  per_est%n_leap_days
+      print *, modulo(size( SM_kde, 2 ), nCalendarStepsYear),  per_kde%n_leap_days
 #endif      
-      print *, '***ERROR: timesteps in provided SM_est field must be multiple of nCalendarStepsYear (', &
+      print *, '***ERROR: timesteps in provided SM_kde field must be multiple of nCalendarStepsYear (', &
           nCalendarStepsYear, '; leap days are accounted for)'
       stop
     end if
@@ -303,6 +318,12 @@ CONTAINS
        nc_in  = NcDataset(trim(ext_smi_file), 'r')
        nc_var = nc_in%getVariable('SMI')
        call nc_var%getData(dummy_D3_sp)
+       if (.not. allocated(mask)) then
+         call nc_var%getAttribute('missing_value', nodata_value)
+         mask = (dummy_D3_sp(:, :, 1) .ne. nodata_value)
+         nCells = n_cells_consistency(mask)
+         call message('mask read ...ok')
+       end if
        ! consistency check
        if ( ( size( dummy_D3_sp, 1) .ne. size( mask, 1 ) ) .or. &
             ( size( dummy_D3_sp, 2) .ne. size( mask, 2 ) ) ) then

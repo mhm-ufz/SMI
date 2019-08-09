@@ -45,7 +45,13 @@ case 2 :: Read kernel from previously calculated SMI file
 
 case 3 :: Read kernel and data for one dataset and apply it to another
 
+case 4 :: calculate daily SMI for a portion of the year
+
+case 5 :: invert daily SMI of case 4
+
+case 6 :: cluster calculation for SMI values calculated in case 1
+
 # -------------------------------------------------------------------------------------------
 #
-# Copyright 2014-2018 Juliane Mai, Stephan Thober
+# Copyright 2014-2019 Juliane Mai, Stephan Thober
 #
