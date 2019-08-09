@@ -116,8 +116,6 @@ CONTAINS
     call message("||                                                ||")
     call message("====================================================")
     
-
-    
     ! dummy init to avoid gnu compiler complaint
     outpath    = '-999'; cellsize=-999.0_sp; thCellClus=-999; nCellInter=-999; deltaArea=-999
 
@@ -130,7 +128,7 @@ CONTAINS
     open (unit=10, file='main.dat', status='old')
       read(10, nml=mainconfig)
     close (10)
-    print *, 'main.dat read ...ok'
+    call message('main.dat read ...ok')
 
     ! consistency check
     if ( .not.(( nCalendarStepsYear == 12) .or. ( nCalendarStepsYear == 365) ) ) &
@@ -163,10 +161,10 @@ CONTAINS
       mask = merge( .true., .false., notequal(dummy_D2_sp, nodata_value ) )
       deallocate( dummy_D2_sp )
       nCells = n_cells_consistency(mask)
-      print *, 'mask read ...ok'
+      call message('mask read ...ok')
     else
-      print *, 'Mask file ', trim(maskfName), ' does not exist!'
-      print *, 'Soil moisture file ', trim(soilmoist_file), ' is used instead!'
+      call message('Mask file ' // trim(maskfName) // ' does not exist!')
+      call message('Soil moisture file ' // trim(soilmoist_file) // ' is used instead!')
     end if
       
     ! read basin mask
@@ -180,14 +178,13 @@ CONTAINS
        ! consistency check
        if ( ( size( Basin_Id, 1) .ne. size( mask, 1 ) ) .or. &
             ( size( Basin_Id, 2) .ne. size( mask, 2 ) ) ) then
-          print *, '***ERROR: size mismatch between basin field and given mask file'
+          call message('***ERROR: size mismatch between basin field and given mask file')
           stop 1
        end if
        ! intersect mask and basin_id
        mask     = merge( .true., .false., mask .and. ( Basin_Id .ne. int( nodata_value, i4) ) )
        Basin_Id = merge( Basin_Id, int( nodata_value, i4), mask )
-       !Basin_Id = pack(  Basin_ID, mask)
-       print *, 'basin ID read ...ok'
+       call message('basin ID read ...ok')
     end if
 
     ! *************************************************************************
@@ -201,13 +198,13 @@ CONTAINS
          call nc_var%getAttribute('missing_value', nodata_value)
          mask = (dummy_D3_sp(:, :, 1) .ne. nodata_value)
          nCells = n_cells_consistency(mask)
-         print *, 'mask read ...ok'
+         call message('mask read ...ok')
        end if
 
        ! consistency check
        if ( ( size( dummy_D3_sp, 1) .ne. size( mask, 1 ) ) .or. &
             ( size( dummy_D3_sp, 2) .ne. size( mask, 2 ) ) ) then
-          print *, '***ERROR: size mismatch between SM field and given mask file'
+          call message('***ERROR: size mismatch between SM field and given mask file')
           call nc_in%close()
           stop 1
        end if
@@ -290,8 +287,11 @@ CONTAINS
     end if
 
     if ((modulo(size( SM_est, 2 ), nCalendarStepsYear) .ne. per_est%n_leap_days)) then
+#ifdef SMIDEBUG
       print *, modulo(size( SM_est, 2 ), nCalendarStepsYear),  per_est%n_leap_days
-      print *, '***ERROR: timesteps in provided SM_est field must be multiple of nCalendarStepsYear (', nCalendarStepsYear, '; leap days are accounted for)'
+#endif      
+      print *, '***ERROR: timesteps in provided SM_est field must be multiple of nCalendarStepsYear (', &
+          nCalendarStepsYear, '; leap days are accounted for)'
       stop
     end if
 
@@ -306,7 +306,7 @@ CONTAINS
        ! consistency check
        if ( ( size( dummy_D3_sp, 1) .ne. size( mask, 1 ) ) .or. &
             ( size( dummy_D3_sp, 2) .ne. size( mask, 2 ) ) ) then
-          print *, '***ERROR: size mismatch between SMI field and given mask file'
+          call message('***ERROR: size mismatch between SMI field and given mask file')
           stop
        end if
 

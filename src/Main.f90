@@ -162,7 +162,8 @@ program SM_Drought_Index
      call ClusterStats(SMI, mask, size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells, SMI_thld )
 
      ! write results
-     if (nClusters > 0) call writeResultsCluster(SMIc, outpath, 1, per%y_start, per%y_end, size(SMI, 2), nCells, deltaArea, cellsize)
+     if (nClusters > 0) call writeResultsCluster(SMIc, outpath, 1, &
+         per%y_start, per%y_end, size(SMI, 2), nCells, deltaArea, cellsize)
      call message('Cluster evolution ...ok')
   end if
 

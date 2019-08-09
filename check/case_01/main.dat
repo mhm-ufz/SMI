@@ -32,13 +32,6 @@
  opt_h_file     = "XXX"
  opt_h_vname    = "XXX" 
 
- ! if .TRUE. PDFs are calculated based on soilmoist_file but the SMI is determined for SM_eval_file and varible SM_eval_vname
- ! if .FALSE. "SM_eval_file" and "SM_eval_vname" are ignored
- eval_SMI       = .FALSE.  
- SM_eval_file   = "XXX"
- SM_eval_vname  = "XXX"
-
-
  ! -----------------------------------------------------------------------------
  !
  ! Invert SMI cdf

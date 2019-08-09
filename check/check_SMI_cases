@@ -308,10 +308,10 @@ for irelease in ${release} ; do
 
                 # SMI was running till the end?
                 set +e
-                found=$(grep 'program: finished!' standard_out.${pid}.out)
+                found=$(grep 'SMI: finished!' standard_out.${pid}.out)
                 set -e
 
-                if [[ ${found} == ' program: finished!' ]] ; then
+                if [[ ${found} == 'SMI: finished!' ]] ; then
                     
                     nRecordsDiffer=0
                     cd output_save

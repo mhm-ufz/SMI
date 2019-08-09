@@ -110,19 +110,19 @@ contains
 
     call get_time_indizes(time_est, per_est, nCalendarStepsYear)
     call get_time_indizes(time_eval, per_eval, nCalendarStepsYear)
-#IFDEF DEBUG      
+#ifdef SMIDEBUG      
     print *, time_est(:10)
     print *, time_eval(:10)
-#ENDIF
+#endif
     
     do mm = 1,  nCalendarStepsYear   ! time loop
 
       t_mask_est = (time_est .eq. mm)
       t_mask_eval = (time_eval .eq. mm)
       n_time = count(t_mask_eval)
-#IFDEF DEBUG      
+#ifdef SMIDEBUG      
       print *, mm, n_time, count(t_mask_est)
-#ENDIF       
+#endif       
       
       ! check whether there is data for that day to be calculated
       if (n_time .eq. 0_i4) cycle
