@@ -1,4 +1,4 @@
-# The Soil Moisture Index -- SMI program v2.0
+# The Soil Moisture Index - SMI program v2.0
 
 This repository contains the soil moisture index (SMI) Fortran program developed at the Dept. Computational Hydrosystems at the Helmholtz Centre for Environmental Research - UFZ.
 
@@ -24,9 +24,13 @@ This is the release for version 2.0.
 - added period object in mo_global_variables.
 - mask file is now optional
 
+## Bug fixes
+
+- kde is correctly applied for sub-annual data
+
 ## Usage
 
-The SMI code uses a kernel density estimator for transforming soil
+The SMI code uses a kernel density estimator with a gaussian kernel for transforming soil
 moisture values to the soil moisture index (SMI). It has several
 features that are described in the namelist file main.dat.
 
