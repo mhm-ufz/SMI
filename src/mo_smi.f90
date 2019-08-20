@@ -50,14 +50,16 @@ contains
     call get_time_indizes(time_kde, per_kde, nCalendarStepsYear)
 
     !$OMP parallel default(shared) &
-    !$OMP private(ii,mm,X)
-    !$OMP do COLLAPSE(2) SCHEDULE(STATIC)
+    !$OMP private(ii,mm,X, t_mask_kde)
+    !$OMP do SCHEDULE(STATIC)
     do mm = 1, nCalendarStepsYear    
 
       t_mask_kde = (time_kde .eq. mm)
       
       do ii = 1, size( SM, 1 )
-         if ((mod(ii, 10) .eq. 0_i4) .and. (mm .eq. nCalendarStepsYear)) print *, ii, mm
+#ifdef SMIDEBUG      
+         if ((mod(ii, 100) .eq. 0_i4) .and. (mm .eq. nCalendarStepsYear)) print *, ii, mm
+#endif
          !
          allocate(X(count(t_mask_kde)))
          X(:) = pack(SM( ii, :), t_mask_kde)
@@ -109,8 +111,10 @@ contains
 
     call get_time_indizes(time_kde, per_kde, nCalendarStepsYear)
     call get_time_indizes(time_eval, per_eval, nCalendarStepsYear)
-#ifdef SMIDEBUG      
+#ifdef SMIDEBUG
+    print *, 'First 10 values of time_kde:'
     print *, time_kde(:10)
+    print *, 'First 10 values of time_eval:'
     print *, time_eval(:10)
 #endif
     
@@ -119,11 +123,12 @@ contains
       t_mask_kde = (time_kde .eq. mm)
       t_mask_eval = (time_eval .eq. mm)
       n_time = count(t_mask_eval)
-#ifdef SMIDEBUG      
+#ifdef SMIDEBUG
+      print *, 'Processing: timestep, number of eval timesteps, number of kde timesteps'
       print *, mm, n_time, count(t_mask_kde)
 #endif       
       
-      ! check whether there is data for that day to be calculated
+      ! check whether there is data for that timestep to be calculated
       if (n_time .eq. 0_i4) cycle
 
       call cellSMI(SM_kde, t_mask_kde, SM_eval, t_mask_eval, hh(:, mm), SMI)
@@ -161,12 +166,21 @@ contains
     real(dp), dimension(:), allocatable   :: X_eval
     real(sp), dimension(:), allocatable   :: dummy_1d_sp
     
-    allocate ( X_kde (count(t_mask_kde)))
-    allocate ( X_eval(count(t_mask_eval)))
-    allocate ( cdf   (count(t_mask_eval)))
 
+    !$OMP parallel default(shared) &
+    !$OMP private(ii, X_kde, X_eval, cdf, dummy_1d_sp)
+    allocate ( X_kde       (count(t_mask_kde)))
+    allocate ( X_eval      (count(t_mask_eval)))
+    allocate ( cdf         (count(t_mask_eval)))
+    allocate ( dummy_1d_sp (size(t_mask_eval, dim=1)))
+
+    !$OMP do SCHEDULE(STATIC)
     do ii = 1, size(SM_kde,1)          ! cell loop
-        
+
+#ifdef SMIDEBUG      
+      if ((mod(ii, 10000) .eq. 0_i4)) print *, ii
+#endif
+      
       X_kde(:)  = pack(real( SM_kde(ii,:), dp), t_mask_kde)
       X_eval(:) = pack(real(SM_eval(ii,:), dp), t_mask_eval)
         
@@ -176,8 +190,14 @@ contains
       SMI(ii, :) = merge(dummy_1d_sp, SMI(ii, :), t_mask_eval)
       
     end do
+    !$OMP end do
+    !$OMP end parallel
 
-    deallocate( x_kde, X_eval, cdf, dummy_1d_sp )
+    ! arrays are deallocated if openmp is active
+    if (allocated(x_kde))       deallocate( x_kde)
+    if (allocated(x_eval))      deallocate( X_eval)
+    if (allocated(cdf))         deallocate( cdf)
+    if (allocated(dummy_1d_sp)) deallocate( dummy_1d_sp )
 
   end subroutine cellSMI
 
@@ -289,6 +309,7 @@ contains
     
   end subroutine invSMI
 
+  
   subroutine get_time_indizes(time, per, nCalendarStepsYear)
 
     use mo_kind,             only: i4, dp

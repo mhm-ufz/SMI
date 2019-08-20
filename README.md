@@ -1,4 +1,4 @@
-# The Soil Moisture Index - SMI program v2.0
+# The Soil Moisture Index - SMI program v2.0.1
 
 This repository contains the soil moisture index (SMI) Fortran program developed at the Dept. Computational Hydrosystems at the Helmholtz Centre for Environmental Research - UFZ.
 
@@ -13,9 +13,11 @@ Installation instructions can be found in [INSTALL][2] for Windows, MacOS, and G
 
 ## Release Notes
 
-This is the release for version 2.0.
+**Version 2.0.1**
 
-**Features**:
+- implemented openmp parallelization for estimation of SMI values
+
+**Version 2.0.**
 
 - consistent handling of leap days, no kde estimated for leap days,
   instead data of March 1st is used.

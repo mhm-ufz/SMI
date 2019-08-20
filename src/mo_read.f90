@@ -113,7 +113,7 @@ CONTAINS
     call message("====================================================")
     call message("||                                                ||")
     call message("||              SOIL MOISTURE INDEX               ||")
-    call message("||                  VERSION 2.0                   ||")
+    call message("||                 VERSION 2.0.1                  ||")
     call message("||                                                ||")
     call message("====================================================")
     call message("")
@@ -260,7 +260,6 @@ CONTAINS
       nc_var = nc_in%getVariable(trim(opt_h_sm_vname))
       call nc_var%getData(dummy_D3_sp)
       ! read mask if not done already
-      print *, 'hu...'
       if (.not. allocated(mask)) then
         call nc_var%getAttribute('missing_value', nodata_value)
         mask = (dummy_D3_sp(:, :, 1) .ne. nodata_value)
