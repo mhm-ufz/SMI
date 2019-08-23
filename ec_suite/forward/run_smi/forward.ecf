@@ -1,0 +1,23 @@
+%include <head.h>
+%manual
+This is the default **generated** ecf script file
+If the task has events, meters or labels then the associated client
+to server commands are automatically generated.
+Will default to sleep for one second in between calls to the events, meters & labels,
+this can be overridden by adding a variable SLEEP
+%end
+
+%comment
+#============================================================
+# Using angle brackets means we look in directory ECF_INCLUDE
+# and then ECF_HOME
+#============================================================
+%end
+
+job_dir=%ECF_SCRIPT%
+cd ${job_dir%%/*}
+%include <nml.h>
+
+%SMI_EXE%
+
+%include <tail.h>
