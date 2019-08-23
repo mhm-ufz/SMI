@@ -9,7 +9,7 @@ import ecflow as ec
 import os
 from shutil import copyfile as cp
 
-sm_path = '/work/thober/pgb/'
+sm_path = '/work/thober/pgb/sm_files'
 sm_files = [ff for ff in os.listdir(sm_path) if '.nc' in ff[-3:]] 
 
 # start suite definition
@@ -25,7 +25,7 @@ ecs = ec.Suite(suite_name,
                ec.Edit(ECF_HOME=ecf_home,
                        ECF_FILES=ecf_home,
                        ECF_INCLUDE=os.path.join(ecf_files, 'include'),
-                       ECF_TRIES=1,
+                       # ECF_TRIES=1,
                        SMI_EXE=smi_exe))
 
 # add family for each file
