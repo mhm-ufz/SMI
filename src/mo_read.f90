@@ -113,7 +113,7 @@ CONTAINS
     call message("====================================================")
     call message("||                                                ||")
     call message("||              SOIL MOISTURE INDEX               ||")
-    call message("||                 VERSION 2.0.1                  ||")
+    call message("||                 VERSION 2.0.2                  ||")
     call message("||                                                ||")
     call message("====================================================")
     call message("")
@@ -303,7 +303,8 @@ CONTAINS
     end if
 
     if (allocated(SM_kde)) then
-      if ((modulo(size( SM_kde, 2 ), nCalendarStepsYear) .ne. per_kde%n_leap_days)) then
+      if (((nCalendarStepsYear .eq. 12) .and. (modulo(size( SM_kde, 2 ), nCalendarStepsYear) .ne. 0_i4)) .or. &
+          ((nCalendarStepsYear .ne. 12) .and. (modulo(size( SM_kde, 2 ), nCalendarStepsYear) .ne. per_kde%n_leap_days))) then
 #ifdef SMIDEBUG
         print *, modulo(size( SM_kde, 2 ), nCalendarStepsYear),  per_kde%n_leap_days
 #endif      

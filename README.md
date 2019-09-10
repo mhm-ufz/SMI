@@ -13,6 +13,10 @@ Installation instructions can be found in [INSTALL][2] for Windows, MacOS, and G
 
 ## Release Notes
 
+**Version 2.0.2**
+
+- BUG FIX: Check for monthly data covering multiple years is now correct.
+
 **Version 2.0.1**
 
 - implemented openmp parallelization for estimation of SMI values
