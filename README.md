@@ -1,4 +1,4 @@
-# The Soil Moisture Index - SMI program v2.0.1
+# The Soil Moisture Index - SMI program v2.0.2
 
 This repository contains the soil moisture index (SMI) Fortran program developed at the Dept. Computational Hydrosystems at the Helmholtz Centre for Environmental Research - UFZ.
 
