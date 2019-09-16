@@ -256,20 +256,20 @@ contains
 
     call message('')
     call message('  start inversion of CDF')
-    !$OMP parallel default(shared) &
-    !$OMP private(mm, yy, xx_kde, hh_kde, y_inv, x_inv, dummy_1d_sp, xx_min, xx_max, xx_h, xx_cdf, yy_cdf, idx_invert)
-    !$OMP do
     do mm = 1, nCalendarStepsYear
 
       t_mask_kde = (time_kde .eq. mm)
       t_mask_smi = (time_smi .eq. mm)
       if (count(t_mask_smi) .eq. 0_i4) cycle
 
+      !$OMP parallel default(shared) &
+      !$OMP private(yy, xx_kde, hh_kde, y_inv, xx_min, xx_max, xx_h, xx_cdf, yy_cdf, idx_invert, x_inv, dummy_1d_sp)
       allocate(xx_kde(count(t_mask_kde)))
       allocate(y_inv(count(t_mask_smi)))
       allocate(x_inv(count(t_mask_smi)))
       allocate(dummy_1d_sp(count(t_mask_smi)))
       
+      !$OMP do SCHEDULE(STATIC)
       do ii = 1, n_cells
         if (modulo(ii, 1000) .eq. 0) print *, ii, n_cells
         xx_kde(:) = pack(real(SM_kde( ii, : ), dp), t_mask_kde)
@@ -295,12 +295,15 @@ contains
         SM_invert(ii, :) = merge(dummy_1d_sp, SM_invert(ii, :), t_mask_smi)
 
       end do
+      !$OMP end do
+      !$OMP end parallel
 
-      deallocate(xx_kde, y_inv, x_inv, dummy_1d_sp)
+      if (allocated(xx_kde))      deallocate(xx_kde)
+      if (allocated(y_inv))       deallocate(y_inv)
+      if (allocated(x_inv))       deallocate(x_inv)
+      if (allocated(dummy_1d_sp)) deallocate(dummy_1d_sp)
       
     end do
-    !$OMP end do
-    !$OMP end parallel
     call message('  finish inversion of CDF... ok')
     call message('')
 

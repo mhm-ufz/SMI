@@ -113,7 +113,7 @@ CONTAINS
     call message("====================================================")
     call message("||                                                ||")
     call message("||              SOIL MOISTURE INDEX               ||")
-    call message("||                 VERSION 2.0.2                  ||")
+    call message("||                 VERSION 2.0.3                  ||")
     call message("||                                                ||")
     call message("====================================================")
     call message("")
