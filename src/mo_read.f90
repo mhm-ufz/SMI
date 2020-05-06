@@ -64,7 +64,7 @@ CONTAINS
     real(sp),    dimension(:,:), allocatable, intent(out) :: SM_kde      ! daily / monthly fields packed for estimation
     real(sp),    dimension(:,:), allocatable, intent(out) :: SM_eval     ! monthly fields packed for evaluation
     real(dp),    dimension(:,:), allocatable, intent(out) :: opt_h       ! optimized kernel width
-    real(dp),    dimension(:,:), allocatable, intent(out) :: lats, lons  ! latitude and longitude fields of input
+    real(dp),    dimension(:),   allocatable, intent(out) :: lats, lons  ! latitude and longitude vector of input
     real(sp),                                 intent(out) :: SMI_thld    ! SMI threshold for clustering
     character(len=256),                       intent(out) :: outpath     ! ouutput path for results
     type(period),                             intent(out) :: per_kde     ! period contain start and end date information during estimation
@@ -501,7 +501,7 @@ CONTAINS
     implicit none
 
     type(NcDataset), intent(in) :: nc_in ! NetCDF dataset
-    real(dp), dimension(:,:), allocatable, intent(out) :: lats, lons ! latitude and longitude fields of input
+    real(dp), dimension(:), allocatable, intent(out) :: lats, lons ! latitude and longitude vectors of input
     
     type(NcVariable) :: nc_var
 

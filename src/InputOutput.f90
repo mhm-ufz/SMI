@@ -66,7 +66,7 @@ contains
     logical,        dimension(:,:),                intent(in) :: mask
     type(period),                                  intent(in) :: per
     real(sp),       dimension(:,:),                intent(in) :: SMI 
-    real(dp),       dimension(:,:), allocatable,   intent(in) :: lats, lons   ! latitude and longitude fields of input
+    real(dp),       dimension(:),   allocatable,   intent(in) :: lats, lons   ! latitude and longitude fields of input
 
     ! local Variables
     type(NcDataset)                                           :: nc_out
@@ -107,14 +107,14 @@ contains
 
     ! add lat and lon
     if (allocated(lats)) then
-      nc_var = nc_out%setVariable('lat', "f64", (/ nc_row, nc_col /))
+      nc_var = nc_out%setVariable('lat', "f64", (/ nc_col /))
       call nc_var%setData(lats)
       call nc_var%setAttribute('long_name', 'latitude')
       call nc_var%setAttribute('missing_value', nodata_dp)
       call nc_var%setAttribute('units', 'degrees_north')
     end if
     if (allocated(lons)) then
-      nc_var = nc_out%setVariable('lon', "f64", (/ nc_row, nc_col /))
+      nc_var = nc_out%setVariable('lon', "f64", (/ nc_row /))
       call nc_var%setData(lons)
       call nc_var%setAttribute('long_name', 'longitude')
       call nc_var%setAttribute('missing_value', nodata_dp)
@@ -156,7 +156,7 @@ contains
     type(period),                                  intent(in) :: per
     real(sp),       dimension(:,:),                intent(in) :: SM
     integer(i4),                                   intent(in) :: nCalendarStepsYear
-    real(dp),       dimension(:,:), allocatable,   intent(in) :: lats, lons   ! latitude and longitude fields of input
+    real(dp),       dimension(:),   allocatable,   intent(in) :: lats, lons   ! latitude and longitude fields of input
     real(dp),       dimension(:,:),                intent(in) :: hh
 
     ! local Variables
@@ -221,14 +221,14 @@ contains
 
     ! add lat and lon
     if (allocated(lats)) then
-      nc_var = nc_out%setVariable('lat', "f64", (/ nc_row, nc_col /))
+      nc_var = nc_out%setVariable('lat', "f64", (/ nc_col /))
       call nc_var%setData(lats)
       call nc_var%setAttribute('long_name', 'latitude')
       call nc_var%setAttribute('missing_value', nodata_dp)
       call nc_var%setAttribute('units', 'degrees_north')
     end if
     if (allocated(lons)) then
-      nc_var = nc_out%setVariable('lon', "f64", (/ nc_row, nc_col /))
+      nc_var = nc_out%setVariable('lon', "f64", (/ nc_row /))
       call nc_var%setData(lons)
       call nc_var%setAttribute('long_name', 'longitude')
       call nc_var%setAttribute('missing_value', nodata_dp)
@@ -272,7 +272,7 @@ contains
     character(len=*),                            intent(in) :: outpath     ! ouutput path for results
     type(period),                                intent(in) :: per
     integer(i4),                                 intent(in) :: wFlag
-    real(dp),       dimension(:,:), allocatable, intent(in) :: lats, lons   ! latitude and longitude fields of input
+    real(dp),       dimension(:),   allocatable, intent(in) :: lats, lons   ! latitude and longitude fields of input
     integer(i4),    dimension(:,:,:), optional,  intent(in) :: SMIc         ! Drought indicator
     real(sp),       dimension(:,:,:), optional,  intent(in) :: SM_invert
     integer(i4),                      optional,  intent(in) :: duration     ! optional, duration
@@ -355,14 +355,14 @@ contains
 
     ! add lat and lon
     if (allocated(lats)) then
-      nc_var = nc_out%setVariable('lat', "f64", (/ nc_row, nc_col /))
+      nc_var = nc_out%setVariable('lat', "f64", (/ nc_col /))
       call nc_var%setData(lats)
       call nc_var%setAttribute('long_name', 'latitude')
       call nc_var%setAttribute('missing_value', nodata_dp)
       call nc_var%setAttribute('units', 'degrees_north')
     end if
     if (allocated(lons)) then
-      nc_var = nc_out%setVariable('lon', "f64", (/ nc_row, nc_col /))
+      nc_var = nc_out%setVariable('lon', "f64", (/ nc_row /))
       call nc_var%setData(lons)
       call nc_var%setAttribute('long_name', 'longitude')
       call nc_var%setAttribute('missing_value', nodata_dp)

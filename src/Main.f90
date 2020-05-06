@@ -87,7 +87,7 @@ program SM_Drought_Index
   integer(i4), dimension(:,:,:), allocatable :: SMIc       ! Drought indicator 1 - is under drought
   !                                                        !                   0 - no drought
   real(dp),    dimension(:,:), allocatable   :: opt_h      ! optimized kernel width field
-  real(dp),    dimension(:,:), allocatable   :: lats, lons ! latitude and longitude fields of input
+  real(dp),    dimension(:),   allocatable   :: lats, lons ! latitude and longitude fields of input
 
   
   ! file handling 
