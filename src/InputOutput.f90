@@ -38,6 +38,7 @@ module InputOutput
   real(dp), dimension(nQProp), parameter         :: QProp = (/90._dp, 96._dp, 98._dp /)
                                                                            ! percentiles corresponding
                                                                            ! to return periods of 10,25,50 years
+
   integer(i4)                                    :: nLargerEvents = 600    ! n. largest drought events
   !
   ! Basin summary
@@ -51,7 +52,7 @@ contains
   ! created: 5.7.2014
   ! updated: refactored to new period structure and leap day handling - 9.8.2019
   ! ##################################################################
-  subroutine WriteSMI( outpath, SMI, mask, per, lats, lons) 
+  subroutine WriteSMI( outpath, SMI, mask, per, lats_1d, lons_1d, lats_2d, lons_2d) 
 
     use mo_kind,          only: i4, sp
     use mo_string_utils,  only: num2str
@@ -65,9 +66,9 @@ contains
  
     logical,        dimension(:,:),                intent(in) :: mask
     type(period),                                  intent(in) :: per
-    real(sp),       dimension(:,:),                intent(in) :: SMI 
-    real(dp),       dimension(:),   allocatable,   intent(in) :: lats, lons   ! latitude and longitude fields of input
-
+    real(sp),       dimension(:,:),                intent(in) :: SMI
+    real(dp),       dimension(:),   allocatable,   intent(in) :: lats_1d, lons_1d   ! latitude and longitude fields of input
+    real(dp),       dimension(:,:),   allocatable,   intent(in) :: lats_2d, lons_2d   ! latitude and longitude fields of input
     ! local Variables
     type(NcDataset)                                           :: nc_out
     type(NcVariable)                                          :: nc_var
@@ -106,16 +107,29 @@ contains
     deallocate( dummy_d3_sp )
 
     ! add lat and lon
-    if (allocated(lats)) then
+    if (allocated(lats_1d)) then
       nc_var = nc_out%setVariable('lat', "f64", (/ nc_col /))
-      call nc_var%setData(lats)
+      call nc_var%setData(lats_1d)
       call nc_var%setAttribute('long_name', 'latitude')
       call nc_var%setAttribute('missing_value', nodata_dp)
       call nc_var%setAttribute('units', 'degrees_north')
-    end if
-    if (allocated(lons)) then
+    else if (allocated(lats_2d)) then
+      nc_var = nc_out%setVariable('lat', "f64", (/ nc_row, nc_col /))
+      call nc_var%setData(lats_2d)
+      call nc_var%setAttribute('long_name', 'latitude')
+      call nc_var%setAttribute('missing_value', nodata_dp)
+      call nc_var%setAttribute('units', 'degrees_north')
+   end if
+
+    if (allocated(lons_1d)) then
       nc_var = nc_out%setVariable('lon', "f64", (/ nc_row /))
-      call nc_var%setData(lons)
+      call nc_var%setData(lons_1d)
+      call nc_var%setAttribute('long_name', 'longitude')
+      call nc_var%setAttribute('missing_value', nodata_dp)
+      call nc_var%setAttribute('units', 'degrees_east')
+    else if (allocated(lons_2d)) then
+      nc_var = nc_out%setVariable('lon', "f64", (/ nc_row, nc_col /))
+      call nc_var%setData(lons_2d)
       call nc_var%setAttribute('long_name', 'longitude')
       call nc_var%setAttribute('missing_value', nodata_dp)
       call nc_var%setAttribute('units', 'degrees_east')
@@ -139,7 +153,7 @@ contains
   ! author: Stephan Thober
   ! created: 8.8.2019
   ! ##################################################################
-  subroutine WriteCDF( outpath, SM, hh, mask, per, nCalendarStepsYear, lats, lons ) 
+  subroutine WriteCDF( outpath, SM, hh, mask, per, nCalendarStepsYear, lats_1d, lons_1d, lats_2d, lons_2d) 
 
     use mo_kind,          only: i4, sp
     use mo_message,       only: message
@@ -156,7 +170,8 @@ contains
     type(period),                                  intent(in) :: per
     real(sp),       dimension(:,:),                intent(in) :: SM
     integer(i4),                                   intent(in) :: nCalendarStepsYear
-    real(dp),       dimension(:),   allocatable,   intent(in) :: lats, lons   ! latitude and longitude fields of input
+    real(dp),       dimension(:),   allocatable,   intent(in) :: lats_1d, lons_1d   ! latitude and longitude fields of input
+    real(dp),       dimension(:,:),   allocatable,   intent(in) :: lats_2d, lons_2d   ! latitude and longitude fields of input
     real(dp),       dimension(:,:),                intent(in) :: hh
 
     ! local Variables
@@ -220,16 +235,29 @@ contains
     deallocate( dummy_D3_dp ) 
 
     ! add lat and lon
-    if (allocated(lats)) then
+    if (allocated(lats_1d)) then
       nc_var = nc_out%setVariable('lat', "f64", (/ nc_col /))
-      call nc_var%setData(lats)
+      call nc_var%setData(lats_1d)
       call nc_var%setAttribute('long_name', 'latitude')
       call nc_var%setAttribute('missing_value', nodata_dp)
       call nc_var%setAttribute('units', 'degrees_north')
-    end if
-    if (allocated(lons)) then
+    else if (allocated(lats_2d)) then
+      nc_var = nc_out%setVariable('lat', "f64", (/ nc_row, nc_col /))
+      call nc_var%setData(lats_2d)
+      call nc_var%setAttribute('long_name', 'latitude')
+      call nc_var%setAttribute('missing_value', nodata_dp)
+      call nc_var%setAttribute('units', 'degrees_north')
+   end if
+
+    if (allocated(lons_1d)) then
       nc_var = nc_out%setVariable('lon', "f64", (/ nc_row /))
-      call nc_var%setData(lons)
+      call nc_var%setData(lons_1d)
+      call nc_var%setAttribute('long_name', 'longitude')
+      call nc_var%setAttribute('missing_value', nodata_dp)
+      call nc_var%setAttribute('units', 'degrees_east')
+    else if (allocated(lons_2d)) then
+      nc_var = nc_out%setVariable('lon', "f64", (/ nc_row, nc_col /))
+      call nc_var%setData(lons_2d)
       call nc_var%setAttribute('long_name', 'longitude')
       call nc_var%setAttribute('missing_value', nodata_dp)
       call nc_var%setAttribute('units', 'degrees_east')
@@ -258,7 +286,7 @@ contains
   !               Created        Sa   16.02.2011   
   !               Last Update    Sa   16.02.2011  
   !**************************************************************************
-  subroutine WriteNetCDF(outpath, wFlag, per, lats, lons, &
+  subroutine WriteNetCDF(outpath, wFlag, per, lats_1d, lons_1d, lats_2d, lons_2d, &
         SMIc, SM_invert, duration) 
     !
     use mo_kind,          only: i4
@@ -272,7 +300,8 @@ contains
     character(len=*),                            intent(in) :: outpath     ! ouutput path for results
     type(period),                                intent(in) :: per
     integer(i4),                                 intent(in) :: wFlag
-    real(dp),       dimension(:),   allocatable, intent(in) :: lats, lons   ! latitude and longitude fields of input
+    real(dp),       dimension(:),   allocatable,   intent(in) :: lats_1d, lons_1d   ! latitude and longitude fields of input
+    real(dp),       dimension(:,:),   allocatable,   intent(in) :: lats_2d, lons_2d   ! latitude and longitude fields of input
     integer(i4),    dimension(:,:,:), optional,  intent(in) :: SMIc         ! Drought indicator
     real(sp),       dimension(:,:,:), optional,  intent(in) :: SM_invert
     integer(i4),                      optional,  intent(in) :: duration     ! optional, duration
@@ -354,16 +383,29 @@ contains
     end select
 
     ! add lat and lon
-    if (allocated(lats)) then
+    if (allocated(lats_1d)) then
       nc_var = nc_out%setVariable('lat', "f64", (/ nc_col /))
-      call nc_var%setData(lats)
+      call nc_var%setData(lats_1d)
       call nc_var%setAttribute('long_name', 'latitude')
       call nc_var%setAttribute('missing_value', nodata_dp)
       call nc_var%setAttribute('units', 'degrees_north')
-    end if
-    if (allocated(lons)) then
+    else if (allocated(lats_2d)) then
+      nc_var = nc_out%setVariable('lat', "f64", (/ nc_row, nc_col /))
+      call nc_var%setData(lats_2d)
+      call nc_var%setAttribute('long_name', 'latitude')
+      call nc_var%setAttribute('missing_value', nodata_dp)
+      call nc_var%setAttribute('units', 'degrees_north')
+   end if
+
+    if (allocated(lons_1d)) then
       nc_var = nc_out%setVariable('lon', "f64", (/ nc_row /))
-      call nc_var%setData(lons)
+      call nc_var%setData(lons_1d)
+      call nc_var%setAttribute('long_name', 'longitude')
+      call nc_var%setAttribute('missing_value', nodata_dp)
+      call nc_var%setAttribute('units', 'degrees_east')
+    else if (allocated(lons_2d)) then
+      nc_var = nc_out%setVariable('lon', "f64", (/ nc_row, nc_col /))
+      call nc_var%setData(lons_2d)
       call nc_var%setAttribute('long_name', 'longitude')
       call nc_var%setAttribute('missing_value', nodata_dp)
       call nc_var%setAttribute('units', 'degrees_east')
