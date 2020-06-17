@@ -30,7 +30,7 @@ CONTAINS
   !               packed fields are stored in dim1->dim2 sequence 
   !*********************************************************************
   subroutine ReadDataMain( SMI_in, do_cluster, ext_smi, invert_SMI, read_opt_h, silverman_h, opt_h, lats_1d, lons_1d,&
-                           lats_2d, lons_2d, basin_flag, mask, SM_kde,  SM_eval,  &
+                           lats_2d, lons_2d,easting, northing, basin_flag, mask, SM_kde,  SM_eval,  &
                            Basin_Id, SMI_thld, outpath, cellsize, thCellClus, nCellInter, do_sad, deltaArea, &
                            nCalendarStepsYear, per_kde, per_eval, per_smi )
 
@@ -66,6 +66,8 @@ CONTAINS
     real(dp),    dimension(:,:), allocatable, intent(out) :: opt_h       ! optimized kernel width
     real(dp), dimension(:), allocatable, intent(out) :: lats_1d, lons_1d ! latitude and longitude vectors of input
     real(dp), dimension(:,:), allocatable, intent(out) :: lats_2d, lons_2d ! latitude and longitude vectors of input
+    real(dp), dimension(:), allocatable, intent(out) :: easting ! easting coordinates of input 
+    real(dp), dimension(:), allocatable, intent(out) :: northing ! easting coordinates of input 
     real(sp),                                 intent(out) :: SMI_thld    ! SMI threshold for clustering
     character(len=256),                       intent(out) :: outpath     ! ouutput path for results
     type(period),                             intent(out) :: per_kde     ! period contain start and end date information during estimation
@@ -156,7 +158,7 @@ CONTAINS
       nc_var = nc_in%getVariable(trim(mask_vname))
       call nc_var%getData(dummy_D2_sp)
       call nc_var%getAttribute('missing_value', nodata_value)
-      call read_latlon( nc_in, lats_1d, lons_1d, lats_2d, lons_2d)
+      call read_latlon( nc_in, lats_1d, lons_1d, lats_2d, lons_2d,easting, northing)
       call nc_in%close()
     
       ! create mask
@@ -215,7 +217,7 @@ CONTAINS
        call get_time(nc_in,  size( dummy_D3_sp, 3 ), per_eval)
       
        ! read lats and lon from file
-       call read_latlon( nc_in, lats_1d, lons_1d, lats_2d, lons_2d)
+       call read_latlon( nc_in, lats_1d, lons_1d, lats_2d, lons_2d,easting, northing)
        call nc_in%close()
        
        
@@ -345,7 +347,7 @@ CONTAINS
       ! get timepoints in days and mask of months
       call get_time( nc_in, size(SMI_in, dim=2), per_smi)
 
-      call read_latlon( nc_in, lats_1d, lons_1d, lats_2d, lons_2d)
+      call read_latlon( nc_in, lats_1d, lons_1d, lats_2d, lons_2d,easting, northing)
       call nc_in%close()
     else
       per_smi = per_kde
@@ -494,7 +496,7 @@ CONTAINS
     end if
   end function n_cells_consistency
 
-  subroutine read_latlon(nc_in, lats_1d, lons_1d, lats_2d, lons_2d)
+  subroutine read_latlon(nc_in, lats_1d, lons_1d, lats_2d, lons_2d,easting, northing)
 
     use mo_kind, only: dp,i4
     use mo_netcdf, only: NcDataset, NcVariable
@@ -504,6 +506,8 @@ CONTAINS
     type(NcDataset), intent(in) :: nc_in ! NetCDF dataset
     real(dp), dimension(:), allocatable, intent(out) :: lats_1d, lons_1d ! latitude and longitude vectors of input
     real(dp), dimension(:,:), allocatable, intent(out) :: lats_2d, lons_2d ! latitude and longitude vectors of input
+    real(dp), dimension(:), allocatable, intent(out) :: easting ! easting coordinates of input 
+    real(dp), dimension(:), allocatable, intent(out) :: northing ! easting coordinates of input 
     integer(i4)              :: lat_lon_Ndim
     type(NcVariable) :: nc_var
 
@@ -513,12 +517,10 @@ CONTAINS
        lat_lon_Ndim=nc_var%getNoDimensions()
        if (lat_lon_Ndim == 1) then
           call nc_var%getData(lats_1d)
-          ! lats=lats_1d
-          ! deallocate(lats_1d)
        else if (lat_lon_Ndim == 2) then
           call nc_var%getData(lats_2d)
-          ! lats=lats_2d
-          ! deallocate(lats_2d)
+          nc_var = nc_in%getVariable('northing')
+          call nc_var%getData(northing)
        end if
     end if
     if (nc_in%hasVariable('lon')) then
@@ -526,12 +528,10 @@ CONTAINS
       lat_lon_Ndim=nc_var%getNoDimensions()
       if (lat_lon_Ndim == 1) then
          call nc_var%getData(lons_1d)
-         ! lons=lons_1d
-         ! deallocate(lons_1d)
       else if (lat_lon_Ndim == 2) then
          call nc_var%getData(lons_2d)
-         ! lons=lons_2d
-         ! deallocate(lons_2d)
+         nc_var = nc_in%getVariable('easting')
+         call nc_var%getData(easting)
       end if
     end if
     
