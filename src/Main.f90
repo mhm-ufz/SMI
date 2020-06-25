@@ -87,7 +87,10 @@ program SM_Drought_Index
   integer(i4), dimension(:,:,:), allocatable :: SMIc       ! Drought indicator 1 - is under drought
   !                                                        !                   0 - no drought
   real(dp),    dimension(:,:), allocatable   :: opt_h      ! optimized kernel width field
-  real(dp),    dimension(:,:), allocatable   :: lats, lons ! latitude and longitude fields of input
+  real(dp), dimension(:), allocatable        :: lats_1d, lons_1d ! latitude and longitude vectors of input
+  real(dp), dimension(:,:), allocatable      :: lats_2d, lons_2d ! latitude and longitude vectors of input
+  real(dp), dimension(:), allocatable        :: easting ! easting coordinates of input 
+  real(dp), dimension(:), allocatable        :: northing ! easting coordinates of input 
 
   
   ! file handling 
@@ -98,8 +101,8 @@ program SM_Drought_Index
   !$OMP END PARALLEL
   !$ print *, 'Run with OpenMP with ', ii, ' threads.'
   call ReadDataMain( SMI, do_cluster, ext_smi, invert_smi, &
-       read_opt_h, silverman_h, opt_h, lats, lons, do_basin, &
-       mask, SM_kde, SM_eval, Basin_Id, &
+       read_opt_h, silverman_h, opt_h, lats_1d, lons_1d, lats_2d, lons_2d, easting, northing,&
+        do_basin, mask, SM_kde, SM_eval, Basin_Id, &
        SMI_thld, outpath, cellsize, thCellClus, nCellInter, &
        do_sad, deltaArea, nCalendarStepsYear, per_kde, per_eval, per_smi )
   
@@ -131,18 +134,19 @@ program SM_Drought_Index
      do ii = 1, size(SM_invert, 2)
        dummy_D3_sp(:, :, ii) = unpack(SM_invert(:, ii), mask, nodata_sp)
      end do
-     call WriteNetcdf(outpath, 2, per_smi, lats, lons, SM_invert=dummy_D3_sp)
+     call WriteNetcdf(outpath, 2, per_smi, lats_1d, lons_1d, lats_2d, lons_2d, easting, northing, SM_invert=dummy_D3_sp)
      deallocate(dummy_D3_sp)
   end if
 
   ! write output
   if (.NOT. ext_smi) then
-    call WriteSMI( outpath, SMI, mask, per_eval, lats, lons )
+     call WriteSMI( outpath, SMI, mask, per_eval, lats_1d, lons_1d, lats_2d, lons_2d, easting, northing)
     call message('write SMI...ok')
   end if
 
   if ((.not. read_opt_h) .and. (.not. ext_smi)) then
-    call WriteCDF( outpath, SM_kde, opt_h, mask, per_kde, nCalendarStepsYear, lats, lons )
+     call WriteCDF( outpath, SM_kde, opt_h, mask, per_kde, nCalendarStepsYear, &
+          lats_1d, lons_1d, lats_2d, lons_2d, easting, northing)
     call message('write cdf_info file...ok')
   end if
      
@@ -150,12 +154,12 @@ program SM_Drought_Index
   if ( do_cluster ) then
      ! drought indicator 
      call droughtIndicator( SMI, mask, SMI_thld, cellCoor, SMIc )
-     call WriteNetCDF(outpath, 3, per_smi, lats, lons, SMIc=SMIc)
+     call WriteNetCDF(outpath, 3, per_smi, lats_1d, lons_1d, lats_2d, lons_2d, easting, northing, SMIc=SMIc)
      
      ! cluster indentification
      call ClusterEvolution( SMIc,  size( mask, 1), size( mask, 2 ), size(SMI, 2), &
          nCells, cellCoor, nCellInter, thCellClus)
-     call WriteNetCDF(outpath, 4, per_smi, lats, lons)
+     call WriteNetCDF(outpath, 4, per_smi, lats_1d, lons_1d, lats_2d, lons_2d, easting, northing)
 
      ! statistics  
      call ClusterStats(SMI, mask, size( mask, 1), size( mask, 2 ), size(SMI, 2), nCells, SMI_thld )
@@ -173,7 +177,8 @@ program SM_Drought_Index
         ! write SAD for a given duration + percentiles
         call writeResultsCluster(SMIc, outpath, 2, per_smi%y_start, per_smi%y_end, size(SMI, 2), &
             nCells, deltaArea, cellsize, durList(d))
-        call WriteNetCDF(outpath, 5, per_kde, lats, lons, duration=durList(d))
+        call WriteNetCDF(outpath, 5, per_kde, lats_1d, lons_1d, lats_2d, lons_2d,&
+             easting, northing, duration=durList(d))
      end do
   end if
   
