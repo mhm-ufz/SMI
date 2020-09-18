@@ -1,0 +1,34 @@
+explanations for the config file main.txt and for data preparation:
+>headerName_or_mask<
+    - NetCDF mask file has to have value 1 for the cells to consider for SMI calculation
+    - the name of the variable has to be 'mask'
+    - the variable has to be of datatype NF90_FLOAT
+>basinName<
+    - basins ids for the integration of the drought index over basins
+    - numbering of basins has to be consecutive
+    - the name of the variable has to be 'basinId'
+    - the variable has to be of datatype NF90_INT
+>errorMask<
+    - cells which are in the domain of examination but which deliver bas statistics
+    - this cells are ignored in the SMI calculation too   
+    - the name of the variable has to be 'error'
+    - the variable has to be of datatype NF90_FLOAT
+>DataPathIn_SM_or_file<
+    - soil moisture fields
+    - the name of the variable has to be 'SM_Lall'
+    - the variable has to be of datatype NF90_DOUBLE
+>dataPathOut<
+
+
+ 
+>DAT_flag                2
+>SMI_flag                5
+ KERNEL_TYPE             7
+ NUMBER-INT-INTER        500
+ OFFSET                  0.01
+ CDF_printflag           .true.
+>PERIOD
+ begin-Year              1954
+ end-Year                2013
+>SMI_threshold           0.20
+>***END

@@ -3,18 +3,14 @@
 !> \brief Sort and ranking routines
 
 !> \details This module is the Orderpack 2.0 from Michel Olagnon.
-!>          It provides order and unconditional, unique, and partial 
- !>         ranking, sorting, and permutation.
+!> It provides order and unconditional, unique, and partial ranking, sorting, and permutation.
 
 !> \authors Michel Olagnon
 !> \date 2000-2012
-
 MODULE mo_orderpack
 
-  ! Written,  Matthias Cuntz, Apr 2014 - adapted to UFZ library
-  !                                    - one module, cleaned all warnings
-  ! Modified, Juliane Mai,    Nov 2014 - replaced floating comparison by ne(), eq(), etc. from mo_utils
-  ! Modified, Matthias Cuntz, Jul 2015 - median -> omedian
+  ! Written, Matthias Cuntz, Apr 2014 - adapted to UFZ library
+  !                                   - one module, cleaned all warnings
 
   ! License
   ! -------
@@ -31,13 +27,12 @@ MODULE mo_orderpack
   ! GNU Lesser General Public License for more details.
 
   ! You should have received a copy of the GNU Lesser General Public License
-  ! along with the UFZ Fortran library (cf. gpl.txt and lgpl.txt).
+  ! along with the UFZ makefile project (cf. gpl.txt and lgpl.txt).
   ! If not, see <http://www.gnu.org/licenses/>.
 
   ! Copyright 2014 Matthias Cuntz
 
-  USE mo_kind,  ONLY: i4, sp, dp
-  USE mo_utils, ONLY: ne, eq, le
+  USE mo_kind, ONLY: i4, sp, dp
 
   IMPLICIT NONE
 
@@ -51,7 +46,7 @@ MODULE mo_orderpack
   public :: indnth
   public :: inspar
   public :: inssor
-  public :: omedian
+  public :: median
   public :: mrgref
   public :: mrgrnk
   public :: mulcnt
@@ -269,7 +264,7 @@ MODULE mo_orderpack
   !> also has better worst case behavior than VALNTH/INDNTH, and is about
   !> 20% faster in average for random uniformly distributed values.
   !> 
-  !> Function OMEDIAN (XVALT) It is a modified version of VALMED that
+  !> Function MEDIAN (XVALT) It is a modified version of VALMED that
   !> provides the average between the two middle values in the case
   !> Size(XVALT) is even.
   !> 
@@ -306,9 +301,9 @@ MODULE mo_orderpack
   interface inssor
      module procedure d_inssor, r_inssor, i_inssor
   end interface inssor
-  interface omedian
+  interface median
      module procedure d_median, r_median, i_median
-  end interface omedian
+  end interface median
   interface mrgref
      module procedure d_mrgref, r_mrgref, i_mrgref
   end interface mrgref
@@ -446,13 +441,11 @@ CONTAINS
     Integer(kind=i4), Dimension (Size(XDONT)) :: JWRKT
     Real(kind=dp) :: PWRK
     Integer(kind=i4) :: I
-    Real(kind=dp), Dimension (Size(XDONT)) :: II
     !
     Call Random_number (XINDT(:))
     PWRK = Min (Max (0.0_dp, PCLS), 1.0_dp)
     XINDT = Real(Size(XDONT),dp) * XINDT
-    forall(I=1:size(XDONT)) II(I) = real(I,dp) ! for gnu compiler to be initialised
-    XINDT = PWRK*XINDT + (1.0_dp-PWRK)*II
+    XINDT = PWRK*XINDT + (1.0_dp-PWRK)*(/ (Real(I,dp), I=1,size(XDONT)) /)
     Call MRGRNK (XINDT, JWRKT)
     XDONT = XDONT (JWRKT)
     !
@@ -480,13 +473,11 @@ CONTAINS
     Integer(kind=i4), Dimension (Size(XDONT)) :: JWRKT
     Real(kind=sp) :: PWRK
     Integer(kind=i4) :: I
-    Real(kind=sp), Dimension (Size(XDONT)) :: II
     !
     Call Random_number (XINDT(:))
     PWRK = Min (Max (0.0, PCLS), 1.0)
     XINDT = Real(Size(XDONT),sp) * XINDT
-    forall(I=1:size(XDONT)) II(I) = real(I,sp) ! for gnu compiler to be initialised
-    XINDT = PWRK*XINDT + (1.0-PWRK)*II
+    XINDT = PWRK*XINDT + (1.0-PWRK)*(/ (Real(I,sp), I=1,size(XDONT)) /)
     Call MRGRNK (XINDT, JWRKT)
     XDONT = XDONT (JWRKT)
     !
@@ -514,13 +505,11 @@ CONTAINS
     Integer(kind=i4), Dimension (Size(XDONT)) :: JWRKT
     Real(kind=sp) :: PWRK
     Integer(kind=i4) :: I
-    Real(kind=sp), Dimension (Size(XDONT)) :: II
     !
     Call Random_number (XINDT(:))
     PWRK = Min (Max (0.0, PCLS), 1.0)
     XINDT = Real(Size(XDONT),sp) * XINDT
-    forall(I=1:size(XDONT)) II(I) = real(I,sp) ! for gnu compiler to be initialised
-    XINDT = PWRK*XINDT + (1.0-PWRK)*II
+    XINDT = PWRK*XINDT + (1.0-PWRK)*(/ (Real(I,sp), I=1, size(XDONT)) /)
     Call MRGRNK(XINDT, JWRKT)
     XDONT = XDONT(JWRKT)
     !
@@ -941,7 +930,7 @@ CONTAINS
           NEQU = NEQU + 1
           IENDT (IDON1) = IMED - 1
           Do IMED1 = IMED - 1, IDON, -1
-             If (eq(XDATT (IWRKT (IMED1)) , XMED7)) Then
+             If (XDATT (IWRKT (IMED1)) == XMED7) Then
                 NEQU = NEQU + 1
                 IENDT (IDON1) = IMED1 - 1
              Else
@@ -950,7 +939,7 @@ CONTAINS
           End Do
           ISTRT (IDON1) = IMED + 1
           Do IMED1 = IMED + 1, IDON + 6
-             If (eq(XDATT (IWRKT (IMED1)) , XMED7)) Then
+             If (XDATT (IWRKT (IMED1)) == XMED7) Then
                 NEQU = NEQU + 1
                 NLEQ = NLEQ + 1
                 ISTRT (IDON1) = IMED1 + 1
@@ -1339,7 +1328,7 @@ CONTAINS
           NEQU = NEQU + 1
           IENDT (IDON1) = IMED - 1
           Do IMED1 = IMED - 1, IDON, -1
-             If (eq(XDATT (IWRKT (IMED1)) , XMED7)) Then
+             If (XDATT (IWRKT (IMED1)) == XMED7) Then
                 NEQU = NEQU + 1
                 IENDT (IDON1) = IMED1 - 1
              Else
@@ -1348,7 +1337,7 @@ CONTAINS
           End Do
           ISTRT (IDON1) = IMED + 1
           Do IMED1 = IMED + 1, IDON + 6
-             If (eq(XDATT (IWRKT (IMED1)) , XMED7)) Then
+             If (XDATT (IWRKT (IMED1)) == XMED7) Then
                 NEQU = NEQU + 1
                 NLEQ = NLEQ + 1
                 ISTRT (IDON1) = IMED1 + 1
@@ -5690,7 +5679,7 @@ CONTAINS
                 IRNGT (IWRKD+3) = IRNGT (IWRKD+2)
                 IRNGT (IWRKD+2) = IRNG1
              End If
-             If (.true.) Exit   ! Exit ! JM
+             Exit
           End If
           !
           !   1 2 3 4
@@ -5739,7 +5728,7 @@ CONTAINS
        !  The Cs become As and Bs
        !
        LMTNA = 4
-       If (.true.) Exit   ! Exit ! JM
+       Exit
     End Do
     !
     !  Iteration loop. Each time, the length of the ordered subsets
@@ -5890,7 +5879,7 @@ CONTAINS
                 IRNGT (IWRKD+3) = IRNGT (IWRKD+2)
                 IRNGT (IWRKD+2) = IRNG1
              End If
-             If (.true.) Exit   ! Exit ! JM
+             Exit
           End If
           !
           !   1 2 3 4
@@ -5939,7 +5928,7 @@ CONTAINS
        !  The Cs become As and Bs
        !
        LMTNA = 4
-       If (.true.) Exit   ! Exit ! JM
+       Exit
     End Do
     !
     !  Iteration loop. Each time, the length of the ordered subsets
@@ -6090,7 +6079,7 @@ CONTAINS
                 IRNGT (IWRKD+3) = IRNGT (IWRKD+2)
                 IRNGT (IWRKD+2) = IRNG1
              End If
-             If (.true.) Exit   ! Exit ! JM
+             Exit
           End If
           !
           !   1 2 3 4
@@ -6139,7 +6128,7 @@ CONTAINS
        !  The Cs become As and Bs
        !
        LMTNA = 4
-       If (.true.) Exit   ! Exit ! JM
+       Exit
     End Do
     !
     !  Iteration loop. Each time, the length of the ordered subsets
@@ -10311,7 +10300,7 @@ CONTAINS
                 IRNGT (IWRKD+3) = IRNGT (IWRKD+2)
                 IRNGT (IWRKD+2) = IRNG1
              End If
-             If (.true.) Exit   ! Exit ! JM
+             Exit
           End If
           !
           !   1 2 3 4
@@ -10360,7 +10349,7 @@ CONTAINS
        !  The Cs become As and Bs
        !
        LMTNA = 4
-       If (.true.) Exit   ! Exit ! JM
+       Exit
     End Do
     !
     !  Iteration loop. Each time, the length of the ordered subsets
@@ -10558,7 +10547,7 @@ CONTAINS
                 IRNGT (IWRKD+3) = IRNGT (IWRKD+2)
                 IRNGT (IWRKD+2) = IRNG1
              End If
-             If (.true.) Exit   ! Exit ! JM
+             Exit
           End If
           !
           !   1 2 3 4
@@ -10607,7 +10596,7 @@ CONTAINS
        !  The Cs become As and Bs
        !
        LMTNA = 4
-       If (.true.) Exit   ! Exit ! JM
+       Exit
     End Do
     !
     !  Iteration loop. Each time, the length of the ordered subsets
@@ -10805,7 +10794,7 @@ CONTAINS
                 IRNGT (IWRKD+3) = IRNGT (IWRKD+2)
                 IRNGT (IWRKD+2) = IRNG1
              End If
-             If (.true.) Exit   ! Exit ! JM
+             Exit
           End If
           !
           !   1 2 3 4
@@ -10854,7 +10843,7 @@ CONTAINS
        !  The Cs become As and Bs
        !
        LMTNA = 4
-       If (.true.) Exit   ! Exit ! JM
+       Exit
     End Do
     !
     !  Iteration loop. Each time, the length of the ordered subsets
@@ -11048,7 +11037,7 @@ CONTAINS
     !  mid-point of the set of low values.
     !
     Do ICRS = 2, NDON
-       If (eq(XDONT(ICRS) , XDONT(1))) Then
+       If (XDONT(ICRS) == XDONT(1)) Then
           Cycle
        Else If (XDONT(ICRS) < XDONT(1)) Then
           ILOWT (1) = ICRS
@@ -11057,7 +11046,7 @@ CONTAINS
           ILOWT (1) = 1
           IHIGT (1) = ICRS
        End If
-       If (.true.) Exit   ! Exit ! JM
+       Exit
     End Do
     !
     If (NDON <= ICRS) Then
@@ -11156,7 +11145,7 @@ CONTAINS
              IHIGT (JHIG) = ICRS
           Else
              Do ILOW = 1, JLOW
-                If (eq(XDONT(ICRS) , XDONT(ILOWT(ILOW)))) Cycle lowloop1
+                If (XDONT(ICRS) == XDONT(ILOWT(ILOW))) Cycle lowloop1
              End Do
              JLOW = JLOW + 1
              ILOWT (JLOW) = ICRS
@@ -11191,7 +11180,7 @@ CONTAINS
              IHIGT (JHIG) = ICRS
           Else
              Do ILOW = 1, JLOW
-                If (eq(XDONT(ICRS) , XDONT (ILOWT(ILOW)))) Cycle lowloop2
+                If (XDONT(ICRS) == XDONT (ILOWT(ILOW))) Cycle lowloop2
              End Do
              JLOW = JLOW + 1
              ILOWT (JLOW) = ICRS
@@ -11236,7 +11225,7 @@ CONTAINS
              ILOWT (JLOW) = IHIGT (IHIG)
              IHIG = 0
              Do ICRS = 1, JHIG
-                If (ne(XDONT(IHIGT (ICRS)) , XMIN)) then
+                If (XDONT(IHIGT (ICRS)) /= XMIN) then
                    IHIG = IHIG + 1
                    IHIGT (IHIG ) = IHIGT (ICRS)
                 End If
@@ -11290,12 +11279,12 @@ CONTAINS
              !   and apply the general algorithm.
              !
           Case (2)
-             If (le(XDONT(IHIGT(1)) , XDONT(IHIGT(2)))) Then
+             If (XDONT(IHIGT(1)) <= XDONT(IHIGT(2))) Then
                 JLOW = JLOW + 1
                 ILOWT (JLOW) = IHIGT (1)
                 JLOW = JLOW + 1
                 ILOWT (JLOW) = IHIGT (2)
-             ElseIf (eq(XDONT(IHIGT(1)) , XDONT(IHIGT(2)))) Then
+             ElseIf (XDONT(IHIGT(1)) == XDONT(IHIGT(2))) Then
                 JLOW = JLOW + 1
                 ILOWT (JLOW) = IHIGT (1)
                 NORD = JLOW
@@ -11331,12 +11320,12 @@ CONTAINS
              JLOW = JLOW + 1
              ILOWT (JLOW) = IHIGT (1)
              JHIG = JHIG + 1
-             IF (ne(XDONT(IHIGT(JHIG)) , XDONT(ILOWT(JLOW)))) Then
+             IF (XDONT(IHIGT(JHIG)) /= XDONT(ILOWT(JLOW))) Then
                 JLOW = JLOW + 1
                 ILOWT (JLOW) = IHIGT (JHIG)
              End If
              JHIG = JHIG + 1
-             IF (ne(XDONT(IHIGT(JHIG)) , XDONT(ILOWT(JLOW)))) Then
+             IF (XDONT(IHIGT(JHIG)) /= XDONT(ILOWT(JLOW))) Then
                 JLOW = JLOW + 1
                 ILOWT (JLOW) = IHIGT (JHIG)
              End If
@@ -11387,7 +11376,7 @@ CONTAINS
              lowloop3: Do ICRS = 1, IFIN
                 If (XDONT(IHIGT(ICRS)) <= XPIV) Then
                    Do ILOW = 1, JLOW
-                      If (eq(XDONT(IHIGT(ICRS)) , XDONT (ILOWT(ILOW)))) &
+                      If (XDONT(IHIGT(ICRS)) == XDONT (ILOWT(ILOW))) &
                            Cycle lowloop3
                    End Do
                    JLOW = JLOW + 1
@@ -11460,7 +11449,7 @@ CONTAINS
                 XWRK = XDONT (ILOWT (ICRS))
                 Do ILOW = 1, NORD - 1
                    If (XWRK <= XDONT(IRNGT(ILOW))) Then
-                      If (eq(XWRK , XDONT(IRNGT(ILOW)))) Cycle insert1
+                      If (XWRK == XDONT(IRNGT(ILOW))) Cycle insert1
                       Exit
                    End If
                 End Do
@@ -11532,7 +11521,7 @@ CONTAINS
                 Else
                    XWRK1 = XDONT(ILOWT(ICRS))
                    Do ILOW = IDEB, JLOW
-                      If (eq(XWRK1 , XDONT(ILOWT(ILOW)))) &
+                      If (XWRK1 == XDONT(ILOWT(ILOW))) &
                            Cycle lowloop4
                    End Do
                    JLOW = JLOW + 1
@@ -11560,7 +11549,7 @@ CONTAINS
                 Else
                    XWRK1 = XDONT(ILOWT(ICRS))
                    Do ILOW = IDEB, JLOW
-                      If (eq(XWRK1 , XDONT(ILOWT(ILOW)))) &
+                      If (XWRK1 == XDONT(ILOWT(ILOW))) &
                            Cycle lowloop5
                    End Do
                    JLOW = JLOW + 1
@@ -11649,7 +11638,7 @@ CONTAINS
     !  mid-point of the set of low values.
     !
     Do ICRS = 2, NDON
-       If (eq(XDONT(ICRS) , XDONT(1))) Then
+       If (XDONT(ICRS) == XDONT(1)) Then
           Cycle
        Else If (XDONT(ICRS) < XDONT(1)) Then
           ILOWT (1) = ICRS
@@ -11658,7 +11647,7 @@ CONTAINS
           ILOWT (1) = 1
           IHIGT (1) = ICRS
        End If
-       If (.true.) Exit   ! Exit ! JM
+       Exit
     End Do
     !
     If (NDON <= ICRS) Then
@@ -11757,7 +11746,7 @@ CONTAINS
              IHIGT (JHIG) = ICRS
           Else
              Do ILOW = 1, JLOW
-                If (eq(XDONT(ICRS) , XDONT(ILOWT(ILOW)))) Cycle lowloop1
+                If (XDONT(ICRS) == XDONT(ILOWT(ILOW))) Cycle lowloop1
              End Do
              JLOW = JLOW + 1
              ILOWT (JLOW) = ICRS
@@ -11792,7 +11781,7 @@ CONTAINS
              IHIGT (JHIG) = ICRS
           Else
              Do ILOW = 1, JLOW
-                If (eq(XDONT(ICRS) , XDONT (ILOWT(ILOW)))) Cycle lowloop2
+                If (XDONT(ICRS) == XDONT (ILOWT(ILOW))) Cycle lowloop2
              End Do
              JLOW = JLOW + 1
              ILOWT (JLOW) = ICRS
@@ -11837,7 +11826,7 @@ CONTAINS
              ILOWT (JLOW) = IHIGT (IHIG)
              IHIG = 0
              Do ICRS = 1, JHIG
-                If (ne(XDONT(IHIGT (ICRS)) , XMIN)) then
+                If (XDONT(IHIGT (ICRS)) /= XMIN) then
                    IHIG = IHIG + 1
                    IHIGT (IHIG ) = IHIGT (ICRS)
                 End If
@@ -11891,12 +11880,12 @@ CONTAINS
              !   and apply the general algorithm.
              !
           Case (2)
-             If (le(XDONT(IHIGT(1)) , XDONT(IHIGT(2)))) Then
+             If (XDONT(IHIGT(1)) <= XDONT(IHIGT(2))) Then
                 JLOW = JLOW + 1
                 ILOWT (JLOW) = IHIGT (1)
                 JLOW = JLOW + 1
                 ILOWT (JLOW) = IHIGT (2)
-             ElseIf (eq(XDONT(IHIGT(1)) , XDONT(IHIGT(2)))) Then
+             ElseIf (XDONT(IHIGT(1)) == XDONT(IHIGT(2))) Then
                 JLOW = JLOW + 1
                 ILOWT (JLOW) = IHIGT (1)
                 NORD = JLOW
@@ -11932,12 +11921,12 @@ CONTAINS
              JLOW = JLOW + 1
              ILOWT (JLOW) = IHIGT (1)
              JHIG = JHIG + 1
-             IF (ne(XDONT(IHIGT(JHIG)) , XDONT(ILOWT(JLOW)))) Then
+             IF (XDONT(IHIGT(JHIG)) /= XDONT(ILOWT(JLOW))) Then
                 JLOW = JLOW + 1
                 ILOWT (JLOW) = IHIGT (JHIG)
              End If
              JHIG = JHIG + 1
-             IF (ne(XDONT(IHIGT(JHIG)) , XDONT(ILOWT(JLOW)))) Then
+             IF (XDONT(IHIGT(JHIG)) /= XDONT(ILOWT(JLOW))) Then
                 JLOW = JLOW + 1
                 ILOWT (JLOW) = IHIGT (JHIG)
              End If
@@ -11988,7 +11977,7 @@ CONTAINS
              lowloop3: Do ICRS = 1, IFIN
                 If (XDONT(IHIGT(ICRS)) <= XPIV) Then
                    Do ILOW = 1, JLOW
-                      If (eq(XDONT(IHIGT(ICRS)) , XDONT (ILOWT(ILOW)))) &
+                      If (XDONT(IHIGT(ICRS)) == XDONT (ILOWT(ILOW))) &
                            Cycle lowloop3
                    End Do
                    JLOW = JLOW + 1
@@ -12061,7 +12050,7 @@ CONTAINS
                 XWRK = XDONT (ILOWT (ICRS))
                 Do ILOW = 1, NORD - 1
                    If (XWRK <= XDONT(IRNGT(ILOW))) Then
-                      If (eq(XWRK , XDONT(IRNGT(ILOW)))) Cycle insert1
+                      If (XWRK == XDONT(IRNGT(ILOW))) Cycle insert1
                       Exit
                    End If
                 End Do
@@ -12133,7 +12122,7 @@ CONTAINS
                 Else
                    XWRK1 = XDONT(ILOWT(ICRS))
                    Do ILOW = IDEB, JLOW
-                      If (eq(XWRK1 , XDONT(ILOWT(ILOW)))) &
+                      If (XWRK1 == XDONT(ILOWT(ILOW))) &
                            Cycle lowloop4
                    End Do
                    JLOW = JLOW + 1
@@ -12161,7 +12150,7 @@ CONTAINS
                 Else
                    XWRK1 = XDONT(ILOWT(ICRS))
                    Do ILOW = IDEB, JLOW
-                      If (eq(XWRK1 , XDONT(ILOWT(ILOW)))) &
+                      If (XWRK1 == XDONT(ILOWT(ILOW))) &
                            Cycle lowloop5
                    End Do
                    JLOW = JLOW + 1
@@ -12259,7 +12248,7 @@ CONTAINS
           ILOWT (1) = 1
           IHIGT (1) = ICRS
        End If
-       If (.true.) Exit   ! Exit ! JM
+       Exit
     End Do
     !
     If (NDON <= ICRS) Then
@@ -12890,7 +12879,7 @@ CONTAINS
                 IRNGT (IWRKD+3) = IRNGT (IWRKD+2)
                 IRNGT (IWRKD+2) = IRNG1
              End If
-             If (.true.) Exit   ! Exit ! JM
+             Exit
           End If
           !
           !   1 2 3 4
@@ -12939,7 +12928,7 @@ CONTAINS
        !  The Cs become As and Bs
        !
        LMTNA = 4
-       If (.true.) Exit   ! Exit ! JM
+       Exit
     End Do
     !
     !  Iteration loop. Each time, the length of the ordered subsets
@@ -13138,7 +13127,7 @@ CONTAINS
                 IRNGT (IWRKD+3) = IRNGT (IWRKD+2)
                 IRNGT (IWRKD+2) = IRNG1
              End If
-             If (.true.) Exit   ! Exit ! JM
+             Exit
           End If
           !
           !   1 2 3 4
@@ -13187,7 +13176,7 @@ CONTAINS
        !  The Cs become As and Bs
        !
        LMTNA = 4
-       If (.true.) Exit   ! Exit ! JM
+       Exit
     End Do
     !
     !  Iteration loop. Each time, the length of the ordered subsets
@@ -13386,7 +13375,7 @@ CONTAINS
                 IRNGT (IWRKD+3) = IRNGT (IWRKD+2)
                 IRNGT (IWRKD+2) = IRNG1
              End If
-             If (.true.) Exit   ! Exit ! JM
+             Exit
           End If
           !
           !   1 2 3 4
@@ -13435,7 +13424,7 @@ CONTAINS
        !  The Cs become As and Bs
        !
        LMTNA = 4
-       If (.true.) Exit   ! Exit ! JM
+       Exit
     End Do
     !
     !  Iteration loop. Each time, the length of the ordered subsets
@@ -13774,7 +13763,7 @@ CONTAINS
           If (ICRS <= NDON) Then
              XWRKT (ICRS) = XDONT (ICRS)
           Else
-             If (ne(XWRK1 , XHUGE)) NMED = NMED + 1
+             If (XWRK1 /= XHUGE) NMED = NMED + 1
              XWRKT (ICRS) = XWRK1
              XWRK1 = - XWRK1
           Endif
@@ -13846,7 +13835,7 @@ CONTAINS
           NEQU = NEQU + 1
           IENDT (IDON1) = IMED - 1
           Do IMED1 = IMED - 1, IDON, -1
-             If (eq(XWRKT (IMED1) , XMED7)) Then
+             If (XWRKT (IMED1) == XMED7) Then
                 NEQU = NEQU + 1
                 IENDT (IDON1) = IMED1 - 1
              Else
@@ -13855,7 +13844,7 @@ CONTAINS
           End Do
           ISTRT (IDON1) = IMED + 1
           Do IMED1 = IMED + 1, IDON + 6
-             If (eq(XWRKT (IMED1) , XMED7)) Then
+             If (XWRKT (IMED1) == XMED7) Then
                 NEQU = NEQU + 1
                 NLEQ = NLEQ + 1
                 ISTRT (IDON1) = IMED1 + 1
@@ -14110,7 +14099,7 @@ CONTAINS
           If (ICRS <= NDON) Then
              XWRKT (ICRS) = XDONT (ICRS)
           Else
-             If (ne(XWRK1 , XHUGE)) NMED = NMED + 1
+             If (XWRK1 /= XHUGE) NMED = NMED + 1
              XWRKT (ICRS) = XWRK1
              XWRK1 = - XWRK1
           Endif
@@ -14182,7 +14171,7 @@ CONTAINS
           NEQU = NEQU + 1
           IENDT (IDON1) = IMED - 1
           Do IMED1 = IMED - 1, IDON, -1
-             If (eq(XWRKT (IMED1) , XMED7)) Then
+             If (XWRKT (IMED1) == XMED7) Then
                 NEQU = NEQU + 1
                 IENDT (IDON1) = IMED1 - 1
              Else
@@ -14191,7 +14180,7 @@ CONTAINS
           End Do
           ISTRT (IDON1) = IMED + 1
           Do IMED1 = IMED + 1, IDON + 6
-             If (eq(XWRKT (IMED1) , XMED7)) Then
+             If (XWRKT (IMED1) == XMED7) Then
                 NEQU = NEQU + 1
                 NLEQ = NLEQ + 1
                 ISTRT (IDON1) = IMED1 + 1

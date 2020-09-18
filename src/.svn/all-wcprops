@@ -1,0 +1,155 @@
+K 25
+svn:wc:ra_dav:version-url
+V 42
+/svn/stohydrol/!svn/ver/4130/progs/SMI/src
+END
+mo_sort.f90
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/svn/stohydrol/!svn/ver/2826/progs/SMI/src/mo_sort.f90
+END
+mo_smi.f90
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/svn/stohydrol/!svn/ver/4056/progs/SMI/src/mo_smi.f90
+END
+Main.f90
+K 25
+svn:wc:ra_dav:version-url
+V 51
+/svn/stohydrol/!svn/ver/3793/progs/SMI/src/Main.f90
+END
+mo_percentile.f90
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/svn/stohydrol/!svn/ver/2829/progs/SMI/src/mo_percentile.f90
+END
+mo_ncread.f90
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/svn/stohydrol/!svn/ver/2975/progs/SMI/src/mo_ncread.f90
+END
+mo_interpol.f90
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/svn/stohydrol/!svn/ver/2975/progs/SMI/src/mo_interpol.f90
+END
+mo_moment.f90
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/svn/stohydrol/!svn/ver/2826/progs/SMI/src/mo_moment.f90
+END
+mo_utils.f90
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/svn/stohydrol/!svn/ver/2826/progs/SMI/src/mo_utils.f90
+END
+mo_drought_evaluation.f90
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/stohydrol/!svn/ver/3793/progs/SMI/src/mo_drought_evaluation.f90
+END
+mo_orderpack.f90
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/svn/stohydrol/!svn/ver/2826/progs/SMI/src/mo_orderpack.f90
+END
+mo_ncwrite.f90
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/svn/stohydrol/!svn/ver/2975/progs/SMI/src/mo_ncwrite.f90
+END
+mo_read.f90
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/svn/stohydrol/!svn/ver/4130/progs/SMI/src/mo_read.f90
+END
+mo_constants.f90
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/svn/stohydrol/!svn/ver/2826/progs/SMI/src/mo_constants.f90
+END
+golden.f90
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/svn/stohydrol/!svn/ver/2826/progs/SMI/src/golden.f90
+END
+mo_nr.f90
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/svn/stohydrol/!svn/ver/2975/progs/SMI/src/mo_nr.f90
+END
+mo_kernel.f90
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/svn/stohydrol/!svn/ver/2826/progs/SMI/src/mo_kernel.f90
+END
+mo_nelmin.f90
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/svn/stohydrol/!svn/ver/2826/progs/SMI/src/mo_nelmin.f90
+END
+mo_julian.f90
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/svn/stohydrol/!svn/ver/2829/progs/SMI/src/mo_julian.f90
+END
+mo_integrate.f90
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/svn/stohydrol/!svn/ver/2826/progs/SMI/src/mo_integrate.f90
+END
+mo_message.f90
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/svn/stohydrol/!svn/ver/2953/progs/SMI/src/mo_message.f90
+END
+mo_quicksort.f90
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/svn/stohydrol/!svn/ver/2975/progs/SMI/src/mo_quicksort.f90
+END
+mo_smi_constants.f90
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/svn/stohydrol/!svn/ver/2955/progs/SMI/src/mo_smi_constants.f90
+END
+mo_kind.f90
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/svn/stohydrol/!svn/ver/2975/progs/SMI/src/mo_kind.f90
+END
+InputOutput.f90
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/svn/stohydrol/!svn/ver/3793/progs/SMI/src/InputOutput.f90
+END
+mo_string_utils.f90
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/svn/stohydrol/!svn/ver/2829/progs/SMI/src/mo_string_utils.f90
+END

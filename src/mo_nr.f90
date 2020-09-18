@@ -49,7 +49,7 @@ MODULE mo_nr
   ! GNU Lesser General Public License for more details.
 
   ! You should have received a copy of the GNU Lesser General Public License
-  ! along with the UFZ Fortran library (cf. gpl.txt and lgpl.txt).
+  ! along with the UFZ makefile project (cf. gpl.txt and lgpl.txt).
   ! If not, see <http://www.gnu.org/licenses/>.
 
   ! Copyright 2011 Matthias Cuntz
@@ -1893,20 +1893,14 @@ MODULE mo_nr
        REAL(DP), DIMENSION(size(u,1),size(u,1)) :: lop
      END FUNCTION lop
   END INTERFACE
-  INTERFACE lubksb
-     SUBROUTINE lubksb_sp(a,indx,b)
+  INTERFACE
+     SUBROUTINE lubksb(a,indx,b)
        USE mo_kind
        REAL(SP), DIMENSION(:,:), INTENT(IN) :: a
        INTEGER(I4), DIMENSION(:), INTENT(IN) :: indx
        REAL(SP), DIMENSION(:), INTENT(INOUT) :: b
-     END SUBROUTINE lubksb_sp
-     SUBROUTINE lubksb_dp(a,indx,b)
-       USE mo_kind
-       REAL(DP), DIMENSION(:,:), INTENT(IN) :: a
-       INTEGER(I4), DIMENSION(:), INTENT(IN) :: indx
-       REAL(DP), DIMENSION(:), INTENT(INOUT) :: b
-     END SUBROUTINE lubksb_dp
-  END INTERFACE lubksb
+     END SUBROUTINE lubksb
+  END INTERFACE
   INTERFACE ludcmp
      SUBROUTINE ludcmp_sp(a,indx,d)
        USE mo_kind

@@ -27,7 +27,7 @@ MODULE mo_integrate
   ! GNU Lesser General Public License for more details.
 
   ! You should have received a copy of the GNU Lesser General Public License
-  ! along with the UFZ Fortran library (cf. gpl.txt and lgpl.txt).
+  ! along with the UFZ makefile project (cf. gpl.txt and lgpl.txt).
   ! If not, see <http://www.gnu.org/licenses/>.
 
   ! Copyright 2013 Matthias Cuntz
@@ -119,6 +119,10 @@ CONTAINS
     else
        ddx = 2.0_dp/45.0_dp
     endif
+
+    !print*, 'dat ',dat
+    !print*, 'ddx ',ddx
+    !pause
 
     n0 = 5
     n  = size(dat,1)

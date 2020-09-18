@@ -1,0 +1,41 @@
+K 25
+svn:wc:ra_dav:version-url
+V 47
+/svn/stohydrol/!svn/ver/3009/progs/SMI/test_smi
+END
+soilmoisture_month.nc
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/stohydrol/!svn/ver/2955/progs/SMI/test_smi/soilmoisture_month.nc
+END
+ref_smi.nc
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/svn/stohydrol/!svn/ver/2955/progs/SMI/test_smi/ref_smi.nc
+END
+soilmoisture_eval.nc
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/stohydrol/!svn/ver/3009/progs/SMI/test_smi/soilmoisture_eval.nc
+END
+error.nc
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/svn/stohydrol/!svn/ver/2945/progs/SMI/test_smi/error.nc
+END
+mask.nc
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/svn/stohydrol/!svn/ver/2945/progs/SMI/test_smi/mask.nc
+END
+basin.nc
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/svn/stohydrol/!svn/ver/2945/progs/SMI/test_smi/basin.nc
+END
