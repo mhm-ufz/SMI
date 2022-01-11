@@ -93,7 +93,7 @@ end subroutine droughtIndicator
 subroutine ClusterEvolution( SMIc, nrows, ncols, nMonths, nCells, cellCoor, nCellInter, thCellClus)
 
   ! use numerical_libraries, only                        : SVIGN
-  use mo_sort,          only : sort
+  use mo_orderpack,     only : sort
   use mo_smi_constants, only : nodata_i4
   use InputOutput, only                                : idCluster, &
                                                          shortCnoList, &
@@ -222,7 +222,7 @@ end subroutine ClusterEvolution
 subroutine ClusterStats( SMI, mask, nrows, ncols, nMonths, nCells, SMI_thld )
 
   !  use numerical_libraries, only                       : SVIGN , DSVRGN, DEQTIL
-  use mo_sort,          only : sort_index
+  use mo_orderpack,     only : sort_index
 
   use mo_smi_constants, only: nodata_sp
   use InputOutput,      only: aDA, aDD, TDM, DTMagEvol, DAreaEvol,     &
@@ -356,7 +356,7 @@ end subroutine ClusterStats
 subroutine calSAD(SMI, mask, iDur, nrows, ncols, nMonths, nCells, deltaArea, cellsize)
 
   ! use numerical_libraries, only                        : DSVRGN, DEQTIL, SVIGP
-  use mo_sort,          only : sort      !, sort_index
+  use mo_orderpack,     only : sort      !, sort_index
   use mo_percentile,    only : percentile
   use mo_smi_constants, only : nodata_dp 
 
