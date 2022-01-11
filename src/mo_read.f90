@@ -519,8 +519,8 @@ CONTAINS
           call nc_var%getData(lats_1d)
        else if (lat_lon_Ndim == 2) then
           call nc_var%getData(lats_2d)
-          nc_var = nc_in%getVariable('northing')
-          call nc_var%getData(northing)
+          ! nc_var = nc_in%getVariable('northing')
+          ! call nc_var%getData(northing)
        end if
     end if
     if (nc_in%hasVariable('lon')) then
@@ -530,8 +530,8 @@ CONTAINS
          call nc_var%getData(lons_1d)
       else if (lat_lon_Ndim == 2) then
          call nc_var%getData(lons_2d)
-         nc_var = nc_in%getVariable('easting')
-         call nc_var%getData(easting)
+         ! nc_var = nc_in%getVariable('easting')
+         ! call nc_var%getData(easting)
       end if
     end if
     

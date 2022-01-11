@@ -133,11 +133,11 @@ contains
       call nc_var%setAttribute('missing_value', nodata_dp)
       call nc_var%setAttribute('units', 'degrees_north')
 
-      nc_var = nc_out%setVariable('northing', "f64", (/ nc_y/))
-      call nc_var%setData(northing)
-      call nc_var%setAttribute('long_name', 'northing')
-      call nc_var%setAttribute('missing_value', nodata_dp)
-      call nc_var%setAttribute('units', 'meters')
+      ! nc_var = nc_out%setVariable('northing', "f64", (/ nc_y/))
+      ! call nc_var%setData(northing)
+      ! call nc_var%setAttribute('long_name', 'northing')
+      ! call nc_var%setAttribute('missing_value', nodata_dp)
+      ! call nc_var%setAttribute('units', 'meters')
    end if
 
     if (allocated(lons_1d)) then
@@ -153,11 +153,11 @@ contains
       call nc_var%setAttribute('missing_value', nodata_dp)
       call nc_var%setAttribute('units', 'degrees_east')
 
-      nc_var = nc_out%setVariable('easting', "f64", (/ nc_x /))
-      call nc_var%setData(easting)
-      call nc_var%setAttribute('long_name', 'easting')
-      call nc_var%setAttribute('missing_value', nodata_dp)
-      call nc_var%setAttribute('units', 'meters')
+      ! nc_var = nc_out%setVariable('easting', "f64", (/ nc_x /))
+      ! call nc_var%setData(easting)
+      ! call nc_var%setAttribute('long_name', 'easting')
+      ! call nc_var%setAttribute('missing_value', nodata_dp)
+      ! call nc_var%setAttribute('units', 'meters')
 
 
     end if
@@ -285,11 +285,11 @@ contains
       call nc_var%setAttribute('missing_value', nodata_dp)
       call nc_var%setAttribute('units', 'degrees_north')
 
-      nc_var = nc_out%setVariable('northing', "f64", (/ nc_y /))
-      call nc_var%setData(northing)
-      call nc_var%setAttribute('long_name', 'northing')
-      call nc_var%setAttribute('missing_value', nodata_dp)
-      call nc_var%setAttribute('units', 'meters')
+      ! nc_var = nc_out%setVariable('northing', "f64", (/ nc_y /))
+      ! call nc_var%setData(northing)
+      ! call nc_var%setAttribute('long_name', 'northing')
+      ! call nc_var%setAttribute('missing_value', nodata_dp)
+      ! call nc_var%setAttribute('units', 'meters')
    end if
 
     if (allocated(lons_1d)) then
@@ -306,11 +306,11 @@ contains
       call nc_var%setAttribute('missing_value', nodata_dp)
       call nc_var%setAttribute('units', 'degrees_east')
 
-      nc_var = nc_out%setVariable('easting', "f64", (/ nc_x /))
-      call nc_var%setData(easting)
-      call nc_var%setAttribute('long_name', 'easting')
-      call nc_var%setAttribute('missing_value', nodata_dp)
-      call nc_var%setAttribute('units', 'meters')
+      ! nc_var = nc_out%setVariable('easting', "f64", (/ nc_x /))
+      ! call nc_var%setData(easting)
+      ! call nc_var%setAttribute('long_name', 'easting')
+      ! call nc_var%setAttribute('missing_value', nodata_dp)
+      ! call nc_var%setAttribute('units', 'meters')
     end if
 
     ! add time
@@ -481,11 +481,11 @@ contains
       call nc_var%setAttribute('missing_value', nodata_dp)
       call nc_var%setAttribute('units', 'degrees_north')
 
-      nc_var = nc_out%setVariable('northing', "f64", (/ nc_y /))
-      call nc_var%setData(northing)
-      call nc_var%setAttribute('long_name', 'northing')
-      call nc_var%setAttribute('missing_value', nodata_dp)
-      call nc_var%setAttribute('units', 'meters')
+      ! nc_var = nc_out%setVariable('northing', "f64", (/ nc_y /))
+      ! call nc_var%setData(northing)
+      ! call nc_var%setAttribute('long_name', 'northing')
+      ! call nc_var%setAttribute('missing_value', nodata_dp)
+      ! call nc_var%setAttribute('units', 'meters')
    end if
 
     if (allocated(lons_1d)) then
@@ -501,11 +501,11 @@ contains
       call nc_var%setAttribute('missing_value', nodata_dp)
       call nc_var%setAttribute('units', 'degrees_east')
 
-      nc_var = nc_out%setVariable('easting', "f64", (/ nc_x /))
-      call nc_var%setData(easting)
-      call nc_var%setAttribute('long_name', 'easting')
-      call nc_var%setAttribute('missing_value', nodata_dp)
-      call nc_var%setAttribute('units', 'meters')
+      ! nc_var = nc_out%setVariable('easting', "f64", (/ nc_x /))
+      ! call nc_var%setData(easting)
+      ! call nc_var%setAttribute('long_name', 'easting')
+      ! call nc_var%setAttribute('missing_value', nodata_dp)
+      ! call nc_var%setAttribute('units', 'meters')
     end if
     
     ! add time
