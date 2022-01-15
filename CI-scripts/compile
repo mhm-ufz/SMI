@@ -1,0 +1,3 @@
+cmake ${1} -DCMAKE_BUILD_TYPE=Release -B release -S .
+cmake --build release --parallel
+cp release/app/smi .
