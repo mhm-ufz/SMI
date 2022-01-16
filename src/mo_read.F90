@@ -38,7 +38,7 @@ CONTAINS
     use mo_message,          only: message
     use mo_utils,            only: notequal, equal
     use mo_netcdf,           only: NcDataset, NcVariable
-    use mo_smi_constants,    only: nodata_dp
+    use mo_constants,        only: nodata_dp
     use mo_global_variables, only: period
     use mo_smi_info,         only: version, version_date, file_namelist
     use mo_os,               only: path_isfile
@@ -383,7 +383,7 @@ CONTAINS
     use mo_message,          only: message
     use mo_string_utils,     only: DIVIDE_STRING
     use mo_netcdf,           only: NcDataset, NcVariable
-    use mo_smi_constants,    only: YearMonths, DayHours
+    use mo_constants,        only: YearMonths, DayHours
     use mo_global_variables, only: period, period_init
 
     implicit none
@@ -436,15 +436,15 @@ CONTAINS
     do i = 1, nTimeSteps
        select case (strArr(1))
        case('hours')
-          call dec2date(real(timesteps(i), dp)/real(DayHours, dp) + ref_jday, dd=d, mm=month, yy=year)
-          timepoints(i) = timepoints(i) + nint( real(timesteps(i) - timesteps(1), dp) / real(DayHours, dp) , i4)
+          call dec2date(real(timesteps(i), dp)/DayHours + ref_jday, dd=d, mm=month, yy=year)
+          timepoints(i) = timepoints(i) + nint( real(timesteps(i) - timesteps(1), dp) / DayHours , i4)
        case('days')
           call dec2date(real(timesteps(i), dp) + ref_jday, dd=d, mm=month, yy=year)
           timepoints(i) = timepoints(i) + timesteps(i) - timesteps(1)
        case('months')
           d       = dRef ! set to dref as default
-          month   = mod( (timesteps(i) + mRef ), YearMonths )
-          year    = yRef + floor(real( timesteps(i) + mRef, dp) / real(YearMonths, dp) )
+          month   = mod( (timesteps(i) + mRef ), int(YearMonths, i4) )
+          year    = yRef + floor(real( timesteps(i) + mRef, dp) / YearMonths )
           ! correct month and year for december
           if (month .eq. 0 ) then
              month = 12

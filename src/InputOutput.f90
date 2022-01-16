@@ -52,25 +52,25 @@ contains
   ! created: 5.7.2014
   ! updated: refactored to new period structure and leap day handling - 9.8.2019
   ! ##################################################################
-  subroutine WriteSMI( outpath, SMI, mask, per, lats_1d, lons_1d, lats_2d, lons_2d, easting, northing) 
+  subroutine WriteSMI( outpath, SMI, mask, per, lats_1d, lons_1d, lats_2d, lons_2d, easting, northing)
 
     use mo_kind,          only: i4, sp
     use mo_string_utils,  only: num2str
-    use mo_smi_constants, only: nodata_sp, nodata_dp
+    use mo_constants,     only: nodata_sp, nodata_dp
     use mo_netcdf,        only: NcDataset, NcVariable, NcDimension
 
     implicit none
 
     ! input variables
     character(len=*),                              intent(in) :: outpath     ! ouutput path for results
- 
+
     logical,        dimension(:,:),                intent(in) :: mask
     type(period),                                  intent(in) :: per
     real(sp),       dimension(:,:),                intent(in) :: SMI
     real(dp),       dimension(:),   allocatable,   intent(in) :: lats_1d, lons_1d   ! latitude and longitude fields of input
     real(dp),       dimension(:,:),   allocatable,   intent(in) :: lats_2d, lons_2d   ! latitude and longitude fields of input
-    real(dp), dimension(:), allocatable, intent(in) :: easting ! easting coordinates of input 
-    real(dp), dimension(:), allocatable, intent(in) :: northing ! easting coordinates of input 
+    real(dp), dimension(:), allocatable, intent(in) :: easting ! easting coordinates of input
+    real(dp), dimension(:), allocatable, intent(in) :: northing ! easting coordinates of input
     ! local Variables
     type(NcDataset)                                           :: nc_out
     type(NcVariable)                                          :: nc_var
@@ -78,10 +78,10 @@ contains
     character(256)                                            :: Fname
     integer(i4)                                               :: ii          ! month
 
-    real(sp),       dimension(:,:,:), allocatable             :: dummy_D3_sp ! field real unpacked 
+    real(sp),       dimension(:,:,:), allocatable             :: dummy_D3_sp ! field real unpacked
     integer(i4)                                               :: y
     integer(i4)                                               :: x
-    
+
     ! initialize dimension
     y = size(mask, 2)
     x = size(mask, 1)
@@ -101,13 +101,13 @@ contains
        nc_x = nc_out%setDimension("x", x)
     end if
     nc_tim = nc_out%setDimension("time", -1)
-    
+
     ! unpack estimated SMIp
     allocate( dummy_d3_sp( x, y, size( SMI, 2) ) )
     do ii = 1,  size( SMI, 2)
       dummy_d3_sp( :, :, ii) = unpack ( SMI(:,ii), mask, nodata_sp )
     end do
-    
+
     ! save SMI (same sequence as in 1)
     nc_var = nc_out%setVariable('SMI', "f32", &
          (/ nc_x, nc_y, nc_tim /))
@@ -172,7 +172,7 @@ contains
                                       trim(num2str(per%d_start, '(i2.2)')) // ' 00:00:00' )
     ! close file
     call nc_out%close()
-    
+
   end subroutine WriteSMI
 
   ! ##################################################################
@@ -180,27 +180,27 @@ contains
   ! author: Stephan Thober
   ! created: 8.8.2019
   ! ##################################################################
-  subroutine WriteCDF( outpath, SM, hh, mask, per, nCalendarStepsYear, lats_1d, lons_1d, lats_2d, lons_2d, easting, northing) 
+  subroutine WriteCDF( outpath, SM, hh, mask, per, nCalendarStepsYear, lats_1d, lons_1d, lats_2d, lons_2d, easting, northing)
 
     use mo_kind,          only: i4, sp
     use mo_message,       only: message
     use mo_string_utils,  only: num2str
-    use mo_smi_constants, only: nodata_sp, nodata_dp
+    use mo_constants,     only: nodata_sp, nodata_dp
     use mo_netcdf,        only: NcDataset, NcVariable, NcDimension
 
     implicit none
 
     ! input variables
     character(len=*),                              intent(in) :: outpath     ! ouutput path for results
- 
+
     logical,        dimension(:,:),                intent(in) :: mask
     type(period),                                  intent(in) :: per
     real(sp),       dimension(:,:),                intent(in) :: SM
     integer(i4),                                   intent(in) :: nCalendarStepsYear
     real(dp),       dimension(:),   allocatable,   intent(in) :: lats_1d, lons_1d   ! latitude and longitude fields of input
     real(dp),       dimension(:,:),   allocatable,   intent(in) :: lats_2d, lons_2d   ! latitude and longitude fields of input
-    real(dp), dimension(:), allocatable, intent(in) :: easting ! easting coordinates of input 
-    real(dp), dimension(:), allocatable, intent(in) :: northing ! easting coordinates of input 
+    real(dp), dimension(:), allocatable, intent(in) :: easting ! easting coordinates of input
+    real(dp), dimension(:), allocatable, intent(in) :: northing ! easting coordinates of input
     real(dp),       dimension(:,:),                intent(in) :: hh
 
     ! local Variables
@@ -210,11 +210,11 @@ contains
     character(256)                                            :: Fname
     integer(i4)                                               :: mm          ! month
 
-    real(sp),       dimension(:,:,:), allocatable             :: dummy_D3_sp ! field real unpacked 
-    real(dp),       dimension(:,:,:), allocatable             :: dummy_D3_dp ! field real unpacked 
+    real(sp),       dimension(:,:,:), allocatable             :: dummy_D3_sp ! field real unpacked
+    real(dp),       dimension(:,:,:), allocatable             :: dummy_D3_dp ! field real unpacked
     integer(i4)                                               :: y
     integer(i4)                                               :: x
-    
+
     ! initialize dimension
     y = size(mask, 2)
     x = size(mask, 1)
@@ -233,13 +233,13 @@ contains
        nc_x = nc_out%setDimension("x", x)
     end if
     nc_tim = nc_out%setDimension("time", -1)
-    
+
     ! unpack soil moisture estimated
     allocate( dummy_d3_sp( x, y, size( SM, 2) ) )
     do mm = 1,  size( SM, 2)
       dummy_d3_sp( :, :, mm) = unpack ( SM(:,mm), mask, nodata_sp )
     end do
-    
+
     ! save SM (same sequence as in 1)
     nc_var = nc_out%setVariable('SM', "f32", &
          (/ nc_x, nc_y, nc_tim /))
@@ -252,7 +252,7 @@ contains
     ! write out kernel width if it has been optimised
     allocate( dummy_D3_dp( x, y, size( hh, 2 ) ) )
     do mm = 1, size( hh, 2 )
-      dummy_D3_dp(:, :, mm) = unpack( hh(:,mm), mask, real( nodata_sp, dp ) ) 
+      dummy_D3_dp(:, :, mm) = unpack( hh(:,mm), mask, real( nodata_sp, dp ) )
     end do
     nc_cal = nc_out%setDimension("time_steps", size(dummy_d3_dp,3))
     nc_var = nc_out%setVariable('kernel_width', "f64", &
@@ -268,8 +268,8 @@ contains
       call message("***ERROR: nCalendarStepsYear has to be 12 or 365 in subroutine WriteCDF")
       stop 1
     end if
-      
-    deallocate( dummy_D3_dp ) 
+
+    deallocate( dummy_D3_dp )
 
     ! add lat and lon
     if (allocated(lats_1d)) then
@@ -323,25 +323,25 @@ contains
                                       trim(num2str(per%d_start, '(i2.2)')) // ' 00:00:00' )
     ! close file
     call nc_out%close()
-    
+
   end subroutine WriteCDF
 
   !*************************************************************************
   !    PURPOSE    WRITE netCDF files
   !    FORMAT     netCDF
-  !               http://www.unidata.ucar.edu/software/netcdf/  
+  !               http://www.unidata.ucar.edu/software/netcdf/
   !
   !    AUTHOR:    Luis E. Samaniego-Eguiguren, UFZ
   !    UPDATES
-  !               Created        Sa   16.02.2011   
-  !               Last Update    Sa   16.02.2011  
+  !               Created        Sa   16.02.2011
+  !               Last Update    Sa   16.02.2011
   !**************************************************************************
   subroutine WriteNetCDF(outpath, wFlag, per, lats_1d, lons_1d, lats_2d, lons_2d, easting, northing, &
-        SMIc, SM_invert, duration) 
+        SMIc, SM_invert, duration)
     !
     use mo_kind,          only: i4
     use mo_string_utils,  only: num2str
-    use mo_smi_constants, only: nodata_i4 , nodata_dp, nodata_sp
+    use mo_constants,     only: nodata_i4 , nodata_dp, nodata_sp
     use mo_netcdf,        only: NcDataset, NcVariable, NcDimension
 
     implicit none
@@ -352,8 +352,8 @@ contains
     integer(i4),                                 intent(in) :: wFlag
     real(dp),       dimension(:),   allocatable,   intent(in) :: lats_1d, lons_1d   ! latitude and longitude fields of input
     real(dp),       dimension(:,:),   allocatable,   intent(in) :: lats_2d, lons_2d   ! latitude and longitude fields of input
-    real(dp), dimension(:), allocatable, intent(in) :: easting ! easting coordinates of input 
-    real(dp), dimension(:), allocatable, intent(in) :: northing ! easting coordinates of input 
+    real(dp), dimension(:), allocatable, intent(in) :: easting ! easting coordinates of input
+    real(dp), dimension(:), allocatable, intent(in) :: northing ! easting coordinates of input
     integer(i4),    dimension(:,:,:), optional,  intent(in) :: SMIc         ! Drought indicator
     real(sp),       dimension(:,:,:), optional,  intent(in) :: SM_invert
     integer(i4),                      optional,  intent(in) :: duration     ! optional, duration
@@ -389,8 +389,8 @@ contains
        call nc_var%setAttribute('long_name', 'SM according to inverse of SMI')
        call nc_var%setAttribute('missing_value', nodata_sp)
        call nc_var%setAttribute('units', 'mm')
-       
-       
+
+
     case (3)
        ! fname
        fName  = trim(outpath)//'SMIc.nc'
@@ -439,7 +439,7 @@ contains
        call nc_var%setAttribute('long_name', 'consolidated cluster evolution')
        call nc_var%setAttribute('missing_value', nodata_i4)
        call nc_var%setAttribute('units', '-')
-         
+
     case (5)
        ! fname
        write (fName, '(i2.2)') duration
@@ -507,7 +507,7 @@ contains
       ! call nc_var%setAttribute('missing_value', nodata_dp)
       ! call nc_var%setAttribute('units', 'meters')
     end if
-    
+
     ! add time
     if ((wflag .eq. 2) .or. &
         (wflag .eq. 3) .or. &
@@ -536,7 +536,7 @@ subroutine WriteResultsCluster(SMIc, outpath, wFlag, yStart, yEnd, nMonths, nCel
      deltaArea, cellsize, d)
 
   use mo_kind,          only : i4, dp
-  use mo_smi_constants, only : YearMonths
+  use mo_constants,     only : YearMonths
 
   !
   implicit none
@@ -554,7 +554,7 @@ subroutine WriteResultsCluster(SMIc, outpath, wFlag, yStart, yEnd, nMonths, nCel
   integer(i4), optional, intent(in)        :: d
   real(dp), parameter                      :: eps = 1.0e-5_dp ! EPSILON(1.0_dp)
 
-  
+
   ! local variables
   real(dp)                  :: pDArea
   !
@@ -577,7 +577,7 @@ subroutine WriteResultsCluster(SMIc, outpath, wFlag, yStart, yEnd, nMonths, nCel
                mEnd = t
                if (mStart .eq. 0) mStart = t
             end if
-            if ( ( DAreaEvol(t,i) .lt. eps) .and. (mStart .gt. 0) ) exit 
+            if ( ( DAreaEvol(t,i) .lt. eps) .and. (mStart .gt. 0) ) exit
          end do
         write (10,110)  i, shortCnoList(i), mStart, mEnd, aDD(i), aDA(i), TDM(i)
       end do
@@ -618,8 +618,8 @@ subroutine WriteResultsCluster(SMIc, outpath, wFlag, yStart, yEnd, nMonths, nCel
       open  (14, file = fName, status='unknown')
       write (14, 150 ) 'year', 'month', '%AreaEU'
       t = 0
-      do y =yStart, yEnd 
-        do m = 1, YearMonths
+      do y =yStart, yEnd
+        do m = 1, int(YearMonths, i4)
           t = t + 1
           pdArea = real( count( SMIc(:,:,t) == 1 ), dp) / &
                    real( nCells, dp) * 1e2_dp
@@ -631,10 +631,10 @@ subroutine WriteResultsCluster(SMIc, outpath, wFlag, yStart, yEnd, nMonths, nCel
       ! Time evolution of the cluster area (less than SMIc) and monthly severity
       fName = trim(outpath) // 'DcArea_sev_evol.txt'
       open  (15, file = fName, status='unknown')
-      write (15, 170 ) 'year', 'month', '%cAreaEU','SevDE' 
+      write (15, 170 ) 'year', 'month', '%cAreaEU','SevDE'
       t = 0
-      do y =yStart, yEnd 
-        do m = 1, YearMonths
+      do y =yStart, yEnd
+        do m = 1, int(YearMonths, i4)
           t = t + 1
           write(15,180) y, m, dASevol(t,1,nBasins+1), dASevol(t,2,nBasins+1)
         end do
@@ -695,7 +695,7 @@ end subroutine WriteResultsCluster
 subroutine WriteResultsBasins( outpath, SMI, mask, yStart, yEnd, nMonths, Basin_Id )
 
   use mo_kind,          only : i4
-  use mo_smi_constants, only : nodata_dp, YearMonths
+  use mo_constants,     only : nodata_dp, YearMonths
 
   implicit none
 
@@ -713,7 +713,7 @@ subroutine WriteResultsBasins( outpath, SMI, mask, yStart, yEnd, nMonths, Basin_
                         size(mask,2), nMonths) :: SMI_unpack
   character(len=256)                           :: fName
   integer(i4)                                  :: i, m, y, j
-  real(dp),    dimension(:,:), allocatable     :: Basin_SMI        
+  real(dp),    dimension(:,:), allocatable     :: Basin_SMI
 
   !-------------------------
   ! basin wise
@@ -744,15 +744,15 @@ subroutine WriteResultsBasins( outpath, SMI, mask, yStart, yEnd, nMonths, Basin_
   fName = trim(outpath) // 'basin_avg_dArea.txt'
   open(21, file =fName , status = 'unknown')
   write(21, 3) 'Month_No', 'year', 'month', ('Basin_', i, i = 1, nBasins)
-  ! 
+  !
   fName = trim(outpath) // 'basin_avg_sev.txt'
   open(22, file =fName , status = 'unknown')
   write(22, 3) 'Month_No', 'year', 'month', ('Basin_', i, i = 1, nBasins)
   !! NEW !!
   m=0
   do y = yStart, yEnd
-     do j = 1, YearMonths
-        m = m + 1 
+     do j = 1, int(YearMonths, i4)
+        m = m + 1
         write(20, 2) m, y, j, (Basin_SMI(m,i), i = 1, nBasins), Basin_SMI(m,nBasins+1)
         write(21, 4) m, y, j, (dASevol(m,1,i), i = 1, nBasins)
         write(22, 4) m, y, j, (dASevol(m,2,i), i = 1, nBasins)
@@ -762,11 +762,11 @@ subroutine WriteResultsBasins( outpath, SMI, mask, yStart, yEnd, nMonths, Basin_
   close(21)
   close(22)
   !
-  1 format(3a8, 2x, 6(a6, i2.2, 2x),  a13 ) 
+  1 format(3a8, 2x, 6(a6, i2.2, 2x),  a13 )
   2 format(3i8, 2x, 6(f8.4,     2x),  f13.4)
-  3 format(3a8, 2x, 6(a6, i2.2, 2x) ) 
+  3 format(3a8, 2x, 6(a6, i2.2, 2x) )
   4 format(3i8, 2x, 6(f8.4,     2x) )
- 
+
 end subroutine WriteResultsBasins
 
 end module InputOutput
