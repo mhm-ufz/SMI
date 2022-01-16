@@ -2,7 +2,7 @@
 !> \copydoc mo_smi
 
 !> \brief   SOIL MOISTURE INDEX
-!> \detials Estimate SMI based on monthly values of SM_mHM
+!> \details Estimate SMI based on monthly values of SM_mHM
 !> \author  Luis Samaniego
 !> \date    Feb 2011
 !> \author  Stephan Thober
