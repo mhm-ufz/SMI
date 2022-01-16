@@ -1,6 +1,6 @@
 # Install
 
-## Dependencies:
+## Dependencies
 
 For Windows, some Linux distributions and soon also MacOS
 specific installation instructions for the following list
@@ -8,7 +8,7 @@ can be found below.
 
 - a fortran compiler
 - make (a tool to compile a program)
-- cmake (version >= 3.5) (a tool to create a system dependent makefile)
+- cmake (version >= 3.14) (a tool to create a system dependent makefile)
 - fitting netcdf-fortran libraries (libraries for the usage of the data format netcdf on which smi depends)
 - (optional, but makes things much easier) git
 
@@ -17,9 +17,9 @@ use Git. You can use Git to download (clone) the project to your local pc and ha
 synchronize it without copying the whole repository again. You can also download the project folder without
 Git, but this would not allow you to pull updates from and push changes to our repository.
 
-## System dependend installation instructions:
+## System dependend installation instructions
 
-### Windows:
+### Windows
 [Cygwin](https://cygwin.com/) is an environment with a terminal that allows to compile and
 run programs of Unix-like systems. You can find further instructions to install cygwin on the webpage, as well as
 instructions on how to install further dependencies after the installation.
@@ -31,7 +31,7 @@ Install cygwin by executing the cygwin setup and choose the following dependenci
 
 - [ ] gcc-fortran (the fortran compiler)
 - [ ] make
-- [ ] cmake (version >= 3.5)
+- [ ] cmake (version >= 3.14)
 - [ ] libnetcdf-fortran-devel
 - [ ] Git *(optional, Git is also available outside of cygwin, [see the Git website](https://git-scm.com/downloads))*
 
@@ -51,17 +51,17 @@ Some cygwin versions create a new home directory for you. You may check e.g. her
     C:\cygwin64\home\$username
 
 
-### Ubuntu, Mint and other apt-get based systems with matching repositories:
+### Ubuntu, WSL2, Mint and other apt-get based systems with matching repositories
 
     sudo apt-get install git # (optional)
     sudo apt-get install gfortran netcdf-bin libnetcdf-dev libnetcdff-dev cmake
 
-### Archlinux:
+### Archlinux
 
     sudo pacman -S git # (optional)
     sudo pacman -S gcc-libs netcdf-fortran cmake
 
-### Module systems:
+### Module systems
 
 If you are on a module system, load the modules gcc or intel depending on your
 favorite compiler. Then, load the modules netcdf-fortran and cmake.
@@ -70,26 +70,35 @@ These modules will have system specific names, environments, etc.
 You may use `module spider` to find the right packages and the
 right dependencies, potentially use corresponding wiki pages.
 
-#### On eve (the cluster at the UFZ):
+#### On eve (the cluster at the UFZ)
 
 From the source directory use a script provided in `moduleLoadScripts`,
 for example for the GNU 7.3 compiler:
 
-    source moduleLoadScripts/eve.gfortran73
+    source hpc-module-loads/eve.gfortran102
 
-### MacOS:
+### Conda (on MacOS and other Unix systems supporting Conda)
 
-*(to be added)*
+Conda provides all necessary dependencies. Here we create a local conda environment
+```bash
+conda create -y --prefix ./smi_env
+conda activate ./smi_env
+conda config --add channels conda-forge
+conda config --set channel_priority strict
+conda install -y cmake make fortran-compiler netcdf-fortran fypp
+```
 
-## Specific setups:
+Then follow the compile instructions bellow.
 
-The following hints can replace the step `cmake ..` in the installation instruction.
+## Specific setups
+
+The following hints can replace the step `cmake` in the installation instruction.
 
 You can skip this part and continue with "Installation", if you do not have a module system
 setup (like on clusters) or if you have not installed all packages with a package manager,
 such as cygwin or apt-get.
 
-### Module systems:
+### Module systems
 
 The executable can be build in a way that it runs independend of loaded modules in the end. The
 module system, though, adds system paths in the backround the user should not care about too much, so
@@ -100,64 +109,21 @@ In case you want to have a module-independend build, instead of just executing `
 
     cmake -DCMAKE_BUILD_MODULE_SYSTEM_INDEPENDEND:STRING=ON ..
 
-or
-
-    cmake -C ../CMakeCacheFiles/eve ..
-
-or change the variable `CMAKE_BUILD_MODULE_SYSTEM_INDEPENDEND` with `ccmake` to `ON` after running `cmake ..`.
-
-### None standard locations for the netcdf-library (e.g. standard setup Macs in CHS):
-
-Find the location of the `nf-config` file, for example by using:
-
-    find / -iname "*nf-config*" 2>/dev/null
-
-This searches the root directory `/` for a file with a name containing the string "nf-config", not
-taking into account upper and lower case. It writes error messages like "permission denied" into
-the void.
-
-Then, instead of running `cmake ..` if not using the standard compiler,
-set the fortran compiler variable to the wished compiler, e.g.
-
-    export FC=gfortran
-
-then either run
-
-    cmake -DCMAKE_NETCDF_DIR:STRING=/path/to/nf-config/of/used/compiler
-
-or copy the file `specificSetup` to some other place:
-
-    cp ../CMakeCacheFiles/specificSetup .
-
-However, in case you want to keep it, you should choose a place
-outside the build repository. Edit the file as follows:
-add the path to your `nf-config` file, and after editing, run:
-
-    cmake -C specificSetup ..
-
-or change the variable `CMAKE_NETCDF_DIR` to the path to the `nf-config` file with `ccmake` after running `cmake ..`.
+or change the variable `CMAKE_BUILD_MODULE_SYSTEM_INDEPENDEND` with `ccmake` to `ON` after running `cmake`.
 
 ## Installation
 
 1. Change to a directory where you want to store the source code.
-2. Clone the corresponding smi repository into a folder, either using Git (if installed):
+2. Clone the corresponding smi repository into a folder using Git (if installed):
 
         git clone -b cmake git@git.ufz.de:chs/progs/SMI.git smi/
-
-3. Create and change to a build directory where you want to store the build, e.g. inside the Git source directory
-
         cd smi
-        mkdir build
 
-    Change into the build directory:
+3. Configure the build and generate a system dependent makefile
 
-        cd build
+    Execute `cmake` with the path to the build folder (`-B`, folder will be created) and the Git source directory (`-S`) as parameter.
 
-4. Generate a system dependent makefile
-
-    Execute `cmake` with the path to the Git source directory as parameter.
-
-       cmake ..
+       cmake -B build -S .
 
     If everything worked well a Makefile was created with the corresponding paths.
 
@@ -165,27 +131,37 @@ or change the variable `CMAKE_NETCDF_DIR` to the path to the `nf-config` file wi
     or when the netcdf libraries are not located where the package manager usually installs libraries,
     or when they are not saved in environment variables (i.e., classical MacOS setups at CHS).*
 
-5. Make the build:
+4. Make the build:
 
-   Execute make:
+    You can now use cmake to build the SMI program, which will use `make` internally:
 
-        make
+        cmake --build build --parallel
 
     If this also worked fine, an executable was created, which has to be moved or copied to the Git source directory.
 
-6. Execute the file:
+5. Execute the file:
 
-        cd ..
-        cp build/smi .
+        cp build/app/smi .
 
     On Windows the executable is called `smi.exe` instead of `smi`. In that case
-    instead of `cp build/smi .` execute
+    instead of `cp build/app/smi .` execute
 
-        cp build/smi.exe .
+        cp build/app/smi.exe .
 
     Now you might execute smi:
 
         ./smi
+
+6. Installation:
+
+    In order to install the compiled `smi` program to access it systemwide, you can run the following:
+
+        cmake --install build --prefix <your/install/prefix>
+
+    `<your/install/prefix>` needs to be replaced with a location on you computer. For example:
+
+        - within a conda-environment: `$CONDA_PREFIX`
+        - local installation for current user: `~/.local`
 
 *Note concerning the development of the cmake setup: one could automatically
  link the executable with the `cmake` code inside the Git source directory
@@ -196,40 +172,21 @@ or change the variable `CMAKE_NETCDF_DIR` to the path to the `nf-config` file wi
 - *The directory where smi is executed usually is not the source directory but the directory where you want to run
    your tests. In case of the test setup it is the same, usually it is not.*
 
-## Building Realease or Debug versions:
+## Building Realease or Debug versions
 
 If you want to set up specific versions of the build, you can
 create different folders for that. Assume a release and a debug
 version. Then a good idea would be to create one folder named
- `debug` and one folder named `release`
+`debug` and one folder named `release`
 
-    mkdir release
+    cmake -DCMAKE_BUILD_TYPE=Release -B release -S .
 
-    mkdir debug
-
-inside the `release` folder one would execute
-
-    cmake -DCMAKE_BUILD_TYPE=Release ..
-
-and inside the `debug` folder
-
-    cmake -DCMAKE_BUILD_TYPE=Debug ..
+    cmake -DCMAKE_BUILD_TYPE=Debug -B debug -S .
 
 Executing
 
-    make
+    cmake --build release --parallel
 
-in the corresponding folder would then always result in a release build or respectively in a debug build.
+    cmake --build debug --parallel
 
-## Trouble shooting:
-
-On brew/homebrew setup MacOS systems there is no working `nf-config` by now. Execute:
-
-    nf-config --all
-
-and if it says something like "is not implemented yet" the issue is not solved yet. But it is on my tracklist.
-
-In any other case feel free to write an email to <mailto:maren.kaluza@ufz.de>.
-
-**cmake** is far from being my main task, so it will probably take a while until I can track a problem.
-I would be happy having bug reports, anyhow.
+would then always result in a release build and a debug build in the respective folder.

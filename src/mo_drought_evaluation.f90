@@ -1,3 +1,7 @@
+!> \file mo_drought_evaluation.f90
+!> \copydoc mo_drought_evaluation
+
+!> \brief drought evaluation for SMI
 MODULE mo_drought_evaluation
 
   USE mo_kind,   only : i4, sp, dp
@@ -17,14 +21,11 @@ CONTAINS
 
   ! ------------------------------------------------------------------
 
-
-!*********************************************************************
-!  PURPOSE: Find drought clusters and statistics
-!           1) truncate SMIp < SMI_th
-!
-!  Luis Samaniego, created  28.02.2011
-!                  updated  05.10.2011
-!*********************************************************************
+!> \brief Find drought clusters and statistics
+!!        1) truncate SMIp < SMI_th
+!> \author Luis Samaniego
+!> \date 28.02.2011
+!> \date 05.10.2011
 subroutine droughtIndicator( SMI, mask, SMI_thld, cellCoor , SMIc)
 
   use mo_constants,     only : nodata_sp, nodata_i4
@@ -84,12 +85,8 @@ subroutine droughtIndicator( SMI, mask, SMI_thld, cellCoor , SMIc)
   !
 end subroutine droughtIndicator
 
-!**********************************************************************
-!  PROGRAM: dCluster
-!
-!  PURPOSE:  cluster drought clusters in space and time
-!  DATE:     developed in Budapest, 10-11.03.2011
-!**********************************************************************
+!> \brief cluster drought clusters in space and time
+!> \date developed in Budapest, 10-11.03.2011
 subroutine ClusterEvolution( SMIc, nrows, ncols, nMonths, nCells, cellCoor, nCellInter, thCellClus)
 
   use mo_orderpack,     only : sort
@@ -215,9 +212,7 @@ subroutine ClusterEvolution( SMIc, nrows, ncols, nMonths, nCells, cellCoor, nCel
   deallocate(vec, nC, cnoList, cno )
 end subroutine ClusterEvolution
 
-!-------------------------------------------------------
-! SVAT statistics
-!-------------------------------------------------------
+!> \brief SVAT statistics
 subroutine ClusterStats( SMI, mask, nrows, ncols, nMonths, nCells, SMI_thld )
 
   !  use numerical_libraries, only                       : SVIGN , DSVRGN, DEQTIL
@@ -349,9 +344,7 @@ subroutine ClusterStats( SMI, mask, nrows, ncols, nMonths, nCells, SMI_thld )
      deallocate ( counterA, aDDG, mSev )
 end subroutine ClusterStats
 
-!-------------------------------------------------------
-! SAD analysis
-!-------------------------------------------------------
+!> \brief SAD analysis
 subroutine calSAD(SMI, mask, iDur, nrows, ncols, nMonths, nCells, deltaArea, cellsize)
 
   ! use numerical_libraries, only                        : DSVRGN, DEQTIL, SVIGP
@@ -497,10 +490,8 @@ subroutine calSAD(SMI, mask, iDur, nrows, ncols, nMonths, nCells, deltaArea, cel
   if ( allocated(sevP) ) deallocate ( sevP )
 end subroutine calSAD
 
-!-------------------------------------------------------
-! clustering in space
-! assign a unique running number at time t
-!-------------------------------------------------------
+!> \brief clustering in space
+!> \details assign a unique running number at time t
 subroutine findClusters (cellCoor, thCellClus, t,iC,nCluster, nrows, ncols, nCells, SMIc)
 
   use mo_constants,     only : nodata_i4

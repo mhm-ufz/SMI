@@ -1,10 +1,13 @@
-!**********************************************************************
-!  MODULE InputOutput                                                 *
-!  PURPOSE     Input / output subroutines                             *
-!  CREATED     Luis Samaniego, 09.02.2011                             *
-!  MODIFIED    Stephan Thober, 07.11.2017 - switched to mo_netcdf     *
-!                                           added invert_SMI          *
-!**********************************************************************
+!> \file mo_read.f90
+!> \copydoc mo_read
+
+!> \brief Reading routines for SMI
+!> \author Luis Samaniego
+!> \date 09.02.2011
+!> \author Stephan Thober
+!> \date 07.11.2017
+!!       - switched to mo_netcdf
+!        - added invert_SMI
 MODULE mo_read
 
   USE mo_kind,   only : i4, sp, dp
@@ -22,13 +25,10 @@ CONTAINS
   ! ------------------------------------------------------------------
 
 
-  !*********************************************************************
-  !    SUBROUTINE Read Database
-  !    PURPOSE    Reads main file
-  !    AUTHOR:    Luis E. Samaniego-Eguiguren, UFZ 23.05.2007
-  !    NOTES:
-  !               packed fields are stored in dim1->dim2 sequence
-  !*********************************************************************
+  !> \brief Reads main file
+  !> \author Luis E. Samaniego-Eguiguren, UFZ
+  !> \date 23.05.2007
+  !> \note packed fields are stored in dim1->dim2 sequence
   subroutine ReadDataMain( SMI_in, do_cluster, ext_smi, invert_SMI, read_opt_h, silverman_h, opt_h, lats_1d, lons_1d,&
                            lats_2d, lons_2d,easting, northing, basin_flag, mask, SM_kde,  SM_eval,  &
                            Basin_Id, SMI_thld, outpath, cellsize, thCellClus, nCellInter, do_sad, deltaArea, &
@@ -359,24 +359,14 @@ CONTAINS
   end subroutine ReadDataMain
 
 
-  !
-  !     PORPOSE
-  !         Convert input time into months & check timesteps & determine mask for months
-
-  !     CALLING SEQUENCE
-  !         call get_time(fName, vname, timevector, maskvector)
-
-  !     RESTRICTIONS
-  !         None
-
-  !     LITERATURE
-  !         None
-
-  !     HISTORY
-  !         Written,  Matthias Zink, Oct 2012
-  !         Modified, Stephan Thober, Nov 2017 - convert to mo_netcdf
-  !         Modified, Stephan Thober, Aug 2019 - added type period
-
+  !> \brief Convert input time into months & check timesteps & determine mask for months
+  !> \author Matthias Zink, Oct 2012
+  !> \author Stephan Thober
+  !> \date Nov 2017
+  !!       - convert to mo_netcdf
+  !> \author Stephan Thober
+  !> \date Aug 2019
+  !!       - added type period
   subroutine get_time(nc_in, in_time_steps, per_out) !, mask)
     !
     use mo_julian,           only: date2dec, dec2date

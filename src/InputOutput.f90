@@ -1,9 +1,9 @@
-!**********************************************************************
-!  MODULE InputOutput                                                 *
-!  PURPOSE     Input / output subroutines                             *
-!  CREATED     Luis Samaniego, 09.02.2011                             *
-!                                                                     *
-!**********************************************************************
+!> \file InputOutput.f90
+!> \copydoc inputoutput
+
+!> \brief Input / output subroutines for SMI
+!> \author Luis Samaniego
+!> \date 09.02.2011
 module InputOutput
 
   use mo_kind, only: i4, sp, dp
@@ -46,12 +46,11 @@ module InputOutput
 
 contains
 
-  ! ##################################################################
-  ! subroutine for writting the SMI to nc file
-  ! author: Stephan Thober
-  ! created: 5.7.2014
-  ! updated: refactored to new period structure and leap day handling - 9.8.2019
-  ! ##################################################################
+  !> \brief for writting the SMI to nc file
+  !> \author Stephan Thober
+  !> \date 5.7.2014
+  !> \date 9.8.2019
+  !!       - refactored to new period structure and leap day handling
   subroutine WriteSMI( outpath, SMI, mask, per, lats_1d, lons_1d, lats_2d, lons_2d, easting, northing)
 
     use mo_kind,          only: i4, sp
@@ -175,11 +174,9 @@ contains
 
   end subroutine WriteSMI
 
-  ! ##################################################################
-  ! subroutine for writting the CDF information (that is the kernel and associated soil moisture values) to nc file
-  ! author: Stephan Thober
-  ! created: 8.8.2019
-  ! ##################################################################
+  !> \brief for writting the CDF information (that is the kernel and associated soil moisture values) to nc file
+  !> \author Stephan Thober
+  !> \date 8.8.2019
   subroutine WriteCDF( outpath, SM, hh, mask, per, nCalendarStepsYear, lats_1d, lons_1d, lats_2d, lons_2d, easting, northing)
 
     use mo_kind,          only: i4, sp
@@ -326,16 +323,11 @@ contains
 
   end subroutine WriteCDF
 
-  !*************************************************************************
-  !    PURPOSE    WRITE netCDF files
-  !    FORMAT     netCDF
-  !               http://www.unidata.ucar.edu/software/netcdf/
-  !
-  !    AUTHOR:    Luis E. Samaniego-Eguiguren, UFZ
-  !    UPDATES
-  !               Created        Sa   16.02.2011
-  !               Last Update    Sa   16.02.2011
-  !**************************************************************************
+  !> \brief WRITE netCDF files
+  !!        FORMAT     netCDF
+  !!        http://www.unidata.ucar.edu/software/netcdf/
+  !> \author Luis E. Samaniego-Eguiguren, UFZ
+  !> \date 16.02.2011
   subroutine WriteNetCDF(outpath, wFlag, per, lats_1d, lons_1d, lats_2d, lons_2d, easting, northing, &
         SMIc, SM_invert, duration)
     !
@@ -524,14 +516,9 @@ contains
     call nc_out%close()
   end subroutine WriteNetCDF
 
-!**********************************************************************
-!    PURPOSE    WRITE Results of the cluster analysis
-!
-!    AUTHOR:    Luis E. Samaniego-Eguiguren, UFZ
-!    UPDATES
-!               Created        Sa   17.03.2011
-!               Last Update    Sa
-!**********************************************************************
+!> \brief WRITE Results of the cluster analysis
+!> \author Luis E. Samaniego-Eguiguren, UFZ
+!> \date 17.03.2011
 subroutine WriteResultsCluster(SMIc, outpath, wFlag, yStart, yEnd, nMonths, nCells, &
      deltaArea, cellsize, d)
 
@@ -684,14 +671,9 @@ subroutine WriteResultsCluster(SMIc, outpath, wFlag, yStart, yEnd, nMonths, nCel
 end subroutine WriteResultsCluster
 
 
-!**********************************************************************
-!    PURPOSE    WRITE Results of the cluster SMI basins
-!
-!    AUTHOR:    Luis E. Samaniego-Eguiguren, UFZ
-!    UPDATES
-!               Created        Sa   24.05.2011
-!               Last Update    Sa
-!**********************************************************************
+!> \brief WRITE Results of the cluster SMI basins
+!> \author Luis E. Samaniego-Eguiguren, UFZ
+!> \date 24.05.2011
 subroutine WriteResultsBasins( outpath, SMI, mask, yStart, yEnd, nMonths, Basin_Id )
 
   use mo_kind,          only : i4

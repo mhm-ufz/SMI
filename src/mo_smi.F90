@@ -1,11 +1,19 @@
-!**********************************************************************
-!  SOIL MOISTURE INDEX                                                *
-!  PURPOSE     Estimate SMI based on monthly values of SM_mHM         *
-!  CREATED     Luis Samaniego, 15.02.2011                             *
-!  HISTORY     Stephan Thober, 16.12.2014 - added evalSMI capability  *
-!              Stephan Thober, 07.11.2017 - added inversion of CDFs   *
-!              Stephan Thober, 02.08.2019 - added non-full year       *
-!**********************************************************************
+!> \file mo_smi.f90
+!> \copydoc mo_smi
+
+!> \brief   SOIL MOISTURE INDEX
+!> \detials Estimate SMI based on monthly values of SM_mHM
+!> \author  Luis Samaniego
+!> \date    Feb 2011
+!> \author  Stephan Thober
+!> \date    16.12.2014
+!!          - added evalSMI capability
+!> \author  Stephan Thober
+!> \date    07.11.2017
+!!          - added inversion of CDFs
+!> \author  Stephan Thober
+!> \date    02.08.2019
+!!          - added non-full year
 module mo_smi
   !
   use mo_global_variables, only: period
@@ -23,7 +31,7 @@ module mo_smi
 
 contains
 
-  ! subroutine for estimating SMI for first array
+  !> \brief subroutine for estimating SMI for first array
   subroutine optimize_width( opt_h, silverman_h, SM, nCalendarStepsYear, per_kde)
     use omp_lib
     use mo_kind,          only : i4, sp
@@ -76,7 +84,7 @@ contains
   !!======================================================
   !! ESTIMATE SMI
   !!======================================================
-  !! subroutine for calculating SMI for second array with pdf of first one
+  !> \brief subroutine for calculating SMI for second array with pdf of first one
   subroutine calSMI( hh, sm_kde, sm_eval, nCalendarStepsYear, SMI, per_kde, per_eval)
 
     use mo_kind,          only: i4, sp, dp
@@ -201,8 +209,8 @@ contains
 
   end subroutine cellSMI
 
-  ! create objective function of kernel_cumdensity and minimize it using
-  ! nelmin because function is monotone
+  !> \brief create objective function of kernel_cumdensity and minimize it using
+  !!        nelmin because function is monotone
   subroutine invSMI(sm_kde, hh, SMI_invert, nCalendarStepsYear, per_kde, per_smi, SM_invert)
 
     use mo_kind,          only: i4, sp, dp
