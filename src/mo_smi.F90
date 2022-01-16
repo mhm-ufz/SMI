@@ -16,7 +16,7 @@
 !!          - added non-full year
 module mo_smi
   !
-  use mo_global_variables, only: period
+  use mo_smi_global_variables, only: period
   use mo_kind,          only: dp
   !
   implicit none
@@ -324,7 +324,7 @@ contains
   subroutine get_time_indizes(time, per, nCalendarStepsYear)
 
     use mo_kind,             only: i4, dp
-    use mo_global_variables, only: period
+    use mo_smi_global_variables, only: period
     use mo_julian,           only: dec2date, date2dec
 
     implicit none

@@ -1,8 +1,8 @@
-!> \file mo_drought_evaluation.f90
-!> \copydoc mo_drought_evaluation
+!> \file mo_smi_drought_evaluation.f90
+!> \copydoc mo_smi_drought_evaluation
 
 !> \brief drought evaluation for SMI
-MODULE mo_drought_evaluation
+MODULE mo_smi_drought_evaluation
 
   USE mo_kind,   only : i4, sp, dp
 
@@ -91,7 +91,7 @@ subroutine ClusterEvolution( SMIc, nrows, ncols, nMonths, nCells, cellCoor, nCel
 
   use mo_orderpack,     only : sort
   use mo_constants,     only : nodata_i4
-  use InputOutput,      only : idCluster, &
+  use mo_smi_io,      only : idCluster, &
                                shortCnoList, &
                                nClusters
 
@@ -219,7 +219,7 @@ subroutine ClusterStats( SMI, mask, nrows, ncols, nMonths, nCells, SMI_thld )
   use mo_orderpack,     only : sort_index
 
   use mo_constants,     only: nodata_sp
-  use InputOutput,      only: aDA, aDD, TDM, DTMagEvol, DAreaEvol,     &
+  use mo_smi_io,      only: aDA, aDD, TDM, DTMagEvol, DAreaEvol,     &
                               nClusters, idCluster, shortCnoList, &
                               dASevol, nBasins, nEvents, eIdPerm, eventId
 
@@ -352,7 +352,7 @@ subroutine calSAD(SMI, mask, iDur, nrows, ncols, nMonths, nCells, deltaArea, cel
   use mo_percentile,    only : percentile
   use mo_constants,     only : nodata_dp
 
-  use InputOutput, only                                : shortCnoList, &
+  use mo_smi_io, only                                : shortCnoList, &
                                                          nInterArea, nEvents, nClusters,  idCluster, &
                                                          SAD, SADperc, DAreaEvol, severity, nDsteps, &
                                                          durList, eventId, eIdPerm, &
@@ -598,4 +598,4 @@ subroutine findClusters (cellCoor, thCellClus, t,iC,nCluster, nrows, ncols, nCel
   nCluster = nClusterR
 end subroutine findClusters
 
-END MODULE mo_drought_evaluation
+END MODULE mo_smi_drought_evaluation

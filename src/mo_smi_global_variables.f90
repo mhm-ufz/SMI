@@ -1,8 +1,8 @@
-!> \file mo_global_variables.f90
-!> \copydoc mo_global_variables
+!> \file mo_smi_global_variables.f90
+!> \copydoc mo_smi_global_variables
 
 !> \brief Global variables for SMI
-module mo_global_variables
+module mo_smi_global_variables
   !
   use mo_kind, only: i4, dp
 
@@ -65,4 +65,4 @@ contains
 
   end function period_init
 
-end module mo_global_variables
+end module mo_smi_global_variables

@@ -1,13 +1,13 @@
-!> \file InputOutput.f90
-!> \copydoc inputoutput
+!> \file mo_smi_io.f90
+!> \copydoc mo_smi_io
 
 !> \brief Input / output subroutines for SMI
 !> \author Luis Samaniego
 !> \date 09.02.2011
-module InputOutput
+module mo_smi_io
 
   use mo_kind, only: i4, sp, dp
-  use mo_global_variables, only: period
+  use mo_smi_global_variables, only: period
 
   implicit none
 
@@ -751,4 +751,4 @@ subroutine WriteResultsBasins( outpath, SMI, mask, yStart, yEnd, nMonths, Basin_
 
 end subroutine WriteResultsBasins
 
-end module InputOutput
+end module mo_smi_io

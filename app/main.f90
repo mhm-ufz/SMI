@@ -45,15 +45,15 @@ program SM_Drought_Index
 
   use mo_kind,               only : i4, sp, dp
   use mo_message,            only : message
-  use InputOutput,           only : WriteNetCDF, &
+  use mo_smi_io,           only : WriteNetCDF, &
                                     nDurations, durList, nClusters, &
                                     writeResultsCluster, WriteResultsBasins, &
                                     WriteSMI, WriteCDF
-  use mo_read,               only : ReadDataMain
+  use mo_smi_read,               only : ReadDataMain
   use mo_smi,                only : optimize_width, calSMI, invSMI
-  use mo_drought_evaluation, only : droughtIndicator, ClusterEvolution, ClusterStats, calSAD
+  use mo_smi_drought_evaluation, only : droughtIndicator, ClusterEvolution, ClusterStats, calSAD
   use mo_constants,          only : nodata_sp
-  use mo_global_variables,   only : period
+  use mo_smi_global_variables,   only : period
   use mo_smi_cli,            only : parse_command_line
   !$ use omp_lib, ONLY : OMP_GET_NUM_THREADS           ! OpenMP routines
 

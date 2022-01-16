@@ -1,5 +1,5 @@
-!> \file mo_read.f90
-!> \copydoc mo_read
+!> \file mo_smi_read.f90
+!> \copydoc mo_smi_read
 
 !> \brief Reading routines for SMI
 !> \author Luis Samaniego
@@ -8,7 +8,7 @@
 !> \date 07.11.2017
 !!       - switched to mo_netcdf
 !        - added invert_SMI
-MODULE mo_read
+MODULE mo_smi_read
 
   USE mo_kind,   only : i4, sp, dp
 
@@ -39,7 +39,7 @@ CONTAINS
     use mo_utils,            only: notequal, equal
     use mo_netcdf,           only: NcDataset, NcVariable
     use mo_constants,        only: nodata_dp
-    use mo_global_variables, only: period
+    use mo_smi_global_variables, only: period
     use mo_smi_info,         only: version, version_date, file_namelist
     use mo_os,               only: path_isfile
 
@@ -374,7 +374,7 @@ CONTAINS
     use mo_string_utils,     only: DIVIDE_STRING
     use mo_netcdf,           only: NcDataset, NcVariable
     use mo_constants,        only: YearMonths, DayHours
-    use mo_global_variables, only: period, period_init
+    use mo_smi_global_variables, only: period, period_init
 
     implicit none
 
@@ -530,4 +530,4 @@ CONTAINS
 
   end subroutine read_latlon
 
-end module mo_read
+end module mo_smi_read
