@@ -340,7 +340,7 @@ pages:
     - mkdir public/stable/
     - mkdir public/latest/
     # copy the doxygen generated html page to the public site
-    - cp html_mas/* public/stable/ -R
+    - cp html_tag/* public/stable/ -R
     - cp html_dev/* public/latest/ -R
     # create an index.html that redirects to the master documentation (in master folder)
     - cp doc/html_files/index.html public/
