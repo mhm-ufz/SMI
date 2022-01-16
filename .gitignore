@@ -4,6 +4,9 @@
 fortran_env/
 html/
 latex/
+build/
+debug/
+release/
 doxygen_warn.txt
 Testing/
 src/tests/*.F90
@@ -629,3 +632,6 @@ Makefile
 *nc
 *def
 smi
+smi_debug
+smi_openmp
+smi_openmp_debug
