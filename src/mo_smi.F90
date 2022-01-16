@@ -33,7 +33,7 @@ contains
 
   !> \brief subroutine for estimating SMI for first array
   subroutine optimize_width( opt_h, silverman_h, SM, nCalendarStepsYear, per_kde)
-    use omp_lib
+    !$ use omp_lib
     use mo_kind,          only : i4, sp
     use mo_kernel,        only : kernel_density_h
     implicit none
