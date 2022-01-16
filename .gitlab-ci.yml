@@ -63,12 +63,13 @@ documentation_stable:
     GIT_DEPTH: 0
     GIT_FETCH_EXTRA_FLAGS: --all --prune --quiet
   script:
+    # doc for latest version tag
+    - ml git-lfs
     - git checkout $(git describe --match "v*" --abbrev=0 --tags $(git rev-list --tags --max-count=1))
     - if [ ! -d "doc" ]; then git checkout $CI_COMMIT_REF_NAME; fi
     - source hpc-module-loads/eve.chs-conda01
     - module load GCCcore/9.3.0 texlive/2020
     # use doxygen from the chs conda environment
-    # doc for latest version tag
     - doxygen doc/doxygen.config > doxygen_log_tag.txt
     - cd latex/ && make > ../doxygen_latex_tag.txt
     - cp refman.pdf ../html/smi_doc.pdf
