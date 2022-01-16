@@ -331,6 +331,7 @@ pages:
   stage: deploy
   dependencies:
     - documentation
+    - documentation_stable
     - coverage
   script:
     # create public dir (remove if already present)
