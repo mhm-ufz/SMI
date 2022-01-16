@@ -105,9 +105,9 @@ module system, though, adds system paths in the backround the user should not ca
 the setup is a workaround. (This would be the case with any other building tool aswell.)
 It should be stable, anyway.
 
-In case you want to have a module-independend build, instead of just executing `cmake ..`, either run
+In case you want to have a module-independend build, instead of just executing `cmake`, either run
 
-    cmake -DCMAKE_BUILD_MODULE_SYSTEM_INDEPENDEND:STRING=ON ..
+    cmake -DCMAKE_BUILD_MODULE_SYSTEM_INDEPENDEND:STRING=ON
 
 or change the variable `CMAKE_BUILD_MODULE_SYSTEM_INDEPENDEND` with `ccmake` to `ON` after running `cmake`.
 
@@ -116,14 +116,14 @@ or change the variable `CMAKE_BUILD_MODULE_SYSTEM_INDEPENDEND` with `ccmake` to 
 1. Change to a directory where you want to store the source code.
 2. Clone the corresponding smi repository into a folder using Git (if installed):
 
-        git clone -b cmake git@git.ufz.de:chs/progs/SMI.git smi/
-        cd smi
+        git clone git@git.ufz.de:chs/progs/SMI.git
+        cd SMI
 
 3. Configure the build and generate a system dependent makefile
 
     Execute `cmake` with the path to the build folder (`-B`, folder will be created) and the Git source directory (`-S`) as parameter.
 
-       cmake -B build -S .
+        cmake -B build -S .
 
     If everything worked well a Makefile was created with the corresponding paths.
 
@@ -143,34 +143,20 @@ or change the variable `CMAKE_BUILD_MODULE_SYSTEM_INDEPENDEND` with `ccmake` to 
 
         cp build/app/smi .
 
-    On Windows the executable is called `smi.exe` instead of `smi`. In that case
-    instead of `cp build/app/smi .` execute
-
-        cp build/app/smi.exe .
-
     Now you might execute smi:
 
         ./smi
 
 6. Installation:
 
-    In order to install the compiled `smi` program to access it systemwide, you can run the following:
+    In order to install the compiled `smi` program to access it system-wide, you can run the following:
 
         cmake --install build --prefix <your/install/prefix>
 
     `<your/install/prefix>` needs to be replaced with a location on you computer. For example:
 
-        - within a conda-environment: `$CONDA_PREFIX`
-        - local installation for current user: `~/.local`
-
-*Note concerning the development of the cmake setup: one could automatically
- link the executable with the `cmake` code inside the Git source directory
-  which is not done for two reasons:*
-
-- *The executable depends on your local system, so it should never be commited and pushed to other users.
-    Nothing should be build inside the source directory which we did not do by hand.*
-- *The directory where smi is executed usually is not the source directory but the directory where you want to run
-   your tests. In case of the test setup it is the same, usually it is not.*
+    - within a conda-environment: `$CONDA_PREFIX`
+    - local installation for current user: `~/.local`
 
 ## Building Realease or Debug versions
 
