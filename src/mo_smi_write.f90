@@ -1,12 +1,12 @@
-!> \file mo_smi_io.f90
-!> \copydoc mo_smi_io
+!> \file mo_smi_write.f90
+!> \copydoc mo_smi_write
 
-!> \brief Input / output subroutines for SMI
+!> \brief Writing subroutines for SMI
 !> \author Luis Samaniego
 !> \date 09.02.2011
-module mo_smi_io
+module mo_smi_write
 
-  use mo_kind, only: i4, sp, dp
+  use mo_kind,                 only: i4, sp, dp
   use mo_smi_global_variables, only: period
 
   implicit none
@@ -751,4 +751,4 @@ subroutine WriteResultsBasins( outpath, SMI, mask, yStart, yEnd, nMonths, Basin_
 
 end subroutine WriteResultsBasins
 
-end module mo_smi_io
+end module mo_smi_write

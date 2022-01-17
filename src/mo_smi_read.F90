@@ -34,14 +34,14 @@ CONTAINS
                            Basin_Id, SMI_thld, outpath, cellsize, thCellClus, nCellInter, do_sad, deltaArea, &
                            nCalendarStepsYear, per_kde, per_eval, per_smi )
 
-    use mo_kind,             only: i4
-    use mo_message,          only: message
-    use mo_utils,            only: notequal, equal
-    use mo_netcdf,           only: NcDataset, NcVariable
-    use mo_constants,        only: nodata_dp
+    use mo_kind,                 only: i4
+    use mo_message,              only: message
+    use mo_utils,                only: notequal, equal
+    use mo_netcdf,               only: NcDataset, NcVariable
+    use mo_constants,            only: nodata_dp
     use mo_smi_global_variables, only: period
-    use mo_smi_info,         only: version, version_date, file_namelist
-    use mo_os,               only: path_isfile
+    use mo_smi_info,             only: version, version_date, file_namelist
+    use mo_os,                   only: path_isfile
 
     implicit none
 
@@ -369,11 +369,11 @@ CONTAINS
   !!       - added type period
   subroutine get_time(nc_in, in_time_steps, per_out) !, mask)
     !
-    use mo_julian,           only: date2dec, dec2date
-    use mo_message,          only: message
-    use mo_string_utils,     only: DIVIDE_STRING
-    use mo_netcdf,           only: NcDataset, NcVariable
-    use mo_constants,        only: YearMonths, DayHours
+    use mo_julian,               only: date2dec, dec2date
+    use mo_message,              only: message
+    use mo_string_utils,         only: DIVIDE_STRING
+    use mo_netcdf,               only: NcDataset, NcVariable
+    use mo_constants,            only: YearMonths, DayHours
     use mo_smi_global_variables, only: period, period_init
 
     implicit none
@@ -491,7 +491,7 @@ CONTAINS
 
   subroutine read_latlon(nc_in, lats_1d, lons_1d, lats_2d, lons_2d,easting, northing)
 
-    use mo_kind, only: dp,i4
+    use mo_kind,   only: dp,i4
     use mo_netcdf, only: NcDataset, NcVariable
 
     implicit none

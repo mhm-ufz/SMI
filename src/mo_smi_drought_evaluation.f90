@@ -91,7 +91,7 @@ subroutine ClusterEvolution( SMIc, nrows, ncols, nMonths, nCells, cellCoor, nCel
 
   use mo_orderpack,     only : sort
   use mo_constants,     only : nodata_i4
-  use mo_smi_io,      only : idCluster, &
+  use mo_smi_write,     only : idCluster, &
                                shortCnoList, &
                                nClusters
 
@@ -215,11 +215,9 @@ end subroutine ClusterEvolution
 !> \brief SVAT statistics
 subroutine ClusterStats( SMI, mask, nrows, ncols, nMonths, nCells, SMI_thld )
 
-  !  use numerical_libraries, only                       : SVIGN , DSVRGN, DEQTIL
   use mo_orderpack,     only : sort_index
-
   use mo_constants,     only: nodata_sp
-  use mo_smi_io,      only: aDA, aDD, TDM, DTMagEvol, DAreaEvol,     &
+  use mo_smi_write,     only: aDA, aDD, TDM, DTMagEvol, DAreaEvol,     &
                               nClusters, idCluster, shortCnoList, &
                               dASevol, nBasins, nEvents, eIdPerm, eventId
 
@@ -347,16 +345,14 @@ end subroutine ClusterStats
 !> \brief SAD analysis
 subroutine calSAD(SMI, mask, iDur, nrows, ncols, nMonths, nCells, deltaArea, cellsize)
 
-  ! use numerical_libraries, only                        : DSVRGN, DEQTIL, SVIGP
   use mo_orderpack,     only : sort      !, sort_index
   use mo_percentile,    only : percentile
   use mo_constants,     only : nodata_dp
-
-  use mo_smi_io, only                                : shortCnoList, &
-                                                         nInterArea, nEvents, nClusters,  idCluster, &
-                                                         SAD, SADperc, DAreaEvol, severity, nDsteps, &
-                                                         durList, eventId, eIdPerm, &
-                                                         nLargerEvents, nQProp, QProp
+  use mo_smi_write,     only : shortCnoList, &
+                               nInterArea, nEvents, nClusters,  idCluster, &
+                               SAD, SADperc, DAreaEvol, severity, nDsteps, &
+                               durList, eventId, eIdPerm, &
+                               nLargerEvents, nQProp, QProp
 
   implicit none
 
