@@ -57,7 +57,7 @@ documentation:
 
 documentation_stable:
   only:
-    - master
+    - main
   stage: build
   variables:
     GIT_DEPTH: 0
@@ -327,7 +327,7 @@ coverage:
 
 pages:
   only:
-    - master
+    - main
   stage: deploy
   dependencies:
     - documentation
@@ -343,7 +343,7 @@ pages:
     # copy the doxygen generated html page to the public site
     - cp html_tag/* public/stable/ -R
     - cp html_dev/* public/latest/ -R
-    # create an index.html that redirects to the master documentation (in master folder)
+    # create an index.html that redirects to the main documentation (in stable folder)
     - cp doc/html_files/index.html public/
     # create the coverage site
     - mkdir -p public/coverage
