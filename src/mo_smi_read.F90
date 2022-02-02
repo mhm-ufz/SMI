@@ -1,11 +1,14 @@
-!**********************************************************************
-!  MODULE InputOutput                                                 *
-!  PURPOSE     Input / output subroutines                             *
-!  CREATED     Luis Samaniego, 09.02.2011                             *
-!  MODIFIED    Stephan Thober, 07.11.2017 - switched to mo_netcdf     *
-!                                           added invert_SMI          *
-!**********************************************************************
-MODULE mo_read
+!> \file mo_smi_read.f90
+!> \copydoc mo_smi_read
+
+!> \brief Reading routines for SMI
+!> \author Luis Samaniego
+!> \date 09.02.2011
+!> \author Stephan Thober
+!> \date 07.11.2017
+!!       - switched to mo_netcdf
+!        - added invert_SMI
+MODULE mo_smi_read
 
   USE mo_kind,   only : i4, sp, dp
 
@@ -22,26 +25,23 @@ CONTAINS
   ! ------------------------------------------------------------------
 
 
-  !*********************************************************************
-  !    SUBROUTINE Read Database
-  !    PURPOSE    Reads main file
-  !    AUTHOR:    Luis E. Samaniego-Eguiguren, UFZ 23.05.2007
-  !    NOTES:
-  !               packed fields are stored in dim1->dim2 sequence
-  !*********************************************************************
+  !> \brief Reads main file
+  !> \author Luis E. Samaniego-Eguiguren, UFZ
+  !> \date 23.05.2007
+  !> \note packed fields are stored in dim1->dim2 sequence
   subroutine ReadDataMain( SMI_in, do_cluster, ext_smi, invert_SMI, read_opt_h, silverman_h, opt_h, lats_1d, lons_1d,&
                            lats_2d, lons_2d,easting, northing, basin_flag, mask, SM_kde,  SM_eval,  &
                            Basin_Id, SMI_thld, outpath, cellsize, thCellClus, nCellInter, do_sad, deltaArea, &
                            nCalendarStepsYear, per_kde, per_eval, per_smi )
 
-    use mo_kind,             only: i4
-    use mo_message,          only: message
-    use mo_utils,            only: notequal, equal
-    use mo_netcdf,           only: NcDataset, NcVariable
-    use mo_smi_constants,    only: nodata_dp
-    use mo_global_variables, only: period
-    use mo_smi_info,         only: version, version_date, file_namelist
-    use mo_os,               only: path_isfile
+    use mo_kind,                 only: i4
+    use mo_message,              only: message
+    use mo_utils,                only: notequal, equal
+    use mo_netcdf,               only: NcDataset, NcVariable
+    use mo_constants,            only: nodata_dp
+    use mo_smi_global_variables, only: period
+    use mo_smi_info,             only: version, version_date, file_namelist
+    use mo_os,                   only: path_isfile
 
     implicit none
 
@@ -359,32 +359,22 @@ CONTAINS
   end subroutine ReadDataMain
 
 
-  !
-  !     PORPOSE
-  !         Convert input time into months & check timesteps & determine mask for months
-
-  !     CALLING SEQUENCE
-  !         call get_time(fName, vname, timevector, maskvector)
-
-  !     RESTRICTIONS
-  !         None
-
-  !     LITERATURE
-  !         None
-
-  !     HISTORY
-  !         Written,  Matthias Zink, Oct 2012
-  !         Modified, Stephan Thober, Nov 2017 - convert to mo_netcdf
-  !         Modified, Stephan Thober, Aug 2019 - added type period
-
+  !> \brief Convert input time into months & check timesteps & determine mask for months
+  !> \author Matthias Zink, Oct 2012
+  !> \author Stephan Thober
+  !> \date Nov 2017
+  !!       - convert to mo_netcdf
+  !> \author Stephan Thober
+  !> \date Aug 2019
+  !!       - added type period
   subroutine get_time(nc_in, in_time_steps, per_out) !, mask)
     !
-    use mo_julian,           only: date2dec, dec2date
-    use mo_message,          only: message
-    use mo_string_utils,     only: DIVIDE_STRING
-    use mo_netcdf,           only: NcDataset, NcVariable
-    use mo_smi_constants,    only: YearMonths, DayHours
-    use mo_global_variables, only: period, period_init
+    use mo_julian,               only: date2dec, dec2date
+    use mo_message,              only: message
+    use mo_string_utils,         only: DIVIDE_STRING
+    use mo_netcdf,               only: NcDataset, NcVariable
+    use mo_constants,            only: YearMonths, DayHours
+    use mo_smi_global_variables, only: period, period_init
 
     implicit none
 
@@ -436,15 +426,15 @@ CONTAINS
     do i = 1, nTimeSteps
        select case (strArr(1))
        case('hours')
-          call dec2date(real(timesteps(i), dp)/real(DayHours, dp) + ref_jday, dd=d, mm=month, yy=year)
-          timepoints(i) = timepoints(i) + nint( real(timesteps(i) - timesteps(1), dp) / real(DayHours, dp) , i4)
+          call dec2date(real(timesteps(i), dp)/DayHours + ref_jday, dd=d, mm=month, yy=year)
+          timepoints(i) = timepoints(i) + nint( real(timesteps(i) - timesteps(1), dp) / DayHours , i4)
        case('days')
           call dec2date(real(timesteps(i), dp) + ref_jday, dd=d, mm=month, yy=year)
           timepoints(i) = timepoints(i) + timesteps(i) - timesteps(1)
        case('months')
           d       = dRef ! set to dref as default
-          month   = mod( (timesteps(i) + mRef ), YearMonths )
-          year    = yRef + floor(real( timesteps(i) + mRef, dp) / real(YearMonths, dp) )
+          month   = mod( (timesteps(i) + mRef ), int(YearMonths, i4) )
+          year    = yRef + floor(real( timesteps(i) + mRef, dp) / YearMonths )
           ! correct month and year for december
           if (month .eq. 0 ) then
              month = 12
@@ -501,7 +491,7 @@ CONTAINS
 
   subroutine read_latlon(nc_in, lats_1d, lons_1d, lats_2d, lons_2d,easting, northing)
 
-    use mo_kind, only: dp,i4
+    use mo_kind,   only: dp,i4
     use mo_netcdf, only: NcDataset, NcVariable
 
     implicit none
@@ -540,4 +530,4 @@ CONTAINS
 
   end subroutine read_latlon
 
-end module mo_read
+end module mo_smi_read

@@ -1,4 +1,8 @@
-module mo_global_variables
+!> \file mo_smi_global_variables.f90
+!> \copydoc mo_smi_global_variables
+
+!> \brief Global variables for SMI
+module mo_smi_global_variables
   !
   use mo_kind, only: i4, dp
 
@@ -6,7 +10,7 @@ module mo_global_variables
 
   public
 
-  ! date definition for starting and end dates
+  !> \brief date definition for starting and end dates
   type period
     integer(i4) :: y_start, m_start, d_start
     integer(i4) :: y_end, m_end, d_end
@@ -19,14 +23,14 @@ module mo_global_variables
 
 contains
 
-  ! initialize object date and calculate derived variables from:
-  ! y_start, m_start, d_start, y_end, m_end, d_end
+  !> \brief initialize object date and calculate derived variables from:
+  !!        y_start, m_start, d_start, y_end, m_end, d_end
   type (period) function period_init(y_start, m_start, d_start, y_end, m_end, d_end, time_points, unit)
 
     use mo_julian, only: date2dec, dec2date
-    
+
     implicit none
-    
+
     integer(i4), intent(in) :: y_start, m_start, d_start
     integer(i4), intent(in) :: y_end, m_end, d_end
     integer(i4), intent(in) :: time_points(:)
@@ -42,7 +46,7 @@ contains
     period_init%time_points = time_points
     period_init%unit = trim(unit)
 
-    
+
     period_init%j_start = date2dec(period_init%d_start, period_init%m_start, period_init%y_start)
     period_init%j_end = date2dec(period_init%d_end, period_init%m_end, period_init%y_end)
 
@@ -58,7 +62,7 @@ contains
       call dec2date(real(period_init%j_start + period_init%time_points(ii) - 1, dp), dd=day, mm=month)
       if ((month .eq. 2) .and. (day .eq. 29)) period_init%n_leap_days = period_init%n_leap_days + 1_i4
     end do
-    
+
   end function period_init
-  
-end module mo_global_variables
+
+end module mo_smi_global_variables

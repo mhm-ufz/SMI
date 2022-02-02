@@ -6,16 +6,29 @@
 
 This repository contains the soil moisture index (SMI) Fortran program developed at the Dept. Computational Hydrosystems at the Helmholtz Centre for Environmental Research - UFZ.
 
-The SMI comes with a [LICENSE][1] agreement, this includes also the GNU Lesser General Public License.
+The SMI comes with a LICENSE agreement, this includes also the GNU Lesser General Public License.
 
 **Please note**: The GitLab repository grants read access to the code.
 If you like to contribute to the code, please contact stephan.thober@ufz.de.
 
 ## Installation
 
-Installation instructions can be found in [INSTALL][2** for Windows, MacOS, and GNU/Linux distributions.
+Installation instructions can be found in [INSTALL](doc/INSTALL.md) for Windows, MacOS, and GNU/Linux distributions.
 
 ## Release Notes
+
+**Version 3.0.0**
+
+- SMI now depends on [FORCES](https://git.ufz.de/chs/forces/)
+- cleanup repository
+- added documentation page
+- SMI can now be installed with `cmake` (see [INSTALL](doc/INSTALL.md))
+- a command line interface was implemented to:
+  - select the input namelist file
+  - select the working directory
+  - get help (`smi -h`) and version (`smi -v`) message
+- new check-scripts to run checks in CI
+- coverage calculation
 
 **Version 2.0.5**
 
@@ -63,6 +76,3 @@ Please refer to the main model by citing Samaniego et al. (2013) and Samaniego e
 - Samaniego et al. (2013), "Implications of Parameter Uncertainty on Soil Moisture Drought Analysis in Germany", J Hydrometeor, 2013 vol. 14 (1) pp. 47-68. http://journals.ametsoc.org/doi/abs/10.1175/JHM-D-12-075.1
 
 - Samaniego et al. (2018), "Anthropogenic warming exacerbates European soil moisture droughts", Nature Climate change, 2018 pp. 1-9. http://dx.doi.org/10.1038/s41558-018-0138-5
-
-[1]: LICENSE
-[2]: INSTALL.md

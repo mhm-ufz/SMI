@@ -1,14 +1,22 @@
-!**********************************************************************
-!  SOIL MOISTURE INDEX                                                *
-!  PURPOSE     Estimate SMI based on monthly values of SM_mHM         *
-!  CREATED     Luis Samaniego, 15.02.2011                             *
-!  HISTORY     Stephan Thober, 16.12.2014 - added evalSMI capability  *
-!              Stephan Thober, 07.11.2017 - added inversion of CDFs   *
-!              Stephan Thober, 02.08.2019 - added non-full year       *
-!**********************************************************************
+!> \file mo_smi.f90
+!> \copydoc mo_smi
+
+!> \brief   SOIL MOISTURE INDEX
+!> \details Estimate SMI based on monthly values of SM_mHM
+!> \author  Luis Samaniego
+!> \date    Feb 2011
+!> \author  Stephan Thober
+!> \date    16.12.2014
+!!          - added evalSMI capability
+!> \author  Stephan Thober
+!> \date    07.11.2017
+!!          - added inversion of CDFs
+!> \author  Stephan Thober
+!> \date    02.08.2019
+!!          - added non-full year
 module mo_smi
   !
-  use mo_global_variables, only: period
+  use mo_smi_global_variables, only: period
   use mo_kind,          only: dp
   !
   implicit none
@@ -20,16 +28,16 @@ module mo_smi
 
   private
 
-  
+
 contains
 
-  ! subroutine for estimating SMI for first array
+  !> \brief subroutine for estimating SMI for first array
   subroutine optimize_width( opt_h, silverman_h, SM, nCalendarStepsYear, per_kde)
-    use omp_lib
+    !$ use omp_lib
     use mo_kind,          only : i4, sp
     use mo_kernel,        only : kernel_density_h
     implicit none
-    
+
     ! input variables
     logical,                  intent(in)    :: silverman_h ! optimize kernel width
     real(sp), dimension(:,:), intent(in)    :: SM
@@ -52,12 +60,12 @@ contains
     !$OMP parallel default(shared) &
     !$OMP private(ii,mm,X, t_mask_kde)
     !$OMP do SCHEDULE(STATIC)
-    do mm = 1, nCalendarStepsYear    
+    do mm = 1, nCalendarStepsYear
 
       t_mask_kde = (time_kde .eq. mm)
-      
+
       do ii = 1, size( SM, 1 )
-#ifdef SMIDEBUG      
+#ifdef SMIDEBUG
          if ((mod(ii, 100) .eq. 0_i4) .and. (mm .eq. nCalendarStepsYear)) print *, ii, mm
 #endif
          !
@@ -72,17 +80,17 @@ contains
     !$OMP end do
     !$OMP end parallel
   end subroutine optimize_width
- 
+
   !!======================================================
-  !! ESTIMATE SMI 
+  !! ESTIMATE SMI
   !!======================================================
-  !! subroutine for calculating SMI for second array with pdf of first one
+  !> \brief subroutine for calculating SMI for second array with pdf of first one
   subroutine calSMI( hh, sm_kde, sm_eval, nCalendarStepsYear, SMI, per_kde, per_eval)
-    
+
     use mo_kind,          only: i4, sp, dp
     use mo_kernel,        only: kernel_cumdensity
-    use mo_smi_constants, only: nodata_dp, nodata_sp
-    
+    use mo_constants,     only: nodata_dp, nodata_sp
+
     implicit none
 
     ! input variables
@@ -117,7 +125,7 @@ contains
     print *, 'First 10 values of time_eval:'
     print *, time_eval(:10)
 #endif
-    
+
     do mm = 1,  nCalendarStepsYear   ! time loop
 
       t_mask_kde = (time_kde .eq. mm)
@@ -126,8 +134,8 @@ contains
 #ifdef SMIDEBUG
       print *, 'Processing: timestep, number of eval timesteps, number of kde timesteps'
       print *, mm, n_time, count(t_mask_kde)
-#endif       
-      
+#endif
+
       ! check whether there is data for that timestep to be calculated
       if (n_time .eq. 0_i4) cycle
 
@@ -138,7 +146,7 @@ contains
     if (per_eval%n_leap_days .gt. 0) then
 
       mm = 60 ! take cdf of March first
-      t_mask_kde = (time_kde .eq. mm) 
+      t_mask_kde = (time_kde .eq. mm)
       t_mask_eval = (time_eval .eq. -1_i4)
       n_time = count(t_mask_eval)
 
@@ -149,10 +157,10 @@ contains
 
   subroutine cellSMI(SM_kde, t_mask_kde, SM_eval, t_mask_eval, hh, SMI)
 
-    use mo_kind, only: i4, sp
-    use mo_kernel, only: kernel_cumdensity
-    use mo_smi_constants, only: nodata_sp
-    
+    use mo_kind,      only: i4, sp
+    use mo_kernel,    only: kernel_cumdensity
+    use mo_constants, only: nodata_sp
+
     implicit none
 
     real(sp), intent(in) :: SM_kde(:, :), SM_eval(:, :)
@@ -165,7 +173,7 @@ contains
     real(dp), dimension(:), allocatable   :: X_kde
     real(dp), dimension(:), allocatable   :: X_eval
     real(sp), dimension(:), allocatable   :: dummy_1d_sp
-    
+
 
     !$OMP parallel default(shared) &
     !$OMP private(ii, X_kde, X_eval, cdf, dummy_1d_sp)
@@ -177,18 +185,18 @@ contains
     !$OMP do SCHEDULE(STATIC)
     do ii = 1, size(SM_kde,1)          ! cell loop
 
-#ifdef SMIDEBUG      
+#ifdef SMIDEBUG
       if ((mod(ii, 10000) .eq. 0_i4)) print *, ii
 #endif
-      
+
       X_kde(:)  = pack(real( SM_kde(ii,:), dp), t_mask_kde)
       X_eval(:) = pack(real(SM_eval(ii,:), dp), t_mask_eval)
-        
+
       cdf(:) = kernel_cumdensity(x_kde, hh(ii), xout=x_eval)
-        
+
       dummy_1d_sp = unpack(real(cdf(:), sp), t_mask_eval, nodata_sp)
       SMI(ii, :) = merge(dummy_1d_sp, SMI(ii, :), t_mask_eval)
-      
+
     end do
     !$OMP end do
     !$OMP end parallel
@@ -201,17 +209,17 @@ contains
 
   end subroutine cellSMI
 
-  ! create objective function of kernel_cumdensity and minimize it using
-  ! nelmin because function is monotone
+  !> \brief create objective function of kernel_cumdensity and minimize it using
+  !!        nelmin because function is monotone
   subroutine invSMI(sm_kde, hh, SMI_invert, nCalendarStepsYear, per_kde, per_smi, SM_invert)
 
     use mo_kind,          only: i4, sp, dp
     use mo_message,       only: message
-    use mo_smi_constants, only: nodata_sp, nodata_dp
+    use mo_constants,     only: nodata_sp, nodata_dp
     use mo_kernel,        only: kernel_cumdensity
-    
+
     implicit none
-    
+
     ! input variables
     real(dp), dimension(:,:),              intent(in)  :: hh
     real(sp), dimension(:,:),              intent(in)  :: sm_kde
@@ -268,14 +276,14 @@ contains
       allocate(y_inv(count(t_mask_smi)))
       allocate(x_inv(count(t_mask_smi)))
       allocate(dummy_1d_sp(count(t_mask_smi)))
-      
+
       !$OMP do SCHEDULE(STATIC)
       do ii = 1, n_cells
         if (modulo(ii, 1000) .eq. 0) print *, ii, n_cells
         xx_kde(:) = pack(real(SM_kde( ii, : ), dp), t_mask_kde)
         hh_kde    = hh(ii, mm)
         y_inv(:)  = pack(real(SMI_invert(ii, :), dp), t_mask_smi)
-        
+
         ! sample cdf
         xx_min    = max(0._dp, minval(xx_kde - 10._dp * hh_kde))
         xx_max    = min(1._dp, maxval(xx_kde + 10._dp * hh_kde))
@@ -285,7 +293,7 @@ contains
         end do
         xx_cdf = merge(1._dp, xx_cdf, xx_cdf .gt. 1._dp)
         yy_cdf = kernel_cumdensity(xx_kde, hh_kde, xout=xx_cdf)
-        
+
         do yy = 1, size(y_inv, 1)
           idx_invert = minloc(abs(y_inv(yy) - yy_cdf))
           x_inv(yy) = xx_cdf(idx_invert(1))
@@ -302,23 +310,23 @@ contains
       if (allocated(y_inv))       deallocate(y_inv)
       if (allocated(x_inv))       deallocate(x_inv)
       if (allocated(dummy_1d_sp)) deallocate(dummy_1d_sp)
-      
+
     end do
     call message('  finish inversion of CDF... ok')
     call message('')
 
     ! free memory
     deallocate(xx_cdf, yy_cdf)
-    
+
   end subroutine invSMI
 
-  
+
   subroutine get_time_indizes(time, per, nCalendarStepsYear)
 
     use mo_kind,             only: i4, dp
-    use mo_global_variables, only: period
+    use mo_smi_global_variables, only: period
     use mo_julian,           only: dec2date, date2dec
-    
+
     implicit none
 
     integer(i4),              intent(in)  :: nCalendarStepsYear
@@ -329,7 +337,7 @@ contains
     ! remove leap days
     allocate(time(size(per%time_points, dim=1)))
     time(:) = 0_i4
-    
+
     if (nCalendarStepsYear .eq. 12_i4) then
       start = per%m_start
     else
@@ -351,7 +359,7 @@ contains
       jj = jj + 1_i4
       if (jj .gt. nCalendarStepsYear) jj = 1_i4
     end do
-    
+
   end subroutine get_time_indizes
-  
+
 end module mo_smi
