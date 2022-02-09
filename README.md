@@ -1,4 +1,4 @@
-# The Soil Moisture Index - SMI program
+# The Soil Moisture Index program - SMI
 
 <div align="center">
 <img src="https://git.ufz.de/chs/logos/-/raw/master/SMI.png" alt="LOGO" width="251px" style="width:251px;"/>
