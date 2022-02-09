@@ -310,11 +310,13 @@ check-intel2020b:
 coverage:
   when: always
   stage: code-analysis
+  needs: []
   script:
     # gcov is part of GCC
     - source hpc-module-loads/eve.chs-conda01
     # run cmake with coverage support
-    - cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_WITH_COVERAGE=ON -B build -S .
+    - cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_WITH_COVERAGE=ON -B build
+    - cmake --build build --parallel
     # run all check-case for coverage calculation
     - cd build && make smi_coverage_CI
     # copy the output to a top-level folder
