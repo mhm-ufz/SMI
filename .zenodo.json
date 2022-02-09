@@ -1,0 +1,67 @@
+{
+  "license": "LGPL-3.0+",
+  "language": "eng",
+  "title": "The Soil Moisture Index program - SMI",
+  "related_identifiers": [
+      {
+          "scheme": "doi",
+          "identifier": "10.5281/zenodo.5801249",
+          "relation": "isReferencedBy",
+          "resource_type": "dataset"
+      }
+  ],
+  "keywords": [
+      "soil moisture",
+      "kernel density estimator"
+  ],
+  "creators": [
+      {
+          "orcid": "0000-0002-8449-4428",
+          "affiliation": "Helmholtz Centre for Environmental Research UFZ",
+          "name": "Samaniego, Luis"
+      },
+      {
+          "orcid": "0000-0002-4396-2037",
+          "affiliation": "Helmholtz Centre for Environmental Research UFZ",
+          "name": "Kumar, Rohini"
+      },
+      {
+          "orcid": "0000-0003-4085-7626",
+          "affiliation": "European Centre for Medium Range Weather Forecasts",
+          "name": "Zink, Matthias"
+      },
+      {
+          "orcid": "0000-0002-1132-2342",
+          "affiliation": "University of Waterloo",
+          "name": "Mai, Juliane"
+      },
+      {
+          "orcid": "0000-0003-1781-0256",
+          "affiliation": "Helmholtz Centre for Environmental Research UFZ",
+          "name": "Boeing, Friedrich"
+      },
+      {
+          "orcid": "0000-0001-5529-7460",
+          "affiliation": "Helmholtz Centre for Environmental Research UFZ",
+          "name": "Shrestha, Pallav-Kumar"
+      },
+      {
+          "affiliation": "Helmholtz Centre for Environmental Research UFZ",
+          "name": "Kaluza, Maren"
+      },
+      {
+          "affiliation": "Helmholtz Centre for Environmental Research UFZ",
+          "name": "Sch\u00e4fer, David"
+      },
+      {
+          "orcid": "0000-0001-9060-4008",
+          "affiliation": "Helmholtz Centre for Environmental Research UFZ",
+          "name": "M\u00fcller, Sebastian"
+      },
+      {
+          "orcid": "0000-0003-3939-1523",
+          "affiliation": "Helmholtz Centre for Environmental Research UFZ",
+          "name": "Thober, Stephan"
+      }
+  ]
+}
